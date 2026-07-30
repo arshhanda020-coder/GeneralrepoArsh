@@ -2,23 +2,46 @@
 //  ContentView.swift
 //  ArshHabitTracker
 //
-//  Created by Amandeep Kaur on 7/28/26.
-//
 
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationStack {
+            MindMapHomeView()
+                .navigationDestination(for: MindMapSection.self) { section in
+                    destination(for: section)
+                }
         }
-        .padding()
+        .tint(Color(hex: "5B8CFF"))
+    }
+
+    @ViewBuilder
+    private func destination(for section: MindMapSection) -> some View {
+        switch section {
+        case .today: TodayView()
+        case .skills: SkillsView()
+        case .projects: ProjectsView()
+        case .news: NewsView()
+        case .copilot: CopilotView()
+        case .stats: StatsView()
+        case .emails: EmailsView()
+        case .aiIntegration: AIIntegrationView()
+        case .github: GitHubView()
+        }
     }
 }
 
 #Preview {
     ContentView()
+        .modelContainer(
+            for: [
+                Habit.self, Completion.self,
+                Skill.self, SkillSession.self,
+                Project.self, ProjectTask.self,
+                NewsItem.self, ChatMessage.self,
+            ],
+            inMemory: true
+        )
 }

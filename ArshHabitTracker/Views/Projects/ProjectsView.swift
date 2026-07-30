@@ -1,0 +1,66 @@
+//
+//  ProjectsView.swift
+//  ArshHabitTracker
+//
+
+import SwiftUI
+import SwiftData
+
+struct ProjectsView: View {
+    @Query(sort: \Project.createdAt) private var projects: [Project]
+
+    @State private var showingAddProject = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                groupedList
+
+                if projects.isEmpty {
+                    Text("No projects yet. Tap + to add one.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.dimText)
+                }
+            }
+            .padding(12)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Projects")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingAddProject = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .sheet(isPresented: $showingAddProject) {
+            AddEditProjectView(project: nil)
+        }
+    }
+
+    private var groupedList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(projects.enumerated()), id: \.element.id) { index, project in
+                if index > 0 {
+                    Divider().overlay(Theme.cardBorder)
+                }
+                NavigationLink(destination: ProjectDetailView(project: project)) {
+                    ProjectRowView(project: project)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
+    }
+}
+
+#Preview {
+    NavigationStack {
+        ProjectsView()
+    }
+    .modelContainer(for: [Project.self, ProjectTask.self], inMemory: true)
+}
