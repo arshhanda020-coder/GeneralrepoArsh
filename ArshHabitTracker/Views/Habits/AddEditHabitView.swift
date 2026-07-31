@@ -8,6 +8,9 @@ import SwiftData
 
 struct AddEditHabitView: View {
     let habit: Habit?
+    /// When set (Food/Workout tabs), the category picker is hidden and every
+    /// label speaks in that tab's own noun ("Meal"/"Workout") instead of "Habit".
+    var lockedCategory: HabitCategory?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -16,6 +19,14 @@ struct AddEditHabitView: View {
     @State private var emoji = "⭐️"
     @State private var colorHex = HabitCategory.newHabits.accentHex
     @State private var category: HabitCategory = .newHabits
+
+    private var noun: String {
+        switch lockedCategory {
+        case .meals: return "Meal"
+        case .workouts: return "Workout"
+        default: return "Habit"
+        }
+    }
     @State private var scheduledDays: Set<Int> = []
     @State private var remindersOn = false
     @State private var reminderTime = Calendar.current.date(bySettingHour: 8, minute: 0, second: 0, of: .now) ?? .now
@@ -27,7 +38,7 @@ struct AddEditHabitView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Habit") {
+                Section(noun) {
                     TextField("Name", text: $name)
                     Picker("Emoji", selection: $emoji) {
                         ForEach(emojiOptions, id: \.self) { option in
@@ -38,14 +49,16 @@ struct AddEditHabitView: View {
                     colorPicker
                 }
 
-                Section("Category") {
-                    Picker("Category", selection: $category) {
-                        ForEach(HabitCategory.allCases) { cat in
-                            Text("\(cat.emoji) \(cat.displayName)").tag(cat)
+                if lockedCategory == nil {
+                    Section("Category") {
+                        Picker("Category", selection: $category) {
+                            ForEach(HabitCategory.allCases) { cat in
+                                Text("\(cat.emoji) \(cat.displayName)").tag(cat)
+                            }
                         }
-                    }
-                    .onChange(of: category) { _, newValue in
-                        if habit == nil { colorHex = newValue.accentHex }
+                        .onChange(of: category) { _, newValue in
+                            if habit == nil { colorHex = newValue.accentHex }
+                        }
                     }
                 }
 
@@ -65,11 +78,11 @@ struct AddEditHabitView: View {
 
                 if habit != nil {
                     Section {
-                        Button("Delete habit", role: .destructive) { deleteHabit() }
+                        Button("Delete \(noun.lowercased())", role: .destructive) { deleteHabit() }
                     }
                 }
             }
-            .navigationTitle(habit == nil ? "New Habit" : "Edit Habit")
+            .navigationTitle(habit == nil ? "New \(noun)" : "Edit \(noun)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -121,6 +134,7 @@ struct AddEditHabitView: View {
 
     private func populateIfEditing() {
         guard let habit else {
+            if let lockedCategory { category = lockedCategory }
             colorHex = category.accentHex
             return
         }

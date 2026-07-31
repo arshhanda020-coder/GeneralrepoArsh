@@ -61,10 +61,10 @@ struct FoodView: View {
             }
         }
         .sheet(isPresented: $showingAddHabit) {
-            AddEditHabitView(habit: nil)
+            AddEditHabitView(habit: nil, lockedCategory: .meals)
         }
         .sheet(item: $editingHabit) { habit in
-            AddEditHabitView(habit: habit)
+            AddEditHabitView(habit: habit, lockedCategory: .meals)
         }
         .sheet(item: $logHabit) { habit in
             LogEntrySheet(habit: habit)

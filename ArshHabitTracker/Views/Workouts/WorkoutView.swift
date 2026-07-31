@@ -45,10 +45,10 @@ struct WorkoutView: View {
             }
         }
         .sheet(isPresented: $showingAddHabit) {
-            AddEditHabitView(habit: nil)
+            AddEditHabitView(habit: nil, lockedCategory: .workouts)
         }
         .sheet(item: $editingHabit) { habit in
-            AddEditHabitView(habit: habit)
+            AddEditHabitView(habit: habit, lockedCategory: .workouts)
         }
         .sheet(item: $logHabit) { habit in
             LogEntrySheet(habit: habit)
