@@ -144,7 +144,8 @@ final class JarvisController: NSObject, ObservableObject {
 
         do {
             let reply = try await AnthropicService.shared.send(history: history) { [weak self] name, input in
-                self?.executeTool(name: name, input: input) ?? "Unknown tool."
+                guard let self else { return "Unknown tool." }
+                return await self.executeTool(name: name, input: input)
             }
             modelContext.insert(ChatMessage(role: "assistant", content: reply))
 
@@ -199,6 +200,35 @@ final class JarvisController: NSObject, ObservableObject {
             lines.append("Projects:\n" + projectLines.joined(separator: "\n"))
         }
 
+        let today = Calendar.current.startOfDay(for: .now)
+        let habits = (try? modelContext.fetch(FetchDescriptor<Habit>())) ?? []
+        let mealCompletions = habits
+            .filter { $0.category == .meals }
+            .flatMap { $0.completions }
+            .filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
+        if !mealCompletions.isEmpty {
+            let totalCalories = mealCompletions.compactMap { $0.calories }.reduce(0, +)
+            let totalProtein = mealCompletions.compactMap { $0.proteinGrams }.reduce(0, +)
+            lines.append("Food logged today: \(mealCompletions.count) entries, \(totalCalories) cal, \(Int(totalProtein))g protein so far.")
+        }
+
+        let assignments = (try? modelContext.fetch(FetchDescriptor<Assignment>())) ?? []
+        let dueToday = assignments.filter { !$0.isDone && $0.dueDate.map { Calendar.current.isDate($0, inSameDayAs: today) } ?? false }
+        let overdue = assignments.filter { !$0.isDone && ($0.dueDate.map { $0 < today } ?? false) }
+        if !dueToday.isEmpty || !overdue.isEmpty {
+            var schoolLines: [String] = []
+            if !overdue.isEmpty { schoolLines.append("Overdue: " + overdue.map(\.title).joined(separator: ", ")) }
+            if !dueToday.isEmpty { schoolLines.append("Due today: " + dueToday.map(\.title).joined(separator: ", ")) }
+            lines.append("Assignments:\n" + schoolLines.joined(separator: "\n"))
+        }
+
+        let exams = (try? modelContext.fetch(FetchDescriptor<Exam>())) ?? []
+        let soonExams = exams.filter { !$0.isPast && $0.daysUntil <= 14 }.sorted { $0.daysUntil < $1.daysUntil }
+        if !soonExams.isEmpty {
+            let examLines = soonExams.map { "\($0.name) in \($0.daysUntil) day\($0.daysUntil == 1 ? "" : "s")" }
+            lines.append("Upcoming tests:\n" + examLines.joined(separator: "\n"))
+        }
+
         return lines.joined(separator: "\n\n")
     }
 
@@ -206,7 +236,7 @@ final class JarvisController: NSObject, ObservableObject {
     // JarvisController isn't a View, so it fetches directly via FetchDescriptor
     // rather than @Query.
 
-    private func executeTool(name: String, input: [String: Any]) -> String {
+    private func executeTool(name: String, input: [String: Any]) async -> String {
         guard let modelContext else { return "Data unavailable." }
         switch name {
         case "get_news":
@@ -219,8 +249,25 @@ final class JarvisController: NSObject, ObservableObject {
             return logSkillSession(named: input["name"] as? String ?? "", note: input["note"] as? String, context: modelContext)
         case "add_project_task":
             return addProjectTask(project: input["project"] as? String ?? "", title: input["title"] as? String ?? "", context: modelContext)
+        case "get_github_repos":
+            return await githubReposSummary()
         default:
             return "Unknown tool."
+        }
+    }
+
+    private func githubReposSummary() async -> String {
+        do {
+            let repos = try await GitHubService.shared.fetchRepos()
+            if repos.isEmpty { return "No repositories found." }
+            return repos.prefix(10).map { repo in
+                var line = "• \(repo.name)"
+                if let language = repo.language { line += " (\(language))" }
+                if let description = repo.description, !description.isEmpty { line += " — \(description)" }
+                return line
+            }.joined(separator: "\n")
+        } catch {
+            return error.localizedDescription
         }
     }
 

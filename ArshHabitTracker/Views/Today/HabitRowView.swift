@@ -9,7 +9,7 @@ import SwiftData
 struct HabitRowView: View {
     let habit: Habit
     var onEdit: () -> Void
-    var onLogMeal: () -> Void
+    var onLog: () -> Void
 
     @Environment(\.modelContext) private var modelContext
     @State private var animateCheck = false
@@ -64,7 +64,7 @@ struct HabitRowView: View {
     @ViewBuilder
     private var checkButton: some View {
         if habit.category.isLoggingType {
-            Button(action: onLogMeal) {
+            Button(action: onLog) {
                 Image(systemName: isDone ? "checkmark.circle.fill" : "square.and.pencil")
                     .font(.body)
                     .foregroundStyle(isDone ? accentColor : Theme.dimText)

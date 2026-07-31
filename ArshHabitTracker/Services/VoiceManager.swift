@@ -77,11 +77,23 @@ final class VoiceManager: NSObject, ObservableObject {
             return
         }
 
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+
+        // AVAudioEngine.installTap hard-crashes (fatal error, not a throw) if the
+        // input format is invalid — which the iOS Simulator's virtual microphone
+        // frequently reports as 0 Hz / 0 channels. Guard it instead of finding out
+        // via a crash. On a real device this format is always valid.
+        guard recordingFormat.sampleRate > 0, recordingFormat.channelCount > 0 else {
+            statusMessage = "No microphone input available. This is a common iOS Simulator limitation — voice mode needs a real device."
+            try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+            return
+        }
+
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         recognitionRequest = request
 
-        let inputNode = audioEngine.inputNode
         recognitionTask = speechRecognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor in
                 guard let self else { return }
@@ -94,7 +106,6 @@ final class VoiceManager: NSObject, ObservableObject {
             }
         }
 
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
             request.append(buffer)

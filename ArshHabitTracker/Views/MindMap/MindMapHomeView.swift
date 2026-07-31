@@ -11,12 +11,14 @@ struct MindMapHomeView: View {
     @Query(sort: \Skill.createdAt) private var skills: [Skill]
     @Query(sort: \Project.createdAt) private var projects: [Project]
     @Query(sort: \NewsItem.publishedAt) private var newsItems: [NewsItem]
+    @Query private var assignments: [Assignment]
+    @Query private var exams: [Exam]
 
     @State private var hasAppeared = false
 
-    private let radius: CGFloat = 200
-    private let nodeWidth: CGFloat = 100
-    private let nodeHeight: CGFloat = 74
+    private let radius: CGFloat = 240
+    private let nodeWidth: CGFloat = 84
+    private let nodeHeight: CGFloat = 62
 
     private var mapSize: CGFloat { (radius + 96) * 2 }
     private var mapCenter: CGPoint { CGPoint(x: mapSize / 2, y: mapSize / 2) }
@@ -31,6 +33,20 @@ struct MindMapHomeView: View {
     private var learnedSkills: Int { skills.filter { $0.isLearned }.count }
     private var projectTasksDone: Int { projects.flatMap { $0.tasks }.filter { $0.isDone }.count }
     private var projectTasksTotal: Int { projects.flatMap { $0.tasks }.count }
+
+    private var mealHabits: [Habit] { habits.filter { $0.category == .meals } }
+    private var workoutHabits: [Habit] { habits.filter { $0.category == .workouts } }
+    private func loggedToday(_ habits: [Habit]) -> Int {
+        habits.filter { $0.isCompleted(on: today) }.count
+    }
+
+    private var pendingAssignments: Int { assignments.filter { !$0.isDone }.count }
+    private var upcomingAgendaCount: Int {
+        let weekOut = Calendar.current.date(byAdding: .day, value: 7, to: today) ?? today
+        let examCount = exams.filter { !$0.isPast && $0.examDate <= weekOut }.count
+        let assignmentCount = assignments.filter { !$0.isDone && ($0.dueDate.map { $0 <= weekOut } ?? false) }.count
+        return examCount + assignmentCount
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -218,6 +234,14 @@ struct MindMapHomeView: View {
             return nil
         case .github:
             return nil
+        case .school:
+            return pendingAssignments == 0 ? nil : "\(pendingAssignments)"
+        case .food:
+            return mealHabits.isEmpty ? nil : "\(loggedToday(mealHabits))/\(mealHabits.count)"
+        case .workouts:
+            return workoutHabits.isEmpty ? nil : "\(loggedToday(workoutHabits))/\(workoutHabits.count)"
+        case .calendar:
+            return upcomingAgendaCount == 0 ? nil : "\(upcomingAgendaCount)"
         }
     }
 }

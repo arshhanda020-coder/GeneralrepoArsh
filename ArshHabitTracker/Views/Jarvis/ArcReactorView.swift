@@ -17,50 +17,46 @@ struct ArcReactorView: View {
 
     var body: some View {
         ZStack {
+            // Sharp instrument glow — small blur radius, no soft bloom.
             Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Theme.reactorGlow.opacity(isActive ? 0.4 : 0.22), .clear],
-                        center: .center,
-                        startRadius: size * 0.2,
-                        endRadius: size * 0.7
-                    )
-                )
-                .frame(width: size * 1.4, height: size * 1.4)
-                .blur(radius: 6)
-                .scaleEffect(pulseUp ? 1.04 : 0.97)
+                .fill(Theme.reactorGlow.opacity(isActive ? 0.5 : 0.3))
+                .frame(width: size * 1.1, height: size * 1.1)
+                .blur(radius: 3)
+                .scaleEffect(pulseUp ? 1.03 : 0.98)
 
             Circle()
-                .strokeBorder(Theme.reactorGlow.opacity(0.35), lineWidth: 1)
+                .strokeBorder(Theme.reactorCore.opacity(0.6), lineWidth: 1)
                 .frame(width: size * 0.98, height: size * 0.98)
 
             // Tick-mark ring — a radar/targeting reticle, not decorative petals.
             ForEach(0..<24, id: \.self) { index in
                 let isMajor = index % 6 == 0
                 Rectangle()
-                    .fill(Theme.reactorCore.opacity(isMajor ? 0.85 : 0.35))
+                    .fill(Theme.reactorCore.opacity(isMajor ? 1 : 0.5))
                     .frame(width: 1, height: isMajor ? size * 0.07 : size * 0.03)
                     .offset(y: -size * 0.46)
                     .rotationEffect(.degrees(Double(index) * 15 + rotation))
             }
 
             Circle()
-                .strokeBorder(Theme.reactorGlow.opacity(0.6), lineWidth: 1)
+                .strokeBorder(Theme.reactorCore.opacity(0.8), lineWidth: 1.2)
                 .frame(width: size * 0.8, height: size * 0.8)
                 .rotationEffect(.degrees(-rotation * 0.5))
 
+            // Flat, saturated core — a hard disc with a tight specular point,
+            // not a soft multi-stop gradient blend.
             Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [.white.opacity(0.95), Theme.reactorCore, Theme.reactorGlow, Theme.reactorDeep],
-                        center: .center,
-                        startRadius: 1,
-                        endRadius: size * 0.48
-                    )
-                )
+                .fill(Theme.reactorCore)
                 .frame(width: size * 0.56, height: size * 0.56)
-                .overlay(Circle().stroke(.white.opacity(0.4), lineWidth: 1))
-                .shadow(color: Theme.reactorGlow.opacity(isActive ? 0.7 : 0.4), radius: isActive ? 16 : 9)
+                .overlay(
+                    Circle()
+                        .fill(.white)
+                        .frame(width: size * 0.1, height: size * 0.1)
+                        .offset(x: -size * 0.12, y: -size * 0.12)
+                        .blur(radius: 1)
+                )
+                .overlay(Circle().stroke(Theme.reactorDeep, lineWidth: 2))
+                .shadow(color: Theme.reactorCore.opacity(isActive ? 0.9 : 0.6), radius: isActive ? 14 : 8)
         }
         .onAppear {
             withAnimation(.linear(duration: 9).repeatForever(autoreverses: false)) {

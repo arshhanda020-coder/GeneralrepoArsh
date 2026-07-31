@@ -50,6 +50,6 @@ enum HabitCategory: String, Codable, CaseIterable, Identifiable {
 
     var accentColor: Color { Color(hex: accentHex) }
 
-    /// Meals are logged with a note rather than a simple check-off.
-    var isLoggingType: Bool { self == .meals }
+    /// Meals and workouts are logged with a note/photo rather than a simple check-off.
+    var isLoggingType: Bool { self == .meals || self == .workouts }
 }

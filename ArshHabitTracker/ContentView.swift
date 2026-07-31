@@ -29,6 +29,10 @@ struct ContentView: View {
         case .emails: EmailsView()
         case .aiIntegration: AIIntegrationView()
         case .github: GitHubView()
+        case .school: SchoolView()
+        case .food: FoodView()
+        case .workouts: WorkoutView()
+        case .calendar: CalendarView()
         }
     }
 }
@@ -41,6 +45,8 @@ struct ContentView: View {
                 Skill.self, SkillSession.self,
                 Project.self, ProjectTask.self,
                 NewsItem.self, ChatMessage.self,
+                AIToolItem.self, Exam.self, StudySession.self,
+                Assignment.self, QuizRecord.self,
             ],
             inMemory: true
         )

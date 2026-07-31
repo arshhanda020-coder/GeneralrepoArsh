@@ -16,7 +16,9 @@ struct ArshHabitTrackerApp: App {
                 for: Habit.self, Completion.self,
                 Skill.self, SkillSession.self,
                 Project.self, ProjectTask.self,
-                NewsItem.self, ChatMessage.self
+                NewsItem.self, ChatMessage.self,
+                AIToolItem.self, Exam.self, StudySession.self,
+                Assignment.self, QuizRecord.self
             )
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")

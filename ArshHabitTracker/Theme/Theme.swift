@@ -16,10 +16,10 @@ enum Theme {
     static let terminalAmber = Color(hex: "FFB000")
 
     /// Arc-reactor palette — used only by the home screen and Jarvis mode.
-    /// Cool steel-blue, not bright/pastel — closer to a HUD readout than a toy.
-    static let reactorCore = Color(hex: "AFC9DE")
-    static let reactorDeep = Color(hex: "0A1826")
-    static let reactorGlow = Color(hex: "3E6E96")
+    /// Fully-saturated, high-contrast — an instrument light, not a soft glow.
+    static let reactorCore = Color(hex: "00D9FF")
+    static let reactorDeep = Color(hex: "001824")
+    static let reactorGlow = Color(hex: "0090C2")
 }
 
 extension Color {

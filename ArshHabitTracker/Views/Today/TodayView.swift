@@ -7,13 +7,19 @@ import SwiftUI
 import SwiftData
 
 struct TodayView: View {
-    @Query(sort: \Habit.createdAt) private var habits: [Habit]
+    @Query(sort: \Habit.createdAt) private var allHabits: [Habit]
 
     @State private var showingAddHabit = false
     @State private var editingHabit: Habit?
-    @State private var mealNoteHabit: Habit?
+    @State private var logHabit: Habit?
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
+
+    /// Food and Workouts have their own dedicated sections now — Today only
+    /// covers everything else.
+    private var habits: [Habit] {
+        allHabits.filter { $0.category != .meals && $0.category != .workouts }
+    }
 
     private var scheduledToday: [Habit] {
         habits.filter { $0.isScheduled(on: today) }
@@ -76,8 +82,8 @@ struct TodayView: View {
         .sheet(item: $editingHabit) { habit in
             AddEditHabitView(habit: habit)
         }
-        .sheet(item: $mealNoteHabit) { habit in
-            MealLogSheet(habit: habit)
+        .sheet(item: $logHabit) { habit in
+            LogEntrySheet(habit: habit)
         }
     }
 
@@ -154,7 +160,7 @@ struct TodayView: View {
                 HabitRowView(
                     habit: habit,
                     onEdit: { editingHabit = habit },
-                    onLogMeal: { mealNoteHabit = habit }
+                    onLog: { logHabit = habit }
                 )
             }
         }
