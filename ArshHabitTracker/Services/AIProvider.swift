@@ -22,7 +22,7 @@ enum AIProvider: String, CaseIterable, Identifiable {
 /// Every AI feature in the app (Copilot, Jarvis, Test Me, homework help, email
 /// drafting, macro estimation) goes through whichever provider/model is
 /// currently selected here, rather than being hardcoded to one service.
-enum AISettings {
+nonisolated enum AISettings {
     private static let providerKey = "ai_provider"
     private static let claudeModelKey = "ai_claude_model"
     private static let openAIModelKey = "ai_openai_model"

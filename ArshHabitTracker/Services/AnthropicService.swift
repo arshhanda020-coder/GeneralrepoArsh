@@ -155,7 +155,7 @@ actor AnthropicService: AIProviderService {
         return Self.parseQuiz(text)
     }
 
-    private static func parseQuiz(_ text: String) -> (question: String, answer: String) {
+    nonisolated private static func parseQuiz(_ text: String) -> (question: String, answer: String) {
         guard let answerRange = text.range(of: "ANSWER:") else {
             let question = text.replacingOccurrences(of: "QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             return (question, "")
@@ -240,7 +240,7 @@ actor AnthropicService: AIProviderService {
         return (content, stopReason)
     }
 
-    private static let systemPrompt = """
+    nonisolated private static let systemPrompt = """
     You are the in-app copilot for ArshHabitTracker — a personal app for habits, skills, projects, news, and \
     coding projects. You can both answer questions and take actions using your tools: check today's status, \
     mark habits done or not done, log skill practice sessions, add tasks to projects, fetch cached news \
@@ -250,7 +250,7 @@ actor AnthropicService: AIProviderService {
     may be read aloud.
     """
 
-    private static let tools: [[String: Any]] = [
+    nonisolated private static let tools: [[String: Any]] = [
         [
             "name": "get_news",
             "description": "Return cached headlines for a news topic tracked in the app.",

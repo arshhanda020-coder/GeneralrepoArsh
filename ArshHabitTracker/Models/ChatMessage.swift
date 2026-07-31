@@ -7,7 +7,7 @@ import Foundation
 import SwiftData
 
 @Model
-final class ChatMessage {
+final class ChatMessage: @unchecked Sendable {
     var id: String
     /// "user" or "assistant"
     var role: String

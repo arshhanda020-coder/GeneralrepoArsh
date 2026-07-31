@@ -165,7 +165,7 @@ actor OpenAIService: AIProviderService {
         return Self.parseQuiz(text)
     }
 
-    private static func parseQuiz(_ text: String) -> (question: String, answer: String) {
+    nonisolated private static func parseQuiz(_ text: String) -> (question: String, answer: String) {
         guard let answerRange = text.range(of: "ANSWER:") else {
             let question = text.replacingOccurrences(of: "QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
             return (question, "")
@@ -208,7 +208,7 @@ actor OpenAIService: AIProviderService {
         return (message, finishReason)
     }
 
-    private static let systemPrompt = """
+    nonisolated private static let systemPrompt = """
     You are the in-app copilot for ArshHabitTracker — a personal app for habits, skills, projects, news, food/macros, \
     workouts, school, and coding projects. You can both answer questions and take actions using your tools: check \
     today's status, mark habits done or not done, log skill practice sessions, add tasks to projects, fetch cached \
@@ -217,7 +217,7 @@ actor OpenAIService: AIProviderService {
     concise — replies may be read aloud.
     """
 
-    private static let tools: [[String: Any]] = [
+    nonisolated private static let tools: [[String: Any]] = [
         [
             "type": "function",
             "function": [
