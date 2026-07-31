@@ -11,11 +11,11 @@ import Foundation
 
 /// Copilot can both answer questions and act on the app's data — the tool
 /// executor is supplied by the view layer, which owns the SwiftData context.
-actor AnthropicService {
+actor AnthropicService: AIProviderService {
     static let shared = AnthropicService()
 
     private let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
-    private let model = "claude-opus-5"
+    private var model: String { AISettings.claudeModel }
 
     enum ServiceError: LocalizedError {
         case missingAPIKey

@@ -304,7 +304,7 @@ struct SchoolView: View {
 
         Task {
             do {
-                let answer = try await AnthropicService.shared.askAboutImage(
+                let answer = try await AISettings.currentService.askAboutImage(
                     prompt: prompt,
                     imageData: image,
                     systemPrompt: "You are a patient, encouraging tutor. Explain concepts step by step so the student actually understands the reasoning, not just the answer. Keep it focused and not overly long."

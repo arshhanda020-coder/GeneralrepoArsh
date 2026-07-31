@@ -93,7 +93,7 @@ struct EmailsView: View {
         Task {
             let prompt = "Draft a concise, professional email.\nSubject: \(subject)\nRecipient: \(recipient.isEmpty ? "unspecified" : recipient)\nContext or existing draft to improve: \(existingDraft.isEmpty ? "none — write a reasonable draft from the subject alone" : existingDraft)"
             do {
-                let draft = try await AnthropicService.shared.draft(prompt: prompt)
+                let draft = try await AISettings.currentService.draft(prompt: prompt)
                 if !draft.isEmpty { emailBody = draft }
             } catch {
                 statusMessage = error.localizedDescription

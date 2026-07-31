@@ -165,7 +165,7 @@ struct LogEntrySheet: View {
         estimateError = nil
         Task {
             do {
-                let response = try await AnthropicService.shared.askAboutImage(
+                let response = try await AISettings.currentService.askAboutImage(
                     prompt: "Estimate the nutrition for this meal. Respond in EXACTLY this format, nothing else:\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>",
                     imageData: imageData,
                     systemPrompt: "You are a nutrition estimator. Give your best reasonable estimate from the photo — approximate is fine, always provide numbers."

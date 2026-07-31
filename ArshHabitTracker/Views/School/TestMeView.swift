@@ -154,7 +154,7 @@ struct TestMeView: View {
 
         Task {
             do {
-                let result = try await AnthropicService.shared.generateQuizQuestion(subject: topic)
+                let result = try await AISettings.currentService.generateQuizQuestion(subject: topic)
                 currentQuestion = result.question
                 currentAnswer = result.answer
                 let record = QuizRecord(subject: topic, question: result.question, answer: result.answer)

@@ -212,7 +212,7 @@ struct CopilotView: View {
         var trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || pendingImageData != nil else { return }
         if trimmed.isEmpty { trimmed = "What's in this photo?" }
-        guard KeychainService.shared.loadAPIKey() != nil else {
+        guard AISettings.hasActiveKey else {
             showingAPIKeySheet = true
             return
         }

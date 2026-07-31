@@ -64,6 +64,12 @@ final class KeychainService {
     func saveAPIKey(_ key: String) { saveString(key, account: "api-key") }
     func deleteAPIKey() { delete(account: "api-key") }
 
+    // MARK: - OpenAI
+
+    func loadOpenAIKey() -> String? { loadString(account: "openai-api-key") }
+    func saveOpenAIKey(_ key: String) { saveString(key, account: "openai-api-key") }
+    func deleteOpenAIKey() { delete(account: "openai-api-key") }
+
     // MARK: - GitHub
 
     func loadGitHubToken() -> String? { loadString(account: "github-pat") }

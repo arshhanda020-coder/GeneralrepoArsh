@@ -127,8 +127,8 @@ final class JarvisController: NSObject, ObservableObject {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        guard KeychainService.shared.loadAPIKey() != nil else {
-            statusMessage = "Add your Anthropic API key in Copilot settings."
+        guard AISettings.hasActiveKey else {
+            statusMessage = "Add your \(AISettings.provider.displayName) API key in Copilot settings."
             status = .idle
             if isActive { beginListening() }
             return
@@ -143,7 +143,7 @@ final class JarvisController: NSObject, ObservableObject {
         )) ?? []
 
         do {
-            let reply = try await AnthropicService.shared.send(history: history) { [weak self] name, input in
+            let reply = try await AISettings.currentService.send(history: history) { [weak self] name, input in
                 guard let self else { return "Unknown tool." }
                 return await self.executeTool(name: name, input: input)
             }
@@ -172,10 +172,10 @@ final class JarvisController: NSObject, ObservableObject {
     // MARK: - Daily suggestion
 
     func refreshDailySuggestion() {
-        guard let modelContext, KeychainService.shared.loadAPIKey() != nil else { return }
+        guard let modelContext, AISettings.hasActiveKey else { return }
         let context = buildStatusContext(modelContext: modelContext)
         Task {
-            guard let suggestion = try? await AnthropicService.shared.suggestion(for: context) else { return }
+            guard let suggestion = try? await AISettings.currentService.suggestion(for: context) else { return }
             self.latestSuggestion = suggestion
             NotificationManager.shared.scheduleSuggestion(text: suggestion)
         }
