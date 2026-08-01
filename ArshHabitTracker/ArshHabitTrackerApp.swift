@@ -17,7 +17,7 @@ struct ArshHabitTrackerApp: App {
             Project.self, ProjectTask.self,
             NewsItem.self, ChatMessage.self,
             AIToolItem.self, Exam.self, StudySession.self,
-            Assignment.self, QuizRecord.self, SchoolClass.self, Topic.self,
+            Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
             Extracurricular.self, EmailDraft.self,
         ])
         container = Self.makeContainer(schema: schema)

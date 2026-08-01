@@ -142,7 +142,26 @@ actor OpenAIService: AIProviderService {
         return text.isEmpty ? "Check in on today's habits — you've got momentum to keep." : text
     }
 
-    func generateQuizQuestion(subject: String) async throws -> (question: String, answer: String) {
+    func generateQuiz(subject: String, count: Int) async throws -> [QuizQuestionDraft] {
+        guard let apiKey = KeychainService.shared.loadOpenAIKey(), !apiKey.isEmpty else {
+            throw ServiceError.missingAPIKey
+        }
+        let clamped = max(1, min(count, 10))
+
+        let body: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system", "content": Self.quizSystemPrompt],
+                ["role": "user", "content": "Subject/topic: \(subject)\nNumber of questions: \(clamped)"],
+            ],
+        ]
+
+        let (message, _) = try await performRequest(body: body, apiKey: apiKey)
+        let text = (message["content"] as? String) ?? ""
+        return Self.parseQuizBatch(text)
+    }
+
+    func gradeShortAnswer(question: String, correctAnswer: String, userAnswer: String) async throws -> ShortAnswerGrade {
         guard let apiKey = KeychainService.shared.loadOpenAIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
@@ -151,30 +170,88 @@ actor OpenAIService: AIProviderService {
             "model": model,
             "messages": [
                 ["role": "system", "content": """
-                You are a tutor creating one quiz question at a time to test a student's understanding of a topic. \
-                Respond in EXACTLY this format, nothing else, no markdown:
-                QUESTION: <one specific, answerable question>
-                ANSWER: <the correct answer with a brief explanation>
+                You are grading a student's short-answer quiz response. Be reasonably lenient — give credit for \
+                answers that capture the key idea even if worded differently. Respond in EXACTLY this format, \
+                nothing else:
+                VERDICT: CORRECT or INCORRECT
+                FEEDBACK: <one brief, encouraging sentence explaining why, or what was missing>
                 """],
-                ["role": "user", "content": "Subject/topic: \(subject)"],
+                ["role": "user", "content": "Question: \(question)\nReference answer: \(correctAnswer)\nStudent's answer: \(userAnswer)"],
             ],
         ]
 
         let (message, _) = try await performRequest(body: body, apiKey: apiKey)
         let text = (message["content"] as? String) ?? ""
-        return Self.parseQuiz(text)
+        return Self.parseGrade(text)
     }
 
-    nonisolated private static func parseQuiz(_ text: String) -> (question: String, answer: String) {
-        guard let answerRange = text.range(of: "ANSWER:") else {
-            let question = text.replacingOccurrences(of: "QUESTION:", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
-            return (question, "")
+    nonisolated private static let quizSystemPrompt = """
+    You are a tutor writing a short quiz to test understanding of a topic. Write a mix of multiple-choice and \
+    short-answer questions (roughly half and half). Respond with ONLY the questions, no markdown, no extra \
+    commentary, in EXACTLY this format, repeated once per question, with a line containing only === between \
+    each question:
+
+    TYPE: MC
+    Q: <question>
+    A) <choice>
+    B) <choice>
+    C) <choice>
+    D) <choice>
+    CORRECT: <letter>
+    ===
+    TYPE: SHORT
+    Q: <question>
+    ANSWER: <reference answer, concise>
+    """
+
+    nonisolated private static func parseQuizBatch(_ text: String) -> [QuizQuestionDraft] {
+        let blocks = text.components(separatedBy: "===")
+        var drafts: [QuizQuestionDraft] = []
+        for block in blocks {
+            let lines = block.split(separator: "\n", omittingEmptySubsequences: true).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard let typeLine = lines.first(where: { $0.uppercased().hasPrefix("TYPE:") }),
+                  let qLine = lines.first(where: { $0.hasPrefix("Q:") }) else { continue }
+            let questionText = qLine.dropFirst(2).trimmingCharacters(in: .whitespaces)
+            guard !questionText.isEmpty else { continue }
+
+            if typeLine.uppercased().contains("MC") {
+                var choices: [String] = []
+                var correctLetter = ""
+                for line in lines {
+                    if line.uppercased().hasPrefix("CORRECT:") {
+                        correctLetter = line.dropFirst("CORRECT:".count).trimmingCharacters(in: .whitespaces).uppercased()
+                    } else if let first = line.first, "ABCD".contains(first), line.dropFirst().hasPrefix(")") {
+                        choices.append(line.dropFirst(2).trimmingCharacters(in: .whitespaces))
+                    }
+                }
+                guard !choices.isEmpty, let letter = correctLetter.first,
+                      let index = "ABCD".firstIndex(of: letter) else { continue }
+                let position = "ABCD".distance(from: "ABCD".startIndex, to: index)
+                guard position < choices.count else { continue }
+                drafts.append(QuizQuestionDraft(text: questionText, type: .multipleChoice, choices: choices, correctAnswer: choices[position]))
+            } else {
+                guard let answerLine = lines.first(where: { $0.uppercased().hasPrefix("ANSWER:") }) else { continue }
+                let answer = answerLine.dropFirst("ANSWER:".count).trimmingCharacters(in: .whitespaces)
+                guard !answer.isEmpty else { continue }
+                drafts.append(QuizQuestionDraft(text: questionText, type: .shortAnswer, choices: [], correctAnswer: answer))
+            }
         }
-        let questionPart = text[text.startIndex..<answerRange.lowerBound]
-            .replacingOccurrences(of: "QUESTION:", with: "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let answerPart = text[answerRange.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
-        return (questionPart, answerPart)
+        return drafts
+    }
+
+    nonisolated private static func parseGrade(_ text: String) -> ShortAnswerGrade {
+        var verdictText = text.uppercased()
+        if let range = text.range(of: "VERDICT:", options: .caseInsensitive) {
+            verdictText = text[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        }
+        let isCorrect = verdictText.hasPrefix("CORRECT")
+        let feedback: String
+        if let range = text.range(of: "FEEDBACK:", options: .caseInsensitive) {
+            feedback = text[range.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            feedback = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return ShortAnswerGrade(isCorrect: isCorrect, feedback: feedback)
     }
 
     private func performRequest(

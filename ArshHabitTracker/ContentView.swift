@@ -47,7 +47,7 @@ struct ContentView: View {
                 Project.self, ProjectTask.self,
                 NewsItem.self, ChatMessage.self,
                 AIToolItem.self, Exam.self, StudySession.self,
-                Assignment.self, QuizRecord.self,
+                Assignment.self, QuizSession.self, QuizQuestion.self,
             ],
             inMemory: true
         )

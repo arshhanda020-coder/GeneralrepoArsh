@@ -12,20 +12,19 @@ struct TestMeView: View {
     var presetSubject: String?
 
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \QuizRecord.createdAt, order: .reverse) private var records: [QuizRecord]
+    @Query(sort: \QuizSession.createdAt, order: .reverse) private var sessions: [QuizSession]
 
     @State private var subject = ""
-    @State private var currentQuestion: String?
-    @State private var currentAnswer: String?
-    @State private var showingAnswer = false
     @State private var isGenerating = false
     @State private var errorMessage: String?
-    @State private var activeRecord: QuizRecord?
+    @State private var activeSession: QuizSession?
 
-    private var masterySummary: [(subject: String, understood: Int, notUnderstood: Int)] {
-        let grouped = Dictionary(grouping: records.filter { $0.understood != nil }, by: { $0.subject })
+    private var submittedSessions: [QuizSession] { sessions.filter { $0.isSubmitted } }
+
+    private var masterySummary: [(subject: String, correct: Int, total: Int)] {
+        let grouped = Dictionary(grouping: submittedSessions, by: { $0.subject })
         return grouped.map { subject, items in
-            (subject, items.filter { $0.understood == true }.count, items.filter { $0.understood == false }.count)
+            (subject, items.reduce(0) { $0 + $1.score }, items.reduce(0) { $0 + $1.totalQuestions })
         }.sorted { $0.subject < $1.subject }
     }
 
@@ -55,7 +54,7 @@ struct TestMeView: View {
                     }
 
                     Button {
-                        generateQuestion()
+                        generateQuiz()
                     } label: {
                         Label(isGenerating ? "Generating…" : "Test me", systemImage: "questionmark.circle.fill")
                             .frame(maxWidth: .infinity)
@@ -68,11 +67,7 @@ struct TestMeView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.caption)
-                        .foregroundStyle(Color(hex: "FF6B6B"))
-                }
-
-                if let currentQuestion {
-                    questionCard(currentQuestion)
+                        .foregroundStyle(Color(hex: "C0605C"))
                 }
 
                 if !masterySummary.isEmpty {
@@ -86,6 +81,26 @@ struct TestMeView: View {
                         }
                     }
                 }
+
+                if !submittedSessions.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("PAST TESTS")
+                            .font(.caption2.weight(.bold))
+                            .tracking(0.5)
+                            .foregroundStyle(Theme.dimText)
+                        VStack(spacing: 0) {
+                            ForEach(Array(submittedSessions.enumerated()), id: \.element.id) { index, session in
+                                if index > 0 {
+                                    Divider().overlay(Theme.cardBorder)
+                                }
+                                pastTestRow(session)
+                            }
+                        }
+                        .background(Theme.card)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
+                    }
+                }
             }
             .padding(12)
         }
@@ -97,65 +112,19 @@ struct TestMeView: View {
                 subject = presetSubject
             }
         }
-    }
-
-    private func questionCard(_ question: String) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(question)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white)
-
-            if showingAnswer, let currentAnswer {
-                Divider().overlay(Theme.cardBorder)
-                Text(currentAnswer)
-                    .font(.caption)
-                    .foregroundStyle(Theme.dimText)
-            } else {
-                Button("Show answer") {
-                    showingAnswer = true
-                }
-                .font(.caption.weight(.semibold))
-                .buttonStyle(.plain)
-                .foregroundStyle(MindMapSection.school.accentColor)
-            }
-
-            HStack(spacing: 8) {
-                Button {
-                    mark(understood: true)
-                } label: {
-                    Label("I understand", systemImage: "checkmark.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.terminalGreen)
-
-                Button {
-                    mark(understood: false)
-                } label: {
-                    Label("Don't understand", systemImage: "xmark.circle.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(Color(hex: "FF6B6B"))
-            }
-            .font(.caption.weight(.semibold))
+        .fullScreenCover(item: $activeSession) { session in
+            QuizSessionView(session: session)
         }
-        .padding(12)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
     }
 
-    private func masteryRow(_ entry: (subject: String, understood: Int, notUnderstood: Int)) -> some View {
+    private func masteryRow(_ entry: (subject: String, correct: Int, total: Int)) -> some View {
         HStack {
             Text(entry.subject)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.white)
             Spacer()
-            Label("\(entry.understood)", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(Theme.terminalGreen)
-            Label("\(entry.notUnderstood)", systemImage: "xmark.circle.fill")
-                .foregroundStyle(Color(hex: "FF6B6B"))
+            Text("\(entry.correct)/\(entry.total)")
+                .foregroundStyle(MindMapSection.school.accentColor)
         }
         .font(.caption.monospacedDigit())
         .padding(10)
@@ -164,35 +133,64 @@ struct TestMeView: View {
         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.cardBorder, lineWidth: 1))
     }
 
-    private func generateQuestion() {
+    private func pastTestRow(_ session: QuizSession) -> some View {
+        Button {
+            activeSession = session
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(session.subject)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                    Text(session.createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.dimText)
+                }
+                Spacer()
+                Text("\(session.score)/\(session.totalQuestions)")
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(MindMapSection.school.accentColor)
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
+            .padding(10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func generateQuiz() {
         isGenerating = true
         errorMessage = nil
-        showingAnswer = false
-        currentQuestion = nil
-        currentAnswer = nil
         let topic = subject.trimmingCharacters(in: .whitespacesAndNewlines)
 
         Task {
             do {
-                let result = try await AISettings.currentService.generateQuizQuestion(subject: topic)
-                currentQuestion = result.question
-                currentAnswer = result.answer
-                let record = QuizRecord(subject: topic, question: result.question, answer: result.answer)
-                modelContext.insert(record)
-                activeRecord = record
+                let drafts = try await AISettings.currentService.generateQuiz(subject: topic, count: 6)
+                guard !drafts.isEmpty else {
+                    errorMessage = "Couldn't generate questions — try again."
+                    isGenerating = false
+                    return
+                }
+                let session = QuizSession(subject: topic, totalQuestions: drafts.count)
+                modelContext.insert(session)
+                for (index, draft) in drafts.enumerated() {
+                    modelContext.insert(QuizQuestion(
+                        sortIndex: index,
+                        text: draft.text,
+                        type: draft.type,
+                        choices: draft.choices,
+                        correctAnswer: draft.correctAnswer,
+                        session: session
+                    ))
+                }
+                activeSession = session
             } catch {
                 errorMessage = error.localizedDescription
             }
             isGenerating = false
         }
-    }
-
-    private func mark(understood: Bool) {
-        activeRecord?.understood = understood
-        currentQuestion = nil
-        currentAnswer = nil
-        activeRecord = nil
-        showingAnswer = false
     }
 }
 
@@ -200,5 +198,5 @@ struct TestMeView: View {
     NavigationStack {
         TestMeView()
     }
-    .modelContainer(for: [QuizRecord.self], inMemory: true)
+    .modelContainer(for: [QuizSession.self, QuizQuestion.self], inMemory: true)
 }

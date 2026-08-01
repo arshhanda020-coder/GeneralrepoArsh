@@ -306,5 +306,5 @@ struct SchoolView: View {
     NavigationStack {
         SchoolView()
     }
-    .modelContainer(for: [SchoolClass.self, Topic.self, Assignment.self, Exam.self, StudySession.self, QuizRecord.self], inMemory: true)
+    .modelContainer(for: [SchoolClass.self, Topic.self, Assignment.self, Exam.self, StudySession.self, QuizSession.self, QuizQuestion.self], inMemory: true)
 }
