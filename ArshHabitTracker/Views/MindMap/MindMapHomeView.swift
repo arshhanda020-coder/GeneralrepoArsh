@@ -50,27 +50,35 @@ struct MindMapHomeView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            // Fixed fit-scale, no pan/zoom — this stays still until enough
-            // sections are added that a static layout no longer fits.
-            let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.94
+        VStack(spacing: 0) {
+            DailyQuoteView()
+                .padding(.top, 16)
+                .padding(.bottom, 4)
 
-            ZStack {
-                dotGridBackground
+            GeometryReader { geo in
+                // Fixed fit-scale, no pan/zoom — this stays still until enough
+                // sections are added that a static layout no longer fits.
+                let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.94
 
-                ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
-                    connector(index: index, total: MindMapSection.allCases.count, section: section)
+                ZStack {
+                    dotGridBackground
+
+                    ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
+                        connector(index: index, total: MindMapSection.allCases.count, section: section)
+                    }
+
+                    ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
+                        sectionNode(section, index: index, total: MindMapSection.allCases.count)
+                    }
+
+                    centerNode
                 }
-
-                ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
-                    sectionNode(section, index: index, total: MindMapSection.allCases.count)
-                }
-
-                centerNode
+                .frame(width: mapSize, height: mapSize)
+                .scaleEffect(fitScale)
+                .position(x: geo.size.width / 2, y: geo.size.height / 2)
             }
-            .frame(width: mapSize, height: mapSize)
-            .scaleEffect(fitScale)
-            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+
+            NewsTickerView()
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("")

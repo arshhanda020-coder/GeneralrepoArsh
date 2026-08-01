@@ -2,31 +2,31 @@
 //  Theme.swift
 //  ArshHabitTracker
 //
+//  Every value here reads through ThemeColorSettings, so Settings >
+//  Appearance can override any of them; the hex values in
+//  ThemeColorSettings/ThemeToken are just the defaults.
+//
 
 import SwiftUI
+import UIKit
 
 enum Theme {
-    static let background = Color(hex: "0B0F14")
-    static let card = Color(hex: "151B23")
-    static let cardBorder = Color(hex: "232B36")
-    static let dimText = Color(hex: "8A94A3")
+    static var background: Color { Color(hex: ThemeColorSettings.hex(for: .background)) }
+    static var card: Color { Color(hex: ThemeColorSettings.hex(for: .card)) }
+    static var cardBorder: Color { Color(hex: ThemeColorSettings.hex(for: .cardBorder)) }
+    static var dimText: Color { Color(hex: ThemeColorSettings.hex(for: .dimText)) }
 
-    /// The app's one signature accent — muted brass, used for interactive
-    /// elements (buttons, links, the nav tint) across the whole app instead
-    /// of a different saturated color per section.
-    static let accent = Color(hex: "B8935B")
+    /// The app's one signature accent — used for interactive elements
+    /// (buttons, links, the nav tint) across the whole app.
+    static var accent: Color { Color(hex: ThemeColorSettings.hex(for: .accent)) }
 
-    /// Semantic states — kept distinct from `accent` but desaturated to match
-    /// a quieter, more deliberate palette.
-    static let terminalGreen = Color(hex: "7FA285")
-    static let terminalAmber = Color(hex: "C9A227")
+    static var terminalGreen: Color { Color(hex: ThemeColorSettings.hex(for: .terminalGreen)) }
+    static var terminalAmber: Color { Color(hex: ThemeColorSettings.hex(for: .terminalAmber)) }
 
-    /// Arc-reactor palette — home screen and Jarvis mode. Matches `accent` so
-    /// the whole app reads as one design instead of Jarvis being a separate
-    /// neon exception.
-    static let reactorCore = Color(hex: "C9A227")
-    static let reactorDeep = Color(hex: "15110A")
-    static let reactorGlow = Color(hex: "8A6E3D")
+    /// Arc-reactor palette — home screen and Jarvis mode.
+    static var reactorCore: Color { Color(hex: ThemeColorSettings.hex(for: .reactorCore)) }
+    static var reactorDeep: Color { Color(hex: ThemeColorSettings.hex(for: .reactorDeep)) }
+    static var reactorGlow: Color { Color(hex: ThemeColorSettings.hex(for: .reactorGlow)) }
 }
 
 extension Color {
@@ -39,5 +39,13 @@ extension Color {
         let g = Double((value >> 8) & 0xFF) / 255
         let b = Double(value & 0xFF) / 255
         self.init(red: r, green: g, blue: b)
+    }
+
+    /// Best-effort hex round-trip for the Appearance color pickers.
+    var hexString: String {
+        let uiColor = UIColor(self)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return String(format: "%02X%02X%02X", Int(r * 255), Int(g * 255), Int(b * 255))
     }
 }

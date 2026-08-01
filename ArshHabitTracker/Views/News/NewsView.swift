@@ -13,7 +13,7 @@ struct NewsView: View {
     @State private var selectedTopic: NewsTopic?
     @State private var isRefreshing = false
     @State private var statusMessage: String?
-    @State private var safariURL: IdentifiableURL?
+    @State private var selectedItem: NewsItem?
 
     private var filteredItems: [NewsItem] {
         guard let selectedTopic else {
@@ -69,13 +69,13 @@ struct NewsView: View {
         .navigationTitle("News")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            await loadIfNeeded()
+            await refresh()
         }
         .onChange(of: selectedTopic) {
-            Task { await loadIfNeeded() }
+            Task { await refresh() }
         }
-        .sheet(item: $safariURL) { wrapped in
-            SafariView(url: wrapped.url)
+        .navigationDestination(item: $selectedItem) { item in
+            NewsItemDetailView(item: item)
         }
     }
 
@@ -116,22 +116,12 @@ struct NewsView: View {
                     Divider().overlay(Theme.cardBorder)
                 }
                 NewsRowView(item: item)
-                    .onTapGesture {
-                        if let url = URL(string: item.link) {
-                            safariURL = IdentifiableURL(url: url)
-                        }
-                    }
+                    .onTapGesture { selectedItem = item }
             }
         }
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
-    }
-
-    private func loadIfNeeded() async {
-        if filteredItems.isEmpty {
-            await refresh()
-        }
     }
 
     private func refresh() async {

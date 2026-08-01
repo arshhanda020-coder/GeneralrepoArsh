@@ -37,7 +37,7 @@ enum HabitCategory: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var accentHex: String {
+    var builtInAccentHex: String {
         switch self {
         case .school: return "5C7A99"
         case .workouts: return "8E7B5E"
@@ -48,6 +48,8 @@ enum HabitCategory: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Reads Settings > Appearance's override when set, otherwise the built-in default.
+    var accentHex: String { ThemeColorSettings.categoryHex(for: self) }
     var accentColor: Color { Color(hex: accentHex) }
 
     /// Meals and workouts are logged with a note/photo rather than a simple check-off.

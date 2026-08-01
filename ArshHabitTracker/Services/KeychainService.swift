@@ -103,4 +103,10 @@ nonisolated final class KeychainService {
               Date().timeIntervalSince1970 < expiresAt else { return nil }
         return token
     }
+
+    // MARK: - App lock
+
+    func loadPIN() -> String? { loadString(account: "app-pin") }
+    func savePIN(_ pin: String) { saveString(pin, account: "app-pin") }
+    func deletePIN() { delete(account: "app-pin") }
 }

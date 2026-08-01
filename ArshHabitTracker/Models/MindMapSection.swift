@@ -73,7 +73,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
     /// a different saturated color per tab. Copilot/AI Tools share the app's
     /// signature brass accent; everything else sits in quiet steel-blue or
     /// warm taupe, varying just enough to still tell sections apart at a glance.
-    var accentHex: String {
+    var builtInAccentHex: String {
         switch self {
         case .today: return "5C7A99"
         case .skills: return "6C8AA6"
@@ -92,5 +92,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// Reads Settings > Appearance's override when set, otherwise the built-in default.
+    var accentHex: String { ThemeColorSettings.sectionHex(for: self) }
     var accentColor: Color { Color(hex: accentHex) }
 }
