@@ -33,6 +33,7 @@ struct ContentView: View {
         case .food: FoodView()
         case .workouts: WorkoutView()
         case .calendar: CalendarView()
+        case .extracurriculars: ExtracurricularsView()
         }
     }
 }

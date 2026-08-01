@@ -9,6 +9,7 @@ import SwiftData
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var jarvis = JarvisController.shared
+    @State private var showingWritingSample = !WritingProfile.hasAnswered
 
     var body: some View {
         ZStack {
@@ -19,6 +20,9 @@ struct RootView: View {
         .onAppear {
             jarvis.configure(modelContext: modelContext)
             jarvis.refreshDailySuggestion()
+        }
+        .fullScreenCover(isPresented: $showingWritingSample) {
+            WritingSampleView(isOnboarding: true)
         }
     }
 }

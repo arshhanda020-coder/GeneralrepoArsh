@@ -4,9 +4,12 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct EmailsView: View {
     @StateObject private var auth = GmailAuthManager.shared
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \EmailDraft.createdAt, order: .reverse) private var drafts: [EmailDraft]
 
     @State private var to = ""
     @State private var subject = ""
@@ -15,9 +18,32 @@ struct EmailsView: View {
     @State private var isDrafting = false
     @State private var statusMessage: String?
     @State private var showingSettings = false
+    @State private var openDraft: EmailDraft?
+
+    private var pendingDrafts: [EmailDraft] { drafts.filter { !$0.isSent } }
 
     var body: some View {
         Form {
+            if !pendingDrafts.isEmpty {
+                Section("AI drafts to review") {
+                    ForEach(pendingDrafts) { draft in
+                        Button {
+                            loadDraft(draft)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(draft.subject.isEmpty ? "(no subject)" : draft.subject)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.white)
+                                Text(draft.recipientLabel.isEmpty ? "Tap to review" : draft.recipientLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.dimText)
+                            }
+                        }
+                    }
+                    .onDelete(perform: deleteDrafts)
+                }
+            }
+
             Section("Gmail account") {
                 if auth.isConnected {
                     HStack {
@@ -102,6 +128,19 @@ struct EmailsView: View {
         }
     }
 
+    private func loadDraft(_ draft: EmailDraft) {
+        openDraft = draft
+        to = draft.to
+        subject = draft.subject
+        emailBody = draft.body
+    }
+
+    private func deleteDrafts(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(pendingDrafts[index])
+        }
+    }
+
     private func sendEmail() {
         isSending = true
         statusMessage = nil
@@ -109,6 +148,8 @@ struct EmailsView: View {
             do {
                 try await GmailService.shared.send(to: to, subject: subject, body: emailBody)
                 statusMessage = "Sent."
+                openDraft?.isSent = true
+                openDraft = nil
                 to = ""
                 subject = ""
                 emailBody = ""

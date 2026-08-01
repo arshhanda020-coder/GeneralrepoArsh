@@ -251,8 +251,67 @@ final class JarvisController: NSObject, ObservableObject {
             return addProjectTask(project: input["project"] as? String ?? "", title: input["title"] as? String ?? "", context: modelContext)
         case "get_github_repos":
             return await githubReposSummary()
+        case "add_extracurricular":
+            return addExtracurricular(
+                title: input["title"] as? String ?? "",
+                description: input["description"] as? String ?? "",
+                category: input["category"] as? String,
+                context: modelContext
+            )
+        case "draft_outreach_emails":
+            return await draftOutreachEmails(
+                subject: input["subject"] as? String ?? "",
+                topic: input["topic"] as? String ?? "",
+                recipientDescription: input["recipientDescription"] as? String ?? "",
+                count: (input["count"] as? NSNumber)?.intValue ?? 1,
+                context: modelContext
+            )
         default:
             return "Unknown tool."
+        }
+    }
+
+    private func addExtracurricular(title: String, description: String, category: String?, context: ModelContext) -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else { return "No activity title given." }
+        context.insert(Extracurricular(
+            title: trimmedTitle,
+            activityDescription: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            category: category,
+            isAISuggested: true
+        ))
+        return "Added \"\(trimmedTitle)\" to Extracurriculars."
+    }
+
+    private func draftOutreachEmails(
+        subject: String,
+        topic: String,
+        recipientDescription: String,
+        count: Int,
+        context: ModelContext
+    ) async -> String {
+        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSubject.isEmpty else { return "No subject given." }
+        let clampedCount = max(1, min(count, 20))
+
+        let prompt = """
+        Draft a concise, warm, genuine-sounding outreach email.
+        Subject: \(trimmedSubject)
+        Purpose: \(topic)
+        Recipient: \(recipientDescription.isEmpty ? "unspecified" : recipientDescription)
+        Write it so it can be sent to more than one person of that description without sounding mass-produced.
+        """
+
+        do {
+            let body = try await AISettings.currentService.draft(prompt: prompt)
+            guard !body.isEmpty else { return "The draft came back empty — try again." }
+            for index in 0..<clampedCount {
+                let label = clampedCount > 1 ? "\(recipientDescription.isEmpty ? "Recipient" : recipientDescription.capitalized) #\(index + 1)" : recipientDescription.capitalized
+                context.insert(EmailDraft(recipientLabel: label, subject: trimmedSubject, body: body))
+            }
+            return "Saved \(clampedCount) draft\(clampedCount == 1 ? "" : "s") in Emails for you to review, add a recipient to, and send."
+        } catch {
+            return "Couldn't draft the email: \(error.localizedDescription)"
         }
     }
 

@@ -19,6 +19,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
     case food
     case workouts
     case calendar
+    case extracurriculars
 
     var id: String { rawValue }
 
@@ -37,6 +38,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .food: return "Food"
         case .workouts: return "Workouts"
         case .calendar: return "Calendar"
+        case .extracurriculars: return "Extracurriculars"
         }
     }
 
@@ -57,6 +59,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .food: return "fork.knife"
         case .workouts: return "figure.run"
         case .calendar: return "calendar"
+        case .extracurriculars: return "rosette"
         }
     }
 
@@ -76,6 +79,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .food: return "EA580C"
         case .workouts: return "E11D48"
         case .calendar: return "C026D3"
+        case .extracurriculars: return "CA8A04"
         }
     }
 

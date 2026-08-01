@@ -115,7 +115,7 @@ actor OpenAIService: AIProviderService {
         let body: [String: Any] = [
             "model": model,
             "messages": [
-                ["role": "system", "content": "You write clear, professional email drafts. Return only the email body text — no subject line, no preamble, no markdown."],
+                ["role": "system", "content": "You write clear, professional email drafts. Return only the email body text — no subject line, no preamble, no markdown." + WritingProfile.styleInstruction],
                 ["role": "user", "content": prompt],
             ],
         ]
@@ -208,14 +208,22 @@ actor OpenAIService: AIProviderService {
         return (message, finishReason)
     }
 
-    nonisolated private static let systemPrompt = """
+    /// Computed (not a stored constant) so an updated writing sample is picked
+    /// up on the next message without restarting the app.
+    nonisolated private static var systemPrompt: String {
+        """
     You are the in-app copilot for ArshHabitTracker — a personal app for habits, skills, projects, news, food/macros, \
     workouts, school, and coding projects. You can both answer questions and take actions using your tools: check \
     today's status, mark habits done or not done, log skill practice sessions, add tasks to projects, fetch cached \
-    news headlines by topic (finance, accounting, economics, ai, or all), and recall the user's GitHub repositories. \
-    When the user asks you to do something, call the matching tool rather than just describing what you'd do. Be \
-    concise — replies may be read aloud.
-    """
+    news headlines by topic (finance, accounting, economics, ai, or all), recall the user's GitHub repositories, \
+    add an extracurricular activity with a real description, and draft outreach emails that get saved for the user \
+    to review and send themselves (you never send email directly). When the user mentions wanting to work on or \
+    get into something (e.g. "I want to work on finance research"), proactively offer or use these tools together — \
+    e.g. add an extracurricular entry describing the activity, and draft an outreach email to the kind of person \
+    they'd want to contact about it. When the user asks you to do something, call the matching tool rather than \
+    just describing what you'd do. Be concise — replies may be read aloud.
+    """ + WritingProfile.styleInstruction
+    }
 
     nonisolated private static let tools: [[String: Any]] = [
         [
@@ -294,6 +302,39 @@ actor OpenAIService: AIProviderService {
                 "name": "get_github_repos",
                 "description": "List the user's GitHub repositories (name, description, language, stars) so you can recall their coding projects.",
                 "parameters": ["type": "object", "properties": [String: Any]()] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "add_extracurricular",
+                "description": "Add an extracurricular activity for the user, with a real written description — used when they mention wanting to pursue or work on something (e.g. finance research, volunteering).",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "title": ["type": "string", "description": "Short activity name, e.g. \"Finance Research Project\"."] as [String: Any],
+                        "description": ["type": "string", "description": "A real, well-written description of the activity — what it is, what the user would do, why it matters."] as [String: Any],
+                        "category": ["type": "string", "description": "Short category tag, e.g. \"Finance/Research\"."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["title", "description"],
+                ] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "draft_outreach_emails",
+                "description": "Write an outreach email and save it as a pending draft (or several copies of it) in the Emails tab for the user to fill in a recipient, review, and send themselves. Never sends anything.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "subject": ["type": "string", "description": "Email subject line."] as [String: Any],
+                        "topic": ["type": "string", "description": "What the email is about / trying to accomplish, e.g. \"asking for an informational interview about accounting careers\"."] as [String: Any],
+                        "recipientDescription": ["type": "string", "description": "Who this is meant for, e.g. \"a local accountant\". Used to make the draft read naturally; not an actual address."] as [String: Any],
+                        "count": ["type": "integer", "description": "How many copies of this draft to create (one per person the user plans to contact). Defaults to 1."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["subject", "topic", "recipientDescription"],
+                ] as [String: Any],
             ] as [String: Any],
         ],
     ]

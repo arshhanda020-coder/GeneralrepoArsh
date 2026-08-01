@@ -17,6 +17,7 @@ struct APIKeySheet: View {
     @State private var openAIModel: String = AISettings.openAIModel
     @State private var claudeKey: String = KeychainService.shared.loadAPIKey() ?? ""
     @State private var openAIKey: String = KeychainService.shared.loadOpenAIKey() ?? ""
+    @State private var showingWritingSample = false
 
     var body: some View {
         NavigationStack {
@@ -64,6 +65,17 @@ struct APIKeySheet: View {
                     }
                 }
 
+                Section("Writing style") {
+                    Button {
+                        showingWritingSample = true
+                    } label: {
+                        Label(WritingProfile.sample == nil ? "Add a writing sample" : "Edit writing sample", systemImage: "text.quote")
+                    }
+                    Text("A short real sample of how you write, so AI drafts (emails, extracurricular descriptions) sound like you instead of generic.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.dimText)
+                }
+
                 Section {
                     Text("Keys are stored on-device in the iOS Keychain. Only the active provider is used across Copilot, Jarvis, School, Food, and Emails.")
                         .font(.caption)
@@ -79,6 +91,9 @@ struct APIKeySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                 }
+            }
+            .sheet(isPresented: $showingWritingSample) {
+                WritingSampleView()
             }
         }
     }

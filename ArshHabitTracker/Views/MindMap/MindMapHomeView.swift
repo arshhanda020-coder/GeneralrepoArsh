@@ -13,6 +13,7 @@ struct MindMapHomeView: View {
     @Query(sort: \NewsItem.publishedAt) private var newsItems: [NewsItem]
     @Query private var assignments: [Assignment]
     @Query private var exams: [Exam]
+    @Query private var extracurriculars: [Extracurricular]
 
     @State private var hasAppeared = false
 
@@ -242,6 +243,8 @@ struct MindMapHomeView: View {
             return workoutHabits.isEmpty ? nil : "\(loggedToday(workoutHabits))/\(workoutHabits.count)"
         case .calendar:
             return upcomingAgendaCount == 0 ? nil : "\(upcomingAgendaCount)"
+        case .extracurriculars:
+            return extracurriculars.isEmpty ? nil : "\(extracurriculars.count)"
         }
     }
 }
