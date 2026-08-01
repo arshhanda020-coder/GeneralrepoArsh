@@ -58,7 +58,7 @@ struct MindMapHomeView: View {
             GeometryReader { geo in
                 // Fixed fit-scale, no pan/zoom — this stays still until enough
                 // sections are added that a static layout no longer fits.
-                let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.94
+                let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.78
 
                 ZStack {
                     dotGridBackground
