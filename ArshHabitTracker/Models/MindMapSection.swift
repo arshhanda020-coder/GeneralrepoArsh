@@ -42,6 +42,12 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// Fits the fixed-width mind-map node — `title` is still what's shown as
+    /// the actual screen's navigation title.
+    var shortTitle: String {
+        self == .extracurriculars ? "Activities" : title
+    }
+
     /// SF Symbols only — no emoji. Keeps the home screen looking like
     /// instrumentation, not a sticker sheet.
     var symbolName: String {
@@ -63,23 +69,26 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// Fully-saturated, high-contrast accents — instrumentation colors, not pastel.
+    /// A restrained, closely-related family of muted tones — one design, not
+    /// a different saturated color per tab. Copilot/AI Tools share the app's
+    /// signature brass accent; everything else sits in quiet steel-blue or
+    /// warm taupe, varying just enough to still tell sections apart at a glance.
     var accentHex: String {
         switch self {
-        case .today: return "2563EB"
-        case .skills: return "16A34A"
-        case .projects: return "9333EA"
-        case .news: return "D97706"
-        case .copilot: return "0EA5E9"
-        case .stats: return "0369A1"
-        case .emails: return "DC2626"
-        case .aiIntegration: return "0D9488"
-        case .github: return "71717A"
-        case .school: return "4F46E5"
-        case .food: return "EA580C"
-        case .workouts: return "E11D48"
-        case .calendar: return "C026D3"
-        case .extracurriculars: return "CA8A04"
+        case .today: return "5C7A99"
+        case .skills: return "6C8AA6"
+        case .projects: return "748CA3"
+        case .news: return "8A8368"
+        case .copilot: return "C9A227"
+        case .stats: return "5F6672"
+        case .emails: return "6B7280"
+        case .aiIntegration: return "B8935B"
+        case .github: return "747C87"
+        case .school: return "7D8570"
+        case .food: return "9C8F6E"
+        case .workouts: return "8E7B5E"
+        case .calendar: return "6C8AA6"
+        case .extracurriculars: return "A08A5E"
         }
     }
 

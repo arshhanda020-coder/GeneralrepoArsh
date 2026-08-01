@@ -40,7 +40,7 @@ struct WritingSampleView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(Color(hex: "5B8CFF"))
+                .tint(Theme.accent)
 
                 if isOnboarding {
                     Button("Skip for now") {

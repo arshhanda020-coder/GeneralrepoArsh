@@ -135,7 +135,7 @@ struct MindMapHomeView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(section.accentColor)
                 }
-                Text(section.title.uppercased())
+                Text(section.shortTitle.uppercased())
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
                     .tracking(0.5)
                     .foregroundStyle(.white)

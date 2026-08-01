@@ -14,7 +14,7 @@ struct NewsRowView: View {
                 Text(item.source.uppercased())
                     .font(.caption2.weight(.bold))
                     .tracking(0.3)
-                    .foregroundStyle(Color(hex: "5B8CFF"))
+                    .foregroundStyle(Theme.accent)
                 Spacer()
                 Text(relativeTime(item.publishedAt))
                     .font(.caption2.monospacedDigit())

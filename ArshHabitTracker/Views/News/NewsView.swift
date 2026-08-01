@@ -102,7 +102,7 @@ struct NewsView: View {
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(isSelected ? Color(hex: "5B8CFF") : Theme.background)
+            .background(isSelected ? Theme.accent : Theme.background)
             .foregroundStyle(isSelected ? .black : Theme.dimText)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(Theme.cardBorder, lineWidth: isSelected ? 0 : 1))

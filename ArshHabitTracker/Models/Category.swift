@@ -39,12 +39,12 @@ enum HabitCategory: String, Codable, CaseIterable, Identifiable {
 
     var accentHex: String {
         switch self {
-        case .school: return "5B8CFF"
-        case .workouts: return "FF6B6B"
-        case .meals: return "FFB84D"
-        case .skincare: return "FF8FD1"
-        case .newHabits: return "4ADE80"
-        case .accounting: return "A78BFA"
+        case .school: return "5C7A99"
+        case .workouts: return "8E7B5E"
+        case .meals: return "9C8F6E"
+        case .skincare: return "9C8A96"
+        case .newHabits: return "7FA285"
+        case .accounting: return "B8935B"
         }
     }
 

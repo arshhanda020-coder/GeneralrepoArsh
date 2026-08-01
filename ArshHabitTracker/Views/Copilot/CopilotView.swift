@@ -184,7 +184,7 @@ struct CopilotView: View {
                 Button(action: send) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(canSend ? Color(hex: "5B8CFF") : Theme.dimText)
+                        .foregroundStyle(canSend ? Theme.accent : Theme.dimText)
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
@@ -244,7 +244,7 @@ private struct ChatBubble: View {
                     .foregroundStyle(.white)
             }
             .padding(10)
-            .background(isUser ? Color(hex: "5B8CFF").opacity(0.25) : Theme.card)
+            .background(isUser ? Theme.accent.opacity(0.25) : Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.cardBorder, lineWidth: 1))
             if !isUser { Spacer(minLength: 40) }

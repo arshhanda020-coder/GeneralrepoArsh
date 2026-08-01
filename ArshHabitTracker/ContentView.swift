@@ -14,7 +14,7 @@ struct ContentView: View {
                     destination(for: section)
                 }
         }
-        .tint(Color(hex: "5B8CFF"))
+        .tint(Theme.accent)
     }
 
     @ViewBuilder
