@@ -15,6 +15,7 @@ final class Exam {
     var targetScore: String?
     var notes: String?
     var createdAt: Date
+    var schoolClass: SchoolClass?
 
     @Relationship(deleteRule: .cascade, inverse: \StudySession.exam)
     var studySessions: [StudySession] = []
@@ -25,7 +26,8 @@ final class Exam {
         examDate: Date,
         targetScore: String? = nil,
         notes: String? = nil,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        schoolClass: SchoolClass? = nil
     ) {
         self.id = id
         self.name = name
@@ -33,6 +35,7 @@ final class Exam {
         self.targetScore = targetScore
         self.notes = notes
         self.createdAt = createdAt
+        self.schoolClass = schoolClass
     }
 
     var daysUntil: Int {

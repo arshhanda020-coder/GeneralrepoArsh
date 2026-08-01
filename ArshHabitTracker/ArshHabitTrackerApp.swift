@@ -17,9 +17,34 @@ struct ArshHabitTrackerApp: App {
             Project.self, ProjectTask.self,
             NewsItem.self, ChatMessage.self,
             AIToolItem.self, Exam.self, StudySession.self,
-            Assignment.self, QuizRecord.self,
+            Assignment.self, QuizRecord.self, SchoolClass.self, Topic.self,
         ])
         container = Self.makeContainer(schema: schema)
+        Self.seedClassesIfNeeded(container: container)
+    }
+
+    /// One-time seed of the user's real current class schedule — not sample
+    /// data, this is what they're actually enrolled in this term.
+    private static func seedClassesIfNeeded(container: ModelContainer) {
+        let key = "seeded_school_classes_v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        let classes: [(name: String, isEnrolled: Bool)] = [
+            ("Ceramics 1", true),
+            ("AP Computer Science", true),
+            ("Honors French 3", true),
+            ("Precalculus", true),
+            ("AP Environmental Science", true),
+            ("English 3", true),
+            ("AP United States History", true),
+            ("Health & Wellness 11", false),
+        ]
+        let context = ModelContext(container)
+        for (index, entry) in classes.enumerated() {
+            context.insert(SchoolClass(name: entry.name, isEnrolled: entry.isEnrolled, sortIndex: index))
+        }
+        try? context.save()
     }
 
     /// The on-disk store can fall out of sync with the model schema whenever a

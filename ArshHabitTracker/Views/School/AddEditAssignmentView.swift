@@ -8,6 +8,8 @@ import SwiftData
 
 struct AddEditAssignmentView: View {
     let assignment: Assignment?
+    /// Only used when creating a new assignment — it's added under this topic.
+    var presetTopic: Topic?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -74,7 +76,8 @@ struct AddEditAssignmentView: View {
             let newAssignment = Assignment(
                 title: title,
                 dueDate: hasDueDate ? dueDate : nil,
-                notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+                notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+                topic: presetTopic
             )
             modelContext.insert(newAssignment)
         }

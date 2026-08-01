@@ -7,6 +7,10 @@ import SwiftUI
 import SwiftData
 
 struct TestMeView: View {
+    /// Set when navigated to from a specific Topic — locks the subject instead
+    /// of making the user retype the topic name.
+    var presetSubject: String?
+
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \QuizRecord.createdAt, order: .reverse) private var records: [QuizRecord]
 
@@ -33,11 +37,22 @@ struct TestMeView: View {
                         .font(.caption2.weight(.bold))
                         .tracking(0.5)
                         .foregroundStyle(Theme.dimText)
-                    TextField("e.g. Stoichiometry, WWII causes, Derivatives", text: $subject)
-                        .padding(10)
-                        .background(Theme.card)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.cardBorder, lineWidth: 1))
+                    if presetSubject != nil {
+                        Text(subject)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Theme.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.cardBorder, lineWidth: 1))
+                    } else {
+                        TextField("e.g. Stoichiometry, WWII causes, Derivatives", text: $subject)
+                            .padding(10)
+                            .background(Theme.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.cardBorder, lineWidth: 1))
+                    }
 
                     Button {
                         generateQuestion()
@@ -77,6 +92,11 @@ struct TestMeView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Test Me")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if let presetSubject, subject.isEmpty {
+                subject = presetSubject
+            }
+        }
     }
 
     private func questionCard(_ question: String) -> some View {

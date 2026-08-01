@@ -9,15 +9,13 @@ import PhotosUI
 
 struct SchoolView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Assignment.createdAt) private var assignments: [Assignment]
+    @Query(sort: \SchoolClass.sortIndex) private var allClasses: [SchoolClass]
     @Query(sort: \Exam.examDate) private var exams: [Exam]
 
-    @State private var showingAddAssignment = false
-    @State private var editingAssignment: Assignment?
+    @State private var showingManageClasses = false
     @State private var showingAddExam = false
     @State private var editingExam: Exam?
     @State private var loggingExam: Exam?
-    @State private var newAssignmentTitle = ""
 
     @State private var homeworkQuestion = ""
     @State private var homeworkPhoto: PhotosPickerItem?
@@ -26,14 +24,14 @@ struct SchoolView: View {
     @State private var isAsking = false
     @State private var askError: String?
 
+    private var enrolledClasses: [SchoolClass] { allClasses.filter { $0.isEnrolled } }
+    private var droppedClasses: [SchoolClass] { allClasses.filter { !$0.isEnrolled } }
     private var upcomingExams: [Exam] { exams.filter { !$0.isPast } }
-    private var pendingAssignments: [Assignment] { assignments.filter { !$0.isDone } }
-    private var doneAssignments: [Assignment] { assignments.filter { $0.isDone } }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                assignmentsSection
+                classesSection
                 examsSection
                 homeworkHelperSection
 
@@ -74,92 +72,78 @@ struct SchoolView: View {
         .sheet(item: $loggingExam) { exam in
             LogStudySessionSheet(exam: exam)
         }
-        .sheet(item: $editingAssignment) { assignment in
-            AddEditAssignmentView(assignment: assignment)
+        .sheet(isPresented: $showingManageClasses) {
+            ManageClassesView()
         }
     }
 
-    // MARK: - Assignments
+    // MARK: - Classes
 
-    private var assignmentsSection: some View {
+    private var classesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ASSIGNMENTS")
-                .font(.caption2.weight(.bold))
-                .tracking(0.5)
-                .foregroundStyle(Theme.dimText)
-
-            HStack(spacing: 8) {
-                TextField("Add an assignment", text: $newAssignmentTitle)
-                    .padding(10)
-                    .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.cardBorder, lineWidth: 1))
-                    .onSubmit(addAssignment)
-                Button(action: addAssignment) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(newAssignmentTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Theme.dimText : MindMapSection.school.accentColor)
+            HStack {
+                Text("CLASSES")
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+                Button {
+                    showingManageClasses = true
+                } label: {
+                    Text("Manage")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(MindMapSection.school.accentColor)
                 }
                 .buttonStyle(.plain)
-                .disabled(newAssignmentTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
-            if assignments.isEmpty {
-                Text("Nothing due — add your homework and projects here.")
+            if allClasses.isEmpty {
+                Text("No classes yet. Tap Manage to add your schedule.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array((pendingAssignments + doneAssignments).enumerated()), id: \.element.id) { index, assignment in
+                    ForEach(Array(enrolledClasses.enumerated()), id: \.element.id) { index, schoolClass in
                         if index > 0 {
                             Divider().overlay(Theme.cardBorder)
                         }
-                        assignmentRow(assignment)
+                        classRow(schoolClass)
                     }
                 }
                 .background(Theme.card)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
-            }
-        }
-    }
 
-    private func assignmentRow(_ assignment: Assignment) -> some View {
-        HStack(spacing: 10) {
-            Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    assignment.isDone.toggle()
-                }
-            } label: {
-                Image(systemName: assignment.isDone ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(assignment.isDone ? MindMapSection.school.accentColor : Theme.dimText)
-            }
-            .buttonStyle(.plain)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(assignment.title)
-                    .font(.subheadline)
-                    .foregroundStyle(assignment.isDone ? Theme.dimText : .white)
-                    .strikethrough(assignment.isDone)
-                if let due = assignment.dueDate {
-                    Text(due.formatted(.dateTime.month(.abbreviated).day()))
-                        .font(.caption2.monospacedDigit())
+                if !droppedClasses.isEmpty {
+                    Text("Not enrolled: \(droppedClasses.map(\.name).joined(separator: ", "))")
+                        .font(.caption2)
                         .foregroundStyle(Theme.dimText)
                 }
             }
-
-            Spacer()
         }
-        .padding(10)
-        .contentShape(Rectangle())
-        .onTapGesture { editingAssignment = assignment }
     }
 
-    private func addAssignment() {
-        let trimmed = newAssignmentTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        modelContext.insert(Assignment(title: trimmed))
-        newAssignmentTitle = ""
+    private func classRow(_ schoolClass: SchoolClass) -> some View {
+        NavigationLink(destination: SchoolClassDetailView(schoolClass: schoolClass)) {
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(schoolClass.name)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.white)
+                    let pendingCount = schoolClass.topics.flatMap(\.assignments).filter { !$0.isDone }.count
+                    Text(schoolClass.topics.isEmpty ? "No topics yet" : (pendingCount == 0 ? "All caught up" : "\(pendingCount) pending"))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.dimText)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
+            .padding(10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Exams
@@ -322,5 +306,5 @@ struct SchoolView: View {
     NavigationStack {
         SchoolView()
     }
-    .modelContainer(for: [Assignment.self, Exam.self, StudySession.self, QuizRecord.self], inMemory: true)
+    .modelContainer(for: [SchoolClass.self, Topic.self, Assignment.self, Exam.self, StudySession.self, QuizRecord.self], inMemory: true)
 }
