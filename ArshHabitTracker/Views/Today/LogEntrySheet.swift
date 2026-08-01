@@ -26,6 +26,9 @@ struct LogEntrySheet: View {
     @State private var fat: String = ""
     @State private var isEstimating = false
     @State private var estimateError: String?
+    @State private var showingScanner = false
+    @State private var isLookingUpBarcode = false
+    @State private var scanError: String?
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
     private var isMeal: Bool { habit.category == .meals }
@@ -114,6 +117,17 @@ struct LogEntrySheet: View {
                         if let estimateError {
                             Text(estimateError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
                         }
+
+                        Button {
+                            showingScanner = true
+                        } label: {
+                            Label(isLookingUpBarcode ? "Looking up…" : "Scan Barcode", systemImage: "barcode.viewfinder")
+                        }
+                        .disabled(isLookingUpBarcode)
+
+                        if let scanError {
+                            Text(scanError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                        }
                     }
                 }
 
@@ -157,6 +171,50 @@ struct LogEntrySheet: View {
             }
         }
         .presentationDetents([.large])
+        .fullScreenCover(isPresented: $showingScanner) {
+            ZStack(alignment: .topTrailing) {
+                BarcodeScannerView(
+                    onScan: { barcode in
+                        showingScanner = false
+                        lookUp(barcode: barcode)
+                    },
+                    onCancel: { showingScanner = false }
+                )
+                .ignoresSafeArea()
+
+                Button {
+                    showingScanner = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title)
+                        .foregroundStyle(.white, .black.opacity(0.6))
+                }
+                .padding()
+            }
+        }
+    }
+
+    private func lookUp(barcode: String) {
+        isLookingUpBarcode = true
+        scanError = nil
+        Task {
+            do {
+                let nutrition = try await BarcodeLookupService.shared.lookup(barcode: barcode)
+                if let cal = nutrition.calories { calories = String(cal) }
+                if let protein_ = nutrition.proteinGrams { protein = String(format: "%.0f", protein_) }
+                if let carbs_ = nutrition.carbsGrams { carbs = String(format: "%.0f", carbs_) }
+                if let fat_ = nutrition.fatGrams { fat = String(format: "%.0f", fat_) }
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let name = nutrition.productName {
+                    text = name
+                }
+                if nutrition.isPer100g {
+                    scanError = "No serving size on file — these are per 100g, adjust for your actual portion."
+                }
+            } catch {
+                scanError = error.localizedDescription
+            }
+            isLookingUpBarcode = false
+        }
     }
 
     private func estimateWithAI() {
