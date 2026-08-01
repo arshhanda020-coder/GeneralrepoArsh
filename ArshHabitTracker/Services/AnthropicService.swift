@@ -57,7 +57,7 @@ actor AnthropicService: AIProviderService {
             return ["role": message.role, "content": content]
         }
 
-        for _ in 0..<6 {
+        for _ in 0..<10 {
             let body: [String: Any] = [
                 "model": model,
                 "max_tokens": 4096,
@@ -82,6 +82,13 @@ actor AnthropicService: AIProviderService {
                     toolResults.append(["type": "tool_result", "tool_use_id": toolUseId, "content": result])
                 }
                 messages.append(["role": "user", "content": toolResults])
+                continue
+            }
+
+            if stopReason == "pause_turn" {
+                // Server-side tool (web search) hit its internal step limit —
+                // resume by re-sending the assistant turn as-is, no new user message.
+                messages.append(["role": "assistant", "content": contentBlocks])
                 continue
             }
 
@@ -248,13 +255,16 @@ actor AnthropicService: AIProviderService {
     coding projects. You can both answer questions and take actions using your tools: check today's status, \
     mark habits done or not done, log skill practice sessions, add tasks to projects, fetch cached news \
     headlines by topic (finance, accounting, economics, ai, or all), recall the user's GitHub repositories, \
-    add an extracurricular activity with a real description, and draft outreach emails that get saved for the \
-    user to review and send themselves (you never send email directly). When the user mentions wanting to work \
-    on or get into something (e.g. "I want to work on finance research"), proactively offer or use these tools \
-    together — e.g. add an extracurricular entry describing the activity, and draft an outreach email to the \
-    kind of person they'd want to contact about it. When the user asks you to do something ("mark X done", \
-    "log a session for Y", "add a task to Z", "what repos do I have"), call the matching tool rather than just \
-    describing what you'd do. Be concise — replies may be read aloud.
+    add an extracurricular activity with a real description, draft outreach emails that get saved for the \
+    user to review and send themselves (you never send email directly), and search the web for real, current \
+    information — including real public contact emails (e.g. from a firm's official contact page) when drafting \
+    outreach. Never invent an email address; leave it blank if a real one can't be found. When the user mentions \
+    wanting to work on or get into something (e.g. "I want to work on finance research"), proactively use these \
+    tools together — e.g. add an extracurricular entry describing the activity, search for a few real \
+    organizations or people to reach out to, and draft an outreach email addressed to each one you found. When \
+    the user asks you to do something ("mark X done", "log a session for Y", "add a task to Z", "what repos do \
+    I have"), call the matching tool rather than just describing what you'd do. Be concise — replies may be read \
+    aloud.
     """ + WritingProfile.styleInstruction
     }
 
@@ -334,17 +344,28 @@ actor AnthropicService: AIProviderService {
         ],
         [
             "name": "draft_outreach_emails",
-            "description": "Write an outreach email and save it as a pending draft (or several copies of it) in the Emails tab for the user to fill in a recipient, review, and send themselves. Never sends anything.",
+            "description": "Write an outreach email and save it as a pending draft — one per recipient — in the Emails tab for the user to review and send themselves. Never sends anything. Use web_search first to find real, publicly listed contact emails (e.g. from a firm's official \"Contact\" or \"About\" page) whenever possible; never invent an email address — leave it blank if you can't find a real one.",
             "input_schema": [
                 "type": "object",
                 "properties": [
                     "subject": ["type": "string", "description": "Email subject line."] as [String: Any],
                     "topic": ["type": "string", "description": "What the email is about / trying to accomplish, e.g. \"asking for an informational interview about accounting careers\"."] as [String: Any],
-                    "recipientDescription": ["type": "string", "description": "Who this is meant for, e.g. \"a local accountant\". Used to make the draft read naturally; not an actual address."] as [String: Any],
-                    "count": ["type": "integer", "description": "How many copies of this draft to create (one per person the user plans to contact). Defaults to 1."] as [String: Any],
+                    "recipients": [
+                        "type": "array",
+                        "description": "One entry per person/organization to draft this for.",
+                        "items": [
+                            "type": "object",
+                            "properties": [
+                                "label": ["type": "string", "description": "Who this copy is for, e.g. a firm or person's name."] as [String: Any],
+                                "email": ["type": "string", "description": "Real public contact email found via web_search. Leave empty string if none was found — never invent one."] as [String: Any],
+                            ] as [String: Any],
+                            "required": ["label"],
+                        ] as [String: Any],
+                    ] as [String: Any],
                 ] as [String: Any],
-                "required": ["subject", "topic", "recipientDescription"],
+                "required": ["subject", "topic", "recipients"],
             ] as [String: Any],
         ],
+        ["type": "web_search_20260209", "name": "web_search"],
     ]
 }

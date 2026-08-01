@@ -324,16 +324,26 @@ actor OpenAIService: AIProviderService {
             "type": "function",
             "function": [
                 "name": "draft_outreach_emails",
-                "description": "Write an outreach email and save it as a pending draft (or several copies of it) in the Emails tab for the user to fill in a recipient, review, and send themselves. Never sends anything.",
+                "description": "Write an outreach email and save it as a pending draft — one per recipient — in the Emails tab for the user to review and send themselves. Never sends anything. You have no live web search, so never invent an email address — leave it blank unless the user already gave you a real one.",
                 "parameters": [
                     "type": "object",
                     "properties": [
                         "subject": ["type": "string", "description": "Email subject line."] as [String: Any],
                         "topic": ["type": "string", "description": "What the email is about / trying to accomplish, e.g. \"asking for an informational interview about accounting careers\"."] as [String: Any],
-                        "recipientDescription": ["type": "string", "description": "Who this is meant for, e.g. \"a local accountant\". Used to make the draft read naturally; not an actual address."] as [String: Any],
-                        "count": ["type": "integer", "description": "How many copies of this draft to create (one per person the user plans to contact). Defaults to 1."] as [String: Any],
+                        "recipients": [
+                            "type": "array",
+                            "description": "One entry per person/organization to draft this for.",
+                            "items": [
+                                "type": "object",
+                                "properties": [
+                                    "label": ["type": "string", "description": "Who this copy is for, e.g. a firm or person's name."] as [String: Any],
+                                    "email": ["type": "string", "description": "A real email address only if the user already gave you one — otherwise leave empty."] as [String: Any],
+                                ] as [String: Any],
+                                "required": ["label"],
+                            ] as [String: Any],
+                        ] as [String: Any],
                     ] as [String: Any],
-                    "required": ["subject", "topic", "recipientDescription"],
+                    "required": ["subject", "topic", "recipients"],
                 ] as [String: Any],
             ] as [String: Any],
         ],

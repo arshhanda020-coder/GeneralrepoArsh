@@ -262,8 +262,7 @@ final class JarvisController: NSObject, ObservableObject {
             return await draftOutreachEmails(
                 subject: input["subject"] as? String ?? "",
                 topic: input["topic"] as? String ?? "",
-                recipientDescription: input["recipientDescription"] as? String ?? "",
-                count: (input["count"] as? NSNumber)?.intValue ?? 1,
+                recipients: input["recipients"] as? [[String: Any]] ?? [],
                 context: modelContext
             )
         default:
@@ -286,30 +285,33 @@ final class JarvisController: NSObject, ObservableObject {
     private func draftOutreachEmails(
         subject: String,
         topic: String,
-        recipientDescription: String,
-        count: Int,
+        recipients: [[String: Any]],
         context: ModelContext
     ) async -> String {
         let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSubject.isEmpty else { return "No subject given." }
-        let clampedCount = max(1, min(count, 20))
+        let entries = recipients.isEmpty ? [["label": "Recipient"]] : recipients
+        let clamped = Array(entries.prefix(20))
 
         let prompt = """
         Draft a concise, warm, genuine-sounding outreach email.
         Subject: \(trimmedSubject)
         Purpose: \(topic)
-        Recipient: \(recipientDescription.isEmpty ? "unspecified" : recipientDescription)
-        Write it so it can be sent to more than one person of that description without sounding mass-produced.
+        Write it so it can be sent to more than one person without sounding mass-produced.
         """
 
         do {
             let body = try await AISettings.currentService.draft(prompt: prompt)
             guard !body.isEmpty else { return "The draft came back empty — try again." }
-            for index in 0..<clampedCount {
-                let label = clampedCount > 1 ? "\(recipientDescription.isEmpty ? "Recipient" : recipientDescription.capitalized) #\(index + 1)" : recipientDescription.capitalized
-                context.insert(EmailDraft(recipientLabel: label, subject: trimmedSubject, body: body))
+            var foundCount = 0
+            for entry in clamped {
+                let label = (entry["label"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Recipient"
+                let email = (entry["email"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if !email.isEmpty { foundCount += 1 }
+                context.insert(EmailDraft(recipientLabel: label, to: email, subject: trimmedSubject, body: body))
             }
-            return "Saved \(clampedCount) draft\(clampedCount == 1 ? "" : "s") in Emails for you to review, add a recipient to, and send."
+            let addressedNote = foundCount == 0 ? " No real contact emails were found, so you'll need to fill those in." : " \(foundCount) of them already have a real address filled in from search."
+            return "Saved \(clamped.count) draft\(clamped.count == 1 ? "" : "s") in Emails for you to review and send.\(addressedNote)"
         } catch {
             return "Couldn't draft the email: \(error.localizedDescription)"
         }
