@@ -16,6 +16,7 @@ struct MindMapHomeView: View {
     @Query private var extracurriculars: [Extracurricular]
 
     @State private var hasAppeared = false
+    @State private var showingSearch = false
 
     private let radius: CGFloat = 240
     private let nodeWidth: CGFloat = 84
@@ -48,14 +49,17 @@ struct MindMapHomeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            searchBar
+                .padding(.top, 8)
+
             DailyQuoteView()
-                .padding(.top, 16)
+                .padding(.top, 12)
                 .padding(.bottom, 4)
 
             GeometryReader { geo in
                 // Fixed fit-scale, no pan/zoom — this stays still until enough
                 // sections are added that a static layout no longer fits.
-                let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.78
+                let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.5
 
                 ZStack {
                     dotGridBackground
@@ -86,6 +90,32 @@ struct MindMapHomeView: View {
                 hasAppeared = true
             }
         }
+        .sheet(isPresented: $showingSearch) {
+            SearchView()
+        }
+    }
+
+    private var searchBar: some View {
+        Button {
+            showingSearch = true
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Theme.dimText)
+                Text("Search everything")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(Theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.cardBorder, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, 16)
+        .padding(.trailing, 64)
     }
 
     private var dotGridBackground: some View {

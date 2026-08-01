@@ -3,8 +3,9 @@
 //  ArshHabitTracker
 //
 //  Floating chrome mounted once at the app root (above the NavigationStack)
-//  so it persists across every screen: Settings and Search up top, Jarvis's
-//  orb just below them, all tucked into the top-trailing corner.
+//  so it persists across every screen: Settings up top, Jarvis's orb just
+//  below it, tucked into the top-trailing corner. Search lives as a real
+//  search bar on the home screen instead of living here.
 //
 
 import SwiftUI
@@ -12,7 +13,6 @@ import SwiftUI
 struct JarvisOverlay: View {
     @EnvironmentObject private var jarvis: JarvisController
     @State private var showingSettings = false
-    @State private var showingSearch = false
 
     var body: some View {
         VStack {
@@ -33,19 +33,6 @@ struct JarvisOverlay: View {
                     .accessibilityLabel("Settings")
 
                     Button {
-                        showingSearch = true
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.body)
-                            .foregroundStyle(Theme.dimText)
-                            .frame(width: 32, height: 32)
-                            .background(Theme.card)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Theme.cardBorder, lineWidth: 1))
-                    }
-                    .accessibilityLabel("Search")
-
-                    Button {
                         jarvis.activate()
                     } label: {
                         ArcReactorView(size: 48, isActive: jarvis.isActive)
@@ -64,9 +51,6 @@ struct JarvisOverlay: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
-        }
-        .sheet(isPresented: $showingSearch) {
-            SearchView()
         }
     }
 }

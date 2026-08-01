@@ -7,15 +7,20 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var healthKit = HealthKitManager.shared
 
     @State private var showingAI = false
     @State private var showingGitHub = false
     @State private var showingGmail = false
     @State private var showingWritingSample = false
     @State private var showingChangePIN = false
+    @State private var showingDeleteConfirmation = false
+    @State private var didDeleteAll = false
 
     var body: some View {
         NavigationStack {
@@ -44,6 +49,21 @@ struct SettingsView: View {
                     } label: {
                         Label("Gmail", systemImage: "envelope")
                     }
+                    Button {
+                        Task { await healthKit.requestAuthorizationAndRefresh() }
+                    } label: {
+                        Label(healthKit.isAuthorized ? "Apple Health — Connected" : "Connect Apple Health", systemImage: "heart.fill")
+                    }
+                    if let steps = healthKit.todaysSteps {
+                        Text("\(steps) steps today")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
+                    }
+                    if let message = healthKit.statusMessage {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(Color(hex: "C0605C"))
+                    }
                 }
 
                 Section("Appearance") {
@@ -59,6 +79,23 @@ struct SettingsView: View {
                         Label("Change PIN", systemImage: "lock")
                     }
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingDeleteConfirmation = true
+                    } label: {
+                        Label("Delete All Data", systemImage: "trash")
+                    }
+                    if didDeleteAll {
+                        Text("All data deleted.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
+                    }
+                } header: {
+                    Text("Danger Zone")
+                } footer: {
+                    Text("Permanently deletes every habit, project, school record, health entry, news item, and chat — everything tracked in the app. Your API keys, PIN, and appearance settings are not affected.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -67,12 +104,42 @@ struct SettingsView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .confirmationDialog(
+                "Delete all data?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Everything", role: .destructive) {
+                    deleteAllData()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes everything tracked in the app — habits, projects, school records, health entries, news, chats. This can't be undone.")
+            }
         }
         .sheet(isPresented: $showingAI) { APIKeySheet() }
         .sheet(isPresented: $showingGitHub) { GitHubSettingsSheet() }
         .sheet(isPresented: $showingGmail) { GmailSettingsSheet() }
         .sheet(isPresented: $showingWritingSample) { WritingSampleView() }
         .fullScreenCover(isPresented: $showingChangePIN) { ChangePINView() }
+    }
+
+    private func deleteAllData() {
+        let types: [any PersistentModel.Type] = [
+            Habit.self, Completion.self,
+            Skill.self, SkillSession.self,
+            Project.self, ProjectTask.self,
+            NewsItem.self, ChatMessage.self,
+            AIToolItem.self, Exam.self, StudySession.self,
+            Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
+            Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
+            ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
+        ]
+        for type in types {
+            try? modelContext.delete(model: type)
+        }
+        try? modelContext.save()
+        didDeleteAll = true
     }
 }
 

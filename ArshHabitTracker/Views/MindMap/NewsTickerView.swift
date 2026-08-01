@@ -17,10 +17,22 @@ struct NewsTickerView: View {
     @State private var showingNews = false
     @State private var pulse = false
 
-    private var headlineText: String {
+    private var styledHeadline: Text {
         let top = Array(items.prefix(12))
-        guard !top.isEmpty else { return "No headlines yet — tap to open News and refresh." }
-        return top.map { "\($0.source.uppercased())  —  \($0.title)" }.joined(separator: "        •        ")
+        guard !top.isEmpty else {
+            return Text("No headlines yet — tap to open News and refresh.")
+                .font(.caption2.weight(.medium))
+                .foregroundColor(Theme.dimText)
+        }
+        var result: Text?
+        for item in top {
+            let segment = Text(Image(systemName: "circle.fill")).font(.system(size: 4)).foregroundColor(Theme.accent)
+                + Text("  " + item.source.uppercased() + "  ").font(.system(.caption2, design: .monospaced).weight(.bold)).foregroundColor(Theme.accent)
+                + Text(item.title).font(.caption2.weight(.medium)).foregroundColor(Theme.dimText)
+            let separator = Text("        ★        ").font(.caption2).foregroundColor(Theme.accent.opacity(0.4))
+            result = result.map { $0 + separator + segment } ?? segment
+        }
+        return result ?? Text("")
     }
 
     var body: some View {
@@ -34,7 +46,7 @@ struct NewsTickerView: View {
                 }
                 .offset(x: offset)
             }
-            .frame(height: 30, alignment: .leading)
+            .frame(height: 34, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .clipped()
             .mask(
@@ -50,6 +62,7 @@ struct NewsTickerView: View {
                 )
             )
         }
+        .padding(.trailing, 12)
         .contentShape(Rectangle())
         .onTapGesture { showingNews = true }
         .background(
@@ -59,11 +72,14 @@ struct NewsTickerView: View {
                 endPoint: .bottom
             )
         )
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.accent.opacity(0.35))
-                .frame(height: 1)
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Theme.accent.opacity(0.3), lineWidth: 1)
+        )
+        .shadow(color: Theme.accent.opacity(0.15), radius: 8, y: -2)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 8)
         .sheet(isPresented: $showingNews) {
             NavigationStack { NewsView() }
         }
@@ -71,29 +87,30 @@ struct NewsTickerView: View {
 
     private var liveBadge: some View {
         HStack(spacing: 5) {
+            Image(systemName: "newspaper.fill")
+                .font(.caption2)
+                .foregroundStyle(Theme.accent)
             Circle()
                 .fill(Theme.accent)
-                .frame(width: 6, height: 6)
-                .opacity(pulse ? 1 : 0.4)
+                .frame(width: 5, height: 5)
+                .opacity(pulse ? 1 : 0.35)
                 .animation(.easeInOut(duration: 1).repeatForever(autoreverses: true), value: pulse)
-            Text("NEWS")
+            Text("LIVE")
                 .font(.system(.caption2, design: .monospaced).weight(.bold))
                 .tracking(0.5)
                 .foregroundStyle(Theme.accent)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Theme.card)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Theme.accent.opacity(0.1))
         .overlay(alignment: .trailing) {
-            Rectangle().fill(Theme.cardBorder).frame(width: 1)
+            Rectangle().fill(Theme.accent.opacity(0.25)).frame(width: 1)
         }
         .onAppear { pulse = true }
     }
 
     private var tickerText: some View {
-        Text(headlineText)
-            .font(.caption2.weight(.medium))
-            .foregroundStyle(Theme.dimText)
+        styledHeadline
             .fixedSize()
             .padding(.leading, 12)
             .background(

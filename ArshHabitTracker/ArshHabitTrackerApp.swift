@@ -19,7 +19,7 @@ struct ArshHabitTrackerApp: App {
             AIToolItem.self, Exam.self, StudySession.self,
             Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
-            ActivitySession.self, ProgressEntry.self, MonthlyReport.self,
+            ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
         ])
         container = Self.makeContainer(schema: schema)
         Self.seedClassesIfNeeded(container: container)

@@ -14,6 +14,7 @@ struct NewsView: View {
     @State private var isRefreshing = false
     @State private var statusMessage: String?
     @State private var selectedItem: NewsItem?
+    @State private var isMarketMode = false
 
     private var filteredItems: [NewsItem] {
         guard let selectedTopic else {
@@ -34,36 +35,40 @@ struct NewsView: View {
         VStack(spacing: 0) {
             topicPicker
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if let statusMessage {
-                        Text(statusMessage)
-                            .font(.caption2)
-                            .foregroundStyle(Theme.dimText)
-                            .padding(.horizontal, 12)
-                            .padding(.top, 4)
-                            .padding(.bottom, 8)
-                    }
+            if isMarketMode {
+                MarketView()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let statusMessage {
+                            Text(statusMessage)
+                                .font(.caption2)
+                                .foregroundStyle(Theme.dimText)
+                                .padding(.horizontal, 12)
+                                .padding(.top, 4)
+                                .padding(.bottom, 8)
+                        }
 
-                    if filteredItems.isEmpty && isRefreshing {
-                        ProgressView()
-                            .tint(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 60)
-                    } else if filteredItems.isEmpty {
-                        Text("No headlines yet. Pull to refresh.")
-                            .font(.subheadline)
-                            .foregroundStyle(Theme.dimText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 60)
-                    } else {
-                        groupedList
+                        if filteredItems.isEmpty && isRefreshing {
+                            ProgressView()
+                                .tint(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 60)
+                        } else if filteredItems.isEmpty {
+                            Text("No headlines yet. Pull to refresh.")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.dimText)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 60)
+                        } else {
+                            groupedList
+                        }
                     }
+                    .padding(12)
                 }
-                .padding(12)
+                .background(Theme.background.ignoresSafeArea())
+                .refreshable { await refresh() }
             }
-            .background(Theme.background.ignoresSafeArea())
-            .refreshable { await refresh() }
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("News")
@@ -86,6 +91,7 @@ struct NewsView: View {
                 ForEach(NewsTopic.allCases) { topic in
                     chip(title: topic.displayName, topic: topic)
                 }
+                marketChip
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -97,7 +103,7 @@ struct NewsView: View {
     }
 
     private func chip(title: String, topic: NewsTopic?) -> some View {
-        let isSelected = selectedTopic == topic
+        let isSelected = !isMarketMode && selectedTopic == topic
         return Text(title)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 12)
@@ -106,7 +112,22 @@ struct NewsView: View {
             .foregroundStyle(isSelected ? .black : Theme.dimText)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(Theme.cardBorder, lineWidth: isSelected ? 0 : 1))
-            .onTapGesture { selectedTopic = topic }
+            .onTapGesture {
+                isMarketMode = false
+                selectedTopic = topic
+            }
+    }
+
+    private var marketChip: some View {
+        Label("Market", systemImage: "chart.line.uptrend.xyaxis")
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(isMarketMode ? Theme.accent : Theme.background)
+            .foregroundStyle(isMarketMode ? .black : Theme.dimText)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(Theme.cardBorder, lineWidth: isMarketMode ? 0 : 1))
+            .onTapGesture { isMarketMode = true }
     }
 
     private var groupedList: some View {
