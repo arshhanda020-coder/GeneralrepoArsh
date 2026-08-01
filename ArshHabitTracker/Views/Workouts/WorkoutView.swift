@@ -2,11 +2,14 @@
 //  WorkoutView.swift
 //  ArshHabitTracker
 //
+//  Workouts sub-tab within Health — no own nav title/toolbar since it's
+//  embedded in HealthView's segmented picker.
+//
 
 import SwiftUI
 import SwiftData
 
-struct WorkoutView: View {
+struct WorkoutContentView: View {
     @Query(sort: \Habit.createdAt) private var allHabits: [Habit]
 
     @State private var editingHabit: Habit?
@@ -23,25 +26,11 @@ struct WorkoutView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                todaySection
+        VStack(alignment: .leading, spacing: 16) {
+            todaySection
 
-                if !historyCompletions.isEmpty {
-                    historySection
-                }
-            }
-            .padding(12)
-        }
-        .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Workouts")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddHabit = true
-                } label: {
-                    Image(systemName: "plus")
-                }
+            if !historyCompletions.isEmpty {
+                historySection
             }
         }
         .sheet(isPresented: $showingAddHabit) {
@@ -57,10 +46,20 @@ struct WorkoutView: View {
 
     private var todaySection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("TODAY")
-                .font(.caption2.weight(.bold))
-                .tracking(0.5)
-                .foregroundStyle(Theme.dimText)
+            HStack {
+                Text("TODAY")
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+                Button {
+                    showingAddHabit = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(MindMapSection.health.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
             VStack(spacing: 0) {
                 if habits.isEmpty {
                     Text("No workouts set up yet. Tap + to add one.")
@@ -133,7 +132,7 @@ struct WorkoutView: View {
 
 #Preview {
     NavigationStack {
-        WorkoutView()
+        WorkoutContentView()
     }
     .modelContainer(for: [Habit.self, Completion.self], inMemory: true)
 }

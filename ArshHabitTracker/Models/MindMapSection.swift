@@ -16,8 +16,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
     case aiIntegration
     case github
     case school
-    case food
-    case workouts
+    case health
     case calendar
     case extracurriculars
 
@@ -35,8 +34,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .aiIntegration: return "AI Tools"
         case .github: return "GitHub"
         case .school: return "School"
-        case .food: return "Food"
-        case .workouts: return "Workouts"
+        case .health: return "Health"
         case .calendar: return "Calendar"
         case .extracurriculars: return "Extracurriculars"
         }
@@ -62,8 +60,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .aiIntegration: return "bolt.fill"
         case .github: return "chevron.left.forwardslash.chevron.right"
         case .school: return "graduationcap.fill"
-        case .food: return "fork.knife"
-        case .workouts: return "figure.run"
+        case .health: return "heart.fill"
         case .calendar: return "calendar"
         case .extracurriculars: return "rosette"
         }
@@ -85,8 +82,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .aiIntegration: return "B8935B"
         case .github: return "747C87"
         case .school: return "7D8570"
-        case .food: return "9C8F6E"
-        case .workouts: return "8E7B5E"
+        case .health: return "9C8F6E"
         case .calendar: return "6C8AA6"
         case .extracurriculars: return "A08A5E"
         }

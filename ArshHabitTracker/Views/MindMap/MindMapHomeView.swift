@@ -35,11 +35,8 @@ struct MindMapHomeView: View {
     private var projectTasksDone: Int { projects.flatMap { $0.tasks }.filter { $0.isDone }.count }
     private var projectTasksTotal: Int { projects.flatMap { $0.tasks }.count }
 
-    private var mealHabits: [Habit] { habits.filter { $0.category == .meals } }
-    private var workoutHabits: [Habit] { habits.filter { $0.category == .workouts } }
-    private func loggedToday(_ habits: [Habit]) -> Int {
-        habits.filter { $0.isCompleted(on: today) }.count
-    }
+    private var healthHabits: [Habit] { habits.filter { $0.category == .meals || $0.category == .workouts } }
+    private var healthLoggedToday: Int { healthHabits.filter { $0.isCompleted(on: today) }.count }
 
     private var pendingAssignments: Int { assignments.filter { !$0.isDone }.count }
     private var upcomingAgendaCount: Int {
@@ -245,10 +242,8 @@ struct MindMapHomeView: View {
             return nil
         case .school:
             return pendingAssignments == 0 ? nil : "\(pendingAssignments)"
-        case .food:
-            return mealHabits.isEmpty ? nil : "\(loggedToday(mealHabits))/\(mealHabits.count)"
-        case .workouts:
-            return workoutHabits.isEmpty ? nil : "\(loggedToday(workoutHabits))/\(workoutHabits.count)"
+        case .health:
+            return healthHabits.isEmpty ? nil : "\(healthLoggedToday)/\(healthHabits.count)"
         case .calendar:
             return upcomingAgendaCount == 0 ? nil : "\(upcomingAgendaCount)"
         case .extracurriculars:

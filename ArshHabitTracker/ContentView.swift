@@ -30,8 +30,7 @@ struct ContentView: View {
         case .aiIntegration: AIIntegrationView()
         case .github: GitHubView()
         case .school: SchoolView()
-        case .food: FoodView()
-        case .workouts: WorkoutView()
+        case .health: HealthView()
         case .calendar: CalendarView()
         case .extracurriculars: ExtracurricularsView()
         }

@@ -2,11 +2,14 @@
 //  FoodView.swift
 //  ArshHabitTracker
 //
+//  Food sub-tab within Health — no own nav title/toolbar since it's embedded
+//  in HealthView's segmented picker.
+//
 
 import SwiftUI
 import SwiftData
 
-struct FoodView: View {
+struct FoodContentView: View {
     @Query(sort: \Habit.createdAt) private var allHabits: [Habit]
 
     @State private var editingHabit: Habit?
@@ -35,29 +38,15 @@ struct FoodView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                todaySection
+        VStack(alignment: .leading, spacing: 16) {
+            todaySection
 
-                if todaysTotals.calories > 0 || todaysTotals.protein > 0 || todaysTotals.carbs > 0 || todaysTotals.fat > 0 {
-                    macroSummary
-                }
-
-                if !historyCompletions.isEmpty {
-                    historySection
-                }
+            if todaysTotals.calories > 0 || todaysTotals.protein > 0 || todaysTotals.carbs > 0 || todaysTotals.fat > 0 {
+                macroSummary
             }
-            .padding(12)
-        }
-        .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Food")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddHabit = true
-                } label: {
-                    Image(systemName: "plus")
-                }
+
+            if !historyCompletions.isEmpty {
+                historySection
             }
         }
         .sheet(isPresented: $showingAddHabit) {
@@ -73,10 +62,20 @@ struct FoodView: View {
 
     private var todaySection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("TODAY")
-                .font(.caption2.weight(.bold))
-                .tracking(0.5)
-                .foregroundStyle(Theme.dimText)
+            HStack {
+                Text("TODAY")
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+                Button {
+                    showingAddHabit = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(MindMapSection.health.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
             VStack(spacing: 0) {
                 if habits.isEmpty {
                     Text("No meals set up yet. Tap + to add Breakfast, Lunch, Dinner, or a snack.")
@@ -174,7 +173,7 @@ struct FoodView: View {
 
 #Preview {
     NavigationStack {
-        FoodView()
+        FoodContentView()
     }
     .modelContainer(for: [Habit.self, Completion.self], inMemory: true)
 }
