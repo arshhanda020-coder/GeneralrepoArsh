@@ -6,6 +6,22 @@
 import Foundation
 import SwiftData
 
+enum ExamCategory: String, Codable, CaseIterable, Identifiable {
+    case act
+    case marchExams
+    case apExams
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .act: return "ACT"
+        case .marchExams: return "March Exams"
+        case .apExams: return "AP Exams"
+        }
+    }
+}
+
 @Model
 final class Exam {
     var id: String
@@ -16,6 +32,11 @@ final class Exam {
     var notes: String?
     var createdAt: Date
     var schoolClass: SchoolClass?
+    var categoryRaw: String
+    /// The real score once it's back — free-form since ACT (1-36), AP (1-5), and
+    /// class tests (percentage/points) all mean different things.
+    var actualScore: String?
+    var scoreLoggedAt: Date?
 
     @Relationship(deleteRule: .cascade, inverse: \StudySession.exam)
     var studySessions: [StudySession] = []
@@ -27,7 +48,10 @@ final class Exam {
         targetScore: String? = nil,
         notes: String? = nil,
         createdAt: Date = .now,
-        schoolClass: SchoolClass? = nil
+        schoolClass: SchoolClass? = nil,
+        category: ExamCategory = .marchExams,
+        actualScore: String? = nil,
+        scoreLoggedAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -36,6 +60,14 @@ final class Exam {
         self.notes = notes
         self.createdAt = createdAt
         self.schoolClass = schoolClass
+        self.categoryRaw = category.rawValue
+        self.actualScore = actualScore
+        self.scoreLoggedAt = scoreLoggedAt
+    }
+
+    var category: ExamCategory {
+        get { ExamCategory(rawValue: categoryRaw) ?? .marchExams }
+        set { categoryRaw = newValue.rawValue }
     }
 
     var daysUntil: Int {
@@ -45,4 +77,5 @@ final class Exam {
     }
 
     var isPast: Bool { daysUntil < 0 }
+    var hasScore: Bool { actualScore != nil && !(actualScore ?? "").isEmpty }
 }

@@ -13,7 +13,7 @@ struct SchoolView: View {
     @Query(sort: \Exam.examDate) private var exams: [Exam]
 
     @State private var showingManageClasses = false
-    @State private var showingAddExam = false
+    @State private var addingExamCategory: ExamCategory?
     @State private var editingExam: Exam?
     @State private var loggingExam: Exam?
 
@@ -26,7 +26,6 @@ struct SchoolView: View {
 
     private var enrolledClasses: [SchoolClass] { allClasses.filter { $0.isEnrolled } }
     private var droppedClasses: [SchoolClass] { allClasses.filter { !$0.isEnrolled } }
-    private var upcomingExams: [Exam] { exams.filter { !$0.isPast } }
 
     var body: some View {
         ScrollView {
@@ -35,36 +34,15 @@ struct SchoolView: View {
                 examsSection
                 homeworkHelperSection
 
-                NavigationLink(destination: TestMeView()) {
-                    HStack {
-                        Image(systemName: "questionmark.circle.fill")
-                        Text("Test Me")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Image(systemName: "chevron.right").font(.caption2)
-                    }
-                    .foregroundStyle(.white)
-                    .padding(12)
-                    .background(Theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(MindMapSection.school.accentColor.opacity(0.7), lineWidth: 1))
-                }
+                navLinkRow(destination: GPACalculatorView(), icon: "chart.pie.fill", title: "GPA Calculator")
+                navLinkRow(destination: TestMeView(), icon: "questionmark.circle.fill", title: "Test Me")
             }
             .padding(12)
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("School")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showingAddExam = true
-                } label: {
-                    Image(systemName: "calendar.badge.plus")
-                }
-            }
-        }
-        .sheet(isPresented: $showingAddExam) {
-            AddEditExamView(exam: nil)
+        .sheet(item: $addingExamCategory) { category in
+            AddEditExamView(exam: nil, presetCategory: category)
         }
         .sheet(item: $editingExam) { exam in
             AddEditExamView(exam: exam)
@@ -74,6 +52,23 @@ struct SchoolView: View {
         }
         .sheet(isPresented: $showingManageClasses) {
             ManageClassesView()
+        }
+    }
+
+    private func navLinkRow<Destination: View>(destination: Destination, icon: String, title: String) -> some View {
+        NavigationLink(destination: destination) {
+            HStack {
+                Image(systemName: icon)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption2)
+            }
+            .foregroundStyle(.white)
+            .padding(12)
+            .background(Theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(MindMapSection.school.accentColor.opacity(0.7), lineWidth: 1))
         }
     }
 
@@ -149,18 +144,37 @@ struct SchoolView: View {
     // MARK: - Exams
 
     private var examsSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("UPCOMING TESTS")
-                .font(.caption2.weight(.bold))
-                .tracking(0.5)
-                .foregroundStyle(Theme.dimText)
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(ExamCategory.allCases) { category in
+                examCategorySection(category)
+            }
+        }
+    }
 
-            if upcomingExams.isEmpty {
-                Text("No tests scheduled. Tap the calendar icon to add SAT, ACT, AP exams, or class tests.")
+    private func examCategorySection(_ category: ExamCategory) -> some View {
+        let items = exams.filter { $0.category == category }.sorted { $0.examDate < $1.examDate }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(category.displayName.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+                Button {
+                    addingExamCategory = category
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(MindMapSection.school.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if items.isEmpty {
+                Text("Nothing added yet.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
             } else {
-                ForEach(upcomingExams) { exam in
+                ForEach(items) { exam in
                     examCard(exam)
                 }
             }
@@ -177,17 +191,39 @@ struct SchoolView: View {
                     Text(exam.examDate.formatted(.dateTime.month(.wide).day().year()))
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
+                    if let target = exam.targetScore, !target.isEmpty {
+                        Text("Target: \(target)")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.dimText)
+                    }
                 }
                 Spacer()
-                VStack(spacing: 0) {
-                    Text("\(exam.daysUntil)")
-                        .font(.title3.weight(.heavy).monospacedDigit())
-                        .foregroundStyle(MindMapSection.school.accentColor)
-                    Text(exam.daysUntil == 1 ? "day" : "days")
+                if exam.hasScore {
+                    VStack(spacing: 0) {
+                        Text(exam.actualScore ?? "")
+                            .font(.title3.weight(.heavy))
+                            .foregroundStyle(Theme.terminalGreen)
+                        Text("SCORE")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.dimText)
+                    }
+                    .frame(width: 60)
+                } else if !exam.isPast {
+                    VStack(spacing: 0) {
+                        Text("\(exam.daysUntil)")
+                            .font(.title3.weight(.heavy).monospacedDigit())
+                            .foregroundStyle(MindMapSection.school.accentColor)
+                        Text(exam.daysUntil == 1 ? "day" : "days")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.dimText)
+                    }
+                    .frame(width: 52)
+                } else {
+                    Text("No score yet")
                         .font(.caption2)
                         .foregroundStyle(Theme.dimText)
+                        .frame(width: 70)
                 }
-                .frame(width: 52)
                 Button {
                     editingExam = exam
                 } label: {
