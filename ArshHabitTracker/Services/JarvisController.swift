@@ -27,6 +27,9 @@ final class JarvisController: NSObject, ObservableObject {
     @Published var liveTranscript = ""
     @Published var statusMessage: String?
     @Published var latestSuggestion: String?
+    /// The home screen has its own top search bar in that same corner —
+    /// JarvisOverlay reads this to drop its floating cluster below it there.
+    @Published var isShowingHomeSearchBar = false
 
     let voice = VoiceManager()
 

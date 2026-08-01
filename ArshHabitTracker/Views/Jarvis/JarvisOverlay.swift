@@ -41,7 +41,7 @@ struct JarvisOverlay: View {
                     .accessibilityLabel("Jarvis")
                 }
                 .padding(.trailing, 16)
-                .padding(.top, 8)
+                .padding(.top, jarvis.isShowingHomeSearchBar ? 64 : 8)
             }
             Spacer()
         }

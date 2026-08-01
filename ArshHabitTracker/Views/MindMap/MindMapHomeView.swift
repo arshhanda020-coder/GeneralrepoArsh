@@ -7,6 +7,7 @@ import SwiftUI
 import SwiftData
 
 struct MindMapHomeView: View {
+    @EnvironmentObject private var jarvis: JarvisController
     @Query(sort: \Habit.createdAt) private var habits: [Habit]
     @Query(sort: \Skill.createdAt) private var skills: [Skill]
     @Query(sort: \Project.createdAt) private var projects: [Project]
@@ -85,10 +86,14 @@ struct MindMapHomeView: View {
         .navigationTitle("")
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
+            jarvis.isShowingHomeSearchBar = true
             guard !hasAppeared else { return }
             withAnimation(.spring(response: 0.6, dampingFraction: 0.72).delay(0.05)) {
                 hasAppeared = true
             }
+        }
+        .onDisappear {
+            jarvis.isShowingHomeSearchBar = false
         }
         .sheet(isPresented: $showingSearch) {
             SearchView()
@@ -114,8 +119,7 @@ struct MindMapHomeView: View {
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.cardBorder, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .padding(.leading, 16)
-        .padding(.trailing, 64)
+        .padding(.horizontal, 16)
     }
 
     private var dotGridBackground: some View {
