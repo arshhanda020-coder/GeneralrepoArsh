@@ -2,19 +2,19 @@
 //  ArcReactorView.swift
 //  ArshHabitTracker
 //
-//  Modeled on a real emission nebula: an irregular, ragged-edged gas cloud
-//  (never a clean circle) with thin bright filament threads webbing through
-//  a teal core, and jagged orange/red/green wisps trailing off unevenly at
-//  the edges. Every hue reads through Theme (Settings > Appearance), so the
-//  nebula's colors are fully user-customizable. Reused as the home screen's
-//  centerpiece and Jarvis mode's focal point.
+//  Modeled on a real emission nebula (Dumbbell Nebula reference): a soft,
+//  rounded glowing cloud — deep purple/magenta at the edges, blending into a
+//  luminous blue-white core — with a continuously rotating, glossy color
+//  sweep so the motion is unmistakable, not a subtle blob. Every hue reads
+//  through Theme (Settings > Appearance), so it's fully user-customizable.
+//  Reused as the home screen's centerpiece and Jarvis mode's focal point.
 //
 
 import SwiftUI
 
-/// A smooth closed blob through a fixed ring of (angle, radius) points —
-/// this is what breaks the "perfect circle" look. Points are hand-jittered,
-/// not randomized at runtime, so the silhouette doesn't reshuffle every redraw.
+/// A smooth closed blob through a fixed ring of (angle, radius) points — a
+/// gently rounded, irregular silhouette (not a perfect circle, but not the
+/// jagged star-shape of the earlier version either).
 private struct BlobShape: Shape {
     let points: [(angle: Double, radiusMultiplier: CGFloat)]
 
@@ -44,138 +44,99 @@ private struct BlobShape: Shape {
     }
 }
 
-/// A jagged, glowing thread through the core — the "cracked filament web"
-/// visible in real nebula photos.
-private struct FilamentPath: Shape {
-    let controlOffsets: [CGVector]
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
-        var path = Path()
-        guard let first = controlOffsets.first else { return path }
-        path.move(to: CGPoint(x: center.x + first.dx * radius, y: center.y + first.dy * radius))
-        for offset in controlOffsets.dropFirst() {
-            path.addLine(to: CGPoint(x: center.x + offset.dx * radius, y: center.y + offset.dy * radius))
-        }
-        return path
-    }
-}
-
 struct ArcReactorView: View {
     var size: CGFloat = 120
     var isActive: Bool = false
 
-    @State private var drift: Double = 0
+    @State private var rotation: Double = 0
+    @State private var swirl: Double = 0
     @State private var pulseUp = false
-    @State private var starSeeds: [StarSeed] = (0..<30).map { _ in StarSeed() }
+    @State private var starSeeds: [StarSeed] = (0..<28).map { _ in StarSeed() }
 
     private struct StarSeed {
         let angle = Double.random(in: 0..<360)
-        let radiusFraction = Double.random(in: 0.35...0.85)
-        let sizeFraction = Double.random(in: 0.008...0.022)
+        let radiusFraction = Double.random(in: 0.3...0.85)
+        let sizeFraction = Double.random(in: 0.008...0.02)
         let twinkleDelay = Double.random(in: 0...2.4)
     }
 
-    private static let coreHighlight = Color(hex: "F5FFFD")
+    private static let coreHighlight = Color(hex: "FFFFFF")
 
-    /// The nebula's overall ragged silhouette — deliberately uneven radii, not a circle.
+    /// Gentle, rounded undulation — soft like the reference photo, not a spiky star.
     private static let bodyPoints: [(angle: Double, radiusMultiplier: CGFloat)] = [
-        (0, 0.82), (35, 0.95), (70, 0.68), (100, 0.9), (130, 0.6),
-        (165, 0.88), (195, 0.7), (225, 0.98), (255, 0.62), (285, 0.85),
-        (320, 0.72), (350, 0.9),
-    ]
-
-    private static let haloPoints: [(angle: Double, radiusMultiplier: CGFloat)] = [
-        (10, 1.05), (50, 0.82), (85, 1.12), (120, 0.78), (155, 1.08),
-        (190, 0.85), (220, 1.15), (250, 0.8), (280, 1.1), (315, 0.86), (345, 1.0),
-    ]
-
-    private struct Wisp {
-        let color: Color
-        let center: CGPoint
-        let points: [(angle: Double, radiusMultiplier: CGFloat)]
-        let scale: CGSize
-        let rotationOffset: Double
-        let spinsClockwise: Bool
-    }
-
-    private var wisps: [Wisp] {
-        let a = Theme.reactorGlow
-        let b = Theme.nebulaWispB
-        let c = Theme.nebulaWispC
-        let jaggedPoints: [(angle: Double, radiusMultiplier: CGFloat)] = [
-            (0, 0.9), (60, 0.55), (120, 1.0), (180, 0.6), (240, 0.95), (300, 0.5),
-        ]
-        return [
-            Wisp(color: a, center: CGPoint(x: 0.32, y: -0.28), points: jaggedPoints, scale: CGSize(width: 0.5, height: 0.22), rotationOffset: 15, spinsClockwise: true),
-            Wisp(color: b, center: CGPoint(x: -0.35, y: -0.18), points: jaggedPoints, scale: CGSize(width: 0.46, height: 0.2), rotationOffset: 100, spinsClockwise: false),
-            Wisp(color: c, center: CGPoint(x: -0.1, y: 0.36), points: jaggedPoints, scale: CGSize(width: 0.5, height: 0.24), rotationOffset: 190, spinsClockwise: true),
-            Wisp(color: a, center: CGPoint(x: 0.34, y: 0.3), points: jaggedPoints, scale: CGSize(width: 0.42, height: 0.19), rotationOffset: 250, spinsClockwise: false),
-            Wisp(color: b, center: CGPoint(x: -0.36, y: 0.3), points: jaggedPoints, scale: CGSize(width: 0.4, height: 0.18), rotationOffset: 300, spinsClockwise: true),
-        ]
-    }
-
-    private static let filaments: [[CGVector]] = [
-        [CGVector(dx: -0.05, dy: -0.42), CGVector(dx: 0.08, dy: -0.18), CGVector(dx: -0.1, dy: 0.02), CGVector(dx: 0.12, dy: 0.24), CGVector(dx: -0.02, dy: 0.44)],
-        [CGVector(dx: -0.4, dy: -0.08), CGVector(dx: -0.14, dy: 0.02), CGVector(dx: 0.1, dy: -0.08), CGVector(dx: 0.3, dy: 0.1), CGVector(dx: 0.44, dy: -0.02)],
-        [CGVector(dx: -0.28, dy: -0.3), CGVector(dx: -0.06, dy: -0.1), CGVector(dx: 0.02, dy: 0.14), CGVector(dx: 0.24, dy: 0.28)],
-        [CGVector(dx: 0.3, dy: -0.26), CGVector(dx: 0.08, dy: -0.06), CGVector(dx: -0.06, dy: 0.12), CGVector(dx: -0.26, dy: 0.3)],
+        (0, 0.94), (30, 1.0), (60, 0.9), (90, 1.02), (120, 0.92),
+        (150, 0.98), (180, 0.88), (210, 1.0), (240, 0.9), (270, 0.96),
+        (300, 0.86), (330, 1.0),
     ]
 
     var body: some View {
         ZStack {
-            // Faint outer halo — soft, irregular, wide.
-            BlobShape(points: Self.haloPoints)
-                .fill(Theme.reactorCore.opacity(isActive ? 0.28 : 0.16))
-                .blur(radius: size * 0.1)
-                .scaleEffect(pulseUp ? 1.05 : 0.96)
-
-            // The nebula body itself — ragged silhouette, never a circle.
-            BlobShape(points: Self.bodyPoints)
-                .fill(Theme.reactorDeep)
-                .overlay(
-                    ZStack {
-                        ForEach(Array(wisps.enumerated()), id: \.offset) { _, wisp in
-                            BlobShape(points: wisp.points)
-                                .fill(
-                                    RadialGradient(
-                                        colors: [wisp.color.opacity(0.9), wisp.color.opacity(0.0)],
-                                        center: .center, startRadius: 0, endRadius: size * 0.22
-                                    )
-                                )
-                                .frame(width: size * wisp.scale.width, height: size * wisp.scale.height)
-                                .position(x: size / 2 + wisp.center.x * size, y: size / 2 + wisp.center.y * size)
-                                .rotationEffect(.degrees((wisp.spinsClockwise ? drift : -drift) + wisp.rotationOffset))
-                                .blur(radius: size * 0.035)
-                        }
-
-                        ForEach(Array(Self.filaments.enumerated()), id: \.offset) { index, filament in
-                            let path = FilamentPath(controlOffsets: filament)
-                            ZStack {
-                                path.stroke(Theme.reactorCore.opacity(0.55), style: StrokeStyle(lineWidth: size * 0.05, lineCap: .round, lineJoin: .round))
-                                    .blur(radius: size * 0.03)
-                                path.stroke(Self.coreHighlight.opacity(0.9), style: StrokeStyle(lineWidth: size * 0.012, lineCap: .round, lineJoin: .round))
-                            }
-                            .frame(width: size, height: size)
-                            .opacity(pulseUp ? 1 : 0.6)
-                            .animation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true).delay(Double(index) * 0.3), value: pulseUp)
-                        }
-
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Self.coreHighlight, Theme.reactorCore.opacity(0.0)],
-                                    center: .center, startRadius: 0, endRadius: size * 0.13
-                                )
-                            )
-                            .frame(width: size * 0.22, height: size * 0.22)
-                            .scaleEffect(pulseUp ? 1.1 : 0.92)
-                    }
-                    .clipShape(BlobShape(points: Self.bodyPoints))
+            // Wide, soft outer glow.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Theme.reactorGlow.opacity(isActive ? 0.45 : 0.28), .clear],
+                        center: .center, startRadius: 0, endRadius: size * 0.62
+                    )
                 )
+                .frame(width: size * 1.3, height: size * 1.3)
+                .blur(radius: size * 0.06)
+                .scaleEffect(pulseUp ? 1.06 : 0.97)
 
-            // Scattered stars around and past the nebula's edge.
+            // The cloud body — continuously rotating angular sweep of the full
+            // palette gives obvious, glossy motion (not just a static tint).
+            BlobShape(points: Self.bodyPoints)
+                .fill(
+                    AngularGradient(
+                        colors: [
+                            Theme.reactorGlow,
+                            Theme.nebulaWispB,
+                            Theme.nebulaWispC,
+                            Theme.reactorCore,
+                            Theme.nebulaWispB,
+                            Theme.reactorGlow,
+                        ],
+                        center: .center,
+                        angle: .degrees(swirl)
+                    )
+                )
+                .overlay(
+                    // Glossy highlight sweep — a bright soft patch that drifts,
+                    // reads as a specular sheen across the gas.
+                    BlobShape(points: Self.bodyPoints)
+                        .fill(
+                            RadialGradient(
+                                colors: [Self.coreHighlight.opacity(0.85), Theme.reactorCore.opacity(0.35), .clear],
+                                center: UnitPoint(
+                                    x: 0.5 + cos(rotation * .pi / 180) * 0.16,
+                                    y: 0.42 + sin(rotation * .pi / 180) * 0.1
+                                ),
+                                startRadius: 0,
+                                endRadius: size * 0.34
+                            )
+                        )
+                )
+                .overlay(
+                    BlobShape(points: Self.bodyPoints)
+                        .fill(RadialGradient(colors: [.clear, Theme.reactorDeep.opacity(0.5)], center: .center, startRadius: size * 0.28, endRadius: size * 0.5))
+                )
+                .overlay(BlobShape(points: Self.bodyPoints).stroke(Theme.reactorCore.opacity(0.3), lineWidth: 1))
+                .blur(radius: size * 0.012)
+                .shadow(color: Theme.reactorGlow.opacity(isActive ? 0.7 : 0.4), radius: isActive ? 16 : 9)
+
+            // Bright core point.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Self.coreHighlight, Theme.reactorCore.opacity(0.0)],
+                        center: .center, startRadius: 0, endRadius: size * 0.1
+                    )
+                )
+                .frame(width: size * 0.16, height: size * 0.16)
+                .scaleEffect(pulseUp ? 1.15 : 0.9)
+                .position(x: size / 2, y: size / 2)
+
+            // Scattered stars, independently twinkling.
             ForEach(Array(starSeeds.enumerated()), id: \.offset) { _, star in
                 Circle()
                     .fill(.white)
@@ -192,12 +153,14 @@ struct ArcReactorView: View {
             }
         }
         .frame(width: size, height: size)
-        .shadow(color: Theme.reactorCore.opacity(isActive ? 0.55 : 0.3), radius: isActive ? 14 : 8)
         .onAppear {
-            withAnimation(.linear(duration: 60).repeatForever(autoreverses: false)) {
-                drift = 360
+            withAnimation(.linear(duration: 14).repeatForever(autoreverses: false)) {
+                swirl = 360
             }
-            withAnimation(.easeInOut(duration: isActive ? 0.6 : 2.4).repeatForever(autoreverses: true)) {
+            withAnimation(.linear(duration: 22).repeatForever(autoreverses: false)) {
+                rotation = 360
+            }
+            withAnimation(.easeInOut(duration: isActive ? 0.6 : 2.2).repeatForever(autoreverses: true)) {
                 pulseUp = true
             }
         }

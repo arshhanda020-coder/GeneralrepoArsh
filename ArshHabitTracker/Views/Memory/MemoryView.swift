@@ -27,12 +27,12 @@ struct MemoryView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                Text("Jarvis and Copilot use these facts automatically in every conversation — no need to repeat yourself.")
+                Text("This fills in on its own as you talk to Jarvis/Copilot — everything worth remembering gets saved here automatically and feeds back into every future conversation as context. Nothing to set up.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
 
                 if entries.isEmpty {
-                    Text("Nothing remembered yet. Tap + to add something yourself, or just mention it to Jarvis/Copilot and it'll save it on its own.")
+                    Text("Nothing yet — just talk to Jarvis or Copilot normally and it'll start filling in here on its own. (You can also add something yourself with +, if you'd rather.)")
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
                 } else {

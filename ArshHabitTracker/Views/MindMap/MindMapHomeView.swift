@@ -51,51 +51,63 @@ struct MindMapHomeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            topBar
-                .padding(.top, 8)
+        GeometryReader { geo in
+            // Fixed fit-scale, no pan/zoom — this stays still until enough
+            // sections are added that a static layout no longer fits.
+            let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 1.0
 
-            DailyQuoteView()
-                .padding(.top, 12)
-                .padding(.bottom, 4)
+            ZStack {
+                dotGridBackground
 
-            GeometryReader { geo in
-                // Fixed fit-scale, no pan/zoom — this stays still until enough
-                // sections are added that a static layout no longer fits.
-                let fitScale = min(geo.size.width / mapSize, geo.size.height / mapSize) * 0.5
+                Circle()
+                    .stroke(Theme.reactorGlow.opacity(0.18), style: StrokeStyle(lineWidth: 1, dash: [2, 6]))
+                    .frame(width: radius * 2, height: radius * 2)
+                    .position(mapCenter)
+                    .opacity(hasAppeared ? 1 : 0)
+                    .animation(.easeIn(duration: 0.6).delay(0.2), value: hasAppeared)
 
-                ZStack {
-                    dotGridBackground
-
-                    ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
-                        connector(index: index, total: MindMapSection.allCases.count, section: section)
-                    }
-
-                    ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
-                        let offset = nodeOffset(index: index, total: MindMapSection.allCases.count)
-                        MindMapSectionNodeView(
-                            section: section,
-                            index: index,
-                            badge: badge(for: section),
-                            width: nodeWidth,
-                            height: nodeHeight,
-                            hasAppeared: hasAppeared
-                        )
-                        .position(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y)
-                    }
-
-                    centerNode
+                ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
+                    let offset = nodeOffset(index: index, total: MindMapSection.allCases.count)
+                    MindMapSectionNodeView(
+                        section: section,
+                        index: index,
+                        badge: badge(for: section),
+                        width: nodeWidth,
+                        height: nodeHeight,
+                        hasAppeared: hasAppeared
+                    )
+                    .position(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y)
                 }
-                .frame(width: mapSize, height: mapSize)
-                .scaleEffect(fitScale)
-                .position(x: geo.size.width / 2, y: geo.size.height / 2)
-            }
 
+                centerNode
+            }
+            .frame(width: mapSize, height: mapSize)
+            .scaleEffect(fitScale)
+            .clipped()
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
+        }
+        // Fixed chrome above/below the flexible mind-map content — this is
+        // the robust pattern for "toolbar-like row that must stay below the
+        // status bar" instead of a plain VStack sibling, which was rendering
+        // the top row underneath the status bar / off-screen.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            VStack(spacing: 0) {
+                topBar
+                    .padding(.top, 8)
+                DailyQuoteView()
+                    .padding(.top, 12)
+                    .padding(.bottom, 4)
+            }
+            .background(Theme.background)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             NewsTickerView()
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("")
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             guard !hasAppeared else { return }
             withAnimation(.spring(response: 0.6, dampingFraction: 0.72).delay(0.05)) {
@@ -195,18 +207,6 @@ struct MindMapHomeView: View {
         .position(mapCenter)
         .scaleEffect(hasAppeared ? 1 : 0.2)
         .opacity(hasAppeared ? 1 : 0)
-    }
-
-    @ViewBuilder
-    private func connector(index: Int, total: Int, section: MindMapSection) -> some View {
-        let offset = nodeOffset(index: index, total: total)
-        MindMapConnectorView(
-            index: index,
-            start: mapCenter,
-            end: CGPoint(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y),
-            dotColor: section.accentColor,
-            hasAppeared: hasAppeared
-        )
     }
 
     private func nodeOffset(index: Int, total: Int) -> CGPoint {

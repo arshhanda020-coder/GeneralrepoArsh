@@ -3,8 +3,8 @@
 //  ArshHabitTracker
 //
 //  Every color token in the app is overridable from Settings > Appearance.
-//  These are the built-in defaults (a clean light palette) — an override in
-//  UserDefaults wins when present.
+//  These are the built-in defaults (dark, purple/magenta nebula palette) —
+//  an override in UserDefaults wins when present.
 //
 
 import Foundation
@@ -19,19 +19,19 @@ enum ThemeToken: String, CaseIterable, Identifiable {
 
     var defaultHex: String {
         switch self {
-        case .background: return "F7F5F1"
-        case .card: return "FFFFFF"
-        case .cardBorder: return "E3DFD6"
-        case .dimText: return "756F63"
-        case .primaryText: return "211D17"
-        case .accent: return "B8935B"
-        case .terminalGreen: return "4F7A5B"
-        case .terminalAmber: return "A8791E"
-        case .reactorCore: return "2FA79E"
-        case .reactorDeep: return "05080C"
-        case .reactorGlow: return "D9773D"
-        case .nebulaWispB: return "D9553F"
-        case .nebulaWispC: return "7FBF6B"
+        case .background: return "0B0910"
+        case .card: return "17131F"
+        case .cardBorder: return "2C2438"
+        case .dimText: return "9A90AC"
+        case .primaryText: return "F3EFFA"
+        case .accent: return "B48CE0"
+        case .terminalGreen: return "6FD6A8"
+        case .terminalAmber: return "E0B34C"
+        case .reactorCore: return "8EC8F5"
+        case .reactorDeep: return "0C0716"
+        case .reactorGlow: return "A44FD9"
+        case .nebulaWispB: return "E668C4"
+        case .nebulaWispC: return "5C6EE8"
         }
     }
 
@@ -45,11 +45,11 @@ enum ThemeToken: String, CaseIterable, Identifiable {
         case .accent: return "Signature Accent"
         case .terminalGreen: return "Success / Done"
         case .terminalAmber: return "Highlight / Amber"
-        case .reactorCore: return "Nebula Core (Teal)"
+        case .reactorCore: return "Nebula Core (Blue-White)"
         case .reactorDeep: return "Nebula Void"
-        case .reactorGlow: return "Nebula Wisp (Orange)"
-        case .nebulaWispB: return "Nebula Wisp (Red)"
-        case .nebulaWispC: return "Nebula Wisp (Green)"
+        case .reactorGlow: return "Nebula Wisp (Purple)"
+        case .nebulaWispB: return "Nebula Wisp (Magenta)"
+        case .nebulaWispC: return "Nebula Wisp (Indigo)"
         }
     }
 }

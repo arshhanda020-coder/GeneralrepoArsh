@@ -75,7 +75,7 @@ struct ArshHabitTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(.light)
+                .preferredColorScheme(.dark)
         }
         .modelContainer(container)
     }
