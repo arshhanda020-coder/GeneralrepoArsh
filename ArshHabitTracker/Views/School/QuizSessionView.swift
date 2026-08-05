@@ -168,7 +168,7 @@ struct QuizSessionView: View {
                         .foregroundStyle(Theme.terminalGreen)
                 }
             }
-            .foregroundStyle(isWrongSelected ? Color(hex: "C0605C") : (isCorrectChoice ? Theme.terminalGreen : .white))
+            .foregroundStyle(isWrongSelected ? Color(hex: "C0605C") : (isCorrectChoice ? Theme.terminalGreen : Theme.primaryText))
         }
         .buttonStyle(.plain)
         .disabled(isSubmitted)

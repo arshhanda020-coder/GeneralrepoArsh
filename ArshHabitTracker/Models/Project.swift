@@ -15,6 +15,9 @@ final class Project {
     var projectDescription: String
     var statusRaw: String
     var createdAt: Date
+    /// A longer-form plan (written by the user or AI-generated) that tasks
+    /// with due dates get broken out from.
+    var planText: String?
 
     @Relationship(deleteRule: .cascade, inverse: \ProjectTask.project)
     var tasks: [ProjectTask] = []
@@ -26,7 +29,8 @@ final class Project {
         colorHex: String,
         projectDescription: String = "",
         status: ProjectStatus = .building,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        planText: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -35,6 +39,7 @@ final class Project {
         self.projectDescription = projectDescription
         self.statusRaw = status.rawValue
         self.createdAt = createdAt
+        self.planText = planText
     }
 
     var status: ProjectStatus {

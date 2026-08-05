@@ -19,6 +19,7 @@ final class Assignment {
     var understood: Bool?
     /// The AI's explanation from the last "Help me understand" tap.
     var helpExplanation: String?
+    var remindersOn: Bool
 
     init(
         id: String = UUID().uuidString,
@@ -29,7 +30,8 @@ final class Assignment {
         createdAt: Date = .now,
         topic: Topic? = nil,
         understood: Bool? = nil,
-        helpExplanation: String? = nil
+        helpExplanation: String? = nil,
+        remindersOn: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -40,5 +42,6 @@ final class Assignment {
         self.topic = topic
         self.understood = understood
         self.helpExplanation = helpExplanation
+        self.remindersOn = remindersOn
     }
 }

@@ -107,7 +107,7 @@ struct TopicDetailView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(assignment.title)
                         .font(.subheadline)
-                        .foregroundStyle(assignment.isDone ? Theme.dimText : .white)
+                        .foregroundStyle(assignment.isDone ? Theme.dimText : Theme.primaryText)
                         .strikethrough(assignment.isDone)
                     if let due = assignment.dueDate {
                         Text(due.formatted(.dateTime.month(.abbreviated).day()))
