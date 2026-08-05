@@ -2,10 +2,10 @@
 //  MindMapConnectorView.swift
 //  ArshHabitTracker
 //
-//  The "bracket" that links a node back to the center — a soft glowing
-//  thread that pulses on its own cycle, cycling through the nebula's wisp
-//  colors so the connectors read as part of the same living cloud as the
-//  reactor itself.
+//  A beam of light radiating out from the nebula to each node — a curved,
+//  organic path (not a geometric right-angle bracket), fading from bright
+//  near the core to dim near the node, pulsing on its own cycle through the
+//  nebula's wisp colors so it reads as part of the same living cloud.
 //
 
 import SwiftUI
@@ -23,43 +23,42 @@ struct MindMapConnectorView: View {
         [Theme.reactorGlow, Theme.nebulaWispB, Theme.nebulaWispC][index % 3]
     }
 
-    private var bends: [CGPoint] {
-        guard abs(end.y - start.y) >= 1, abs(end.x - start.x) >= 1 else { return [] }
-        let midX = (start.x + end.x) / 2
-        return [CGPoint(x: midX, y: start.y), CGPoint(x: midX, y: end.y)]
-    }
-
-    /// Right-angle "elbow" routing: horizontal, vertical, horizontal — reads as a
-    /// workflow-diagram connector rather than a straight mind-map spoke.
-    private var path: Path {
+    /// A gentle outward bow instead of a straight line — reads as a beam
+    /// drifting off the nebula rather than a drafted connector.
+    private var beamPath: Path {
         Path { path in
             path.move(to: start)
-            if abs(end.y - start.y) < 1 || abs(end.x - start.x) < 1 {
-                path.addLine(to: end)
-                return
-            }
-            let midX = (start.x + end.x) / 2
-            path.addLine(to: CGPoint(x: midX, y: start.y))
-            path.addLine(to: CGPoint(x: midX, y: end.y))
-            path.addLine(to: end)
+            let mid = CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2)
+            let dx = end.x - start.x
+            let dy = end.y - start.y
+            let length = max(hypot(dx, dy), 1)
+            // Perpendicular offset, direction alternates by index for variety.
+            let bow: CGFloat = (index % 2 == 0 ? 1 : -1) * length * 0.14
+            let control = CGPoint(x: mid.x - dy / length * bow, y: mid.y + dx / length * bow)
+            path.addQuadCurve(to: end, control: control)
         }
     }
 
     var body: some View {
         ZStack {
-            path
-                .stroke(wispColor.opacity(glowUp ? 0.32 : 0.14), style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                .blur(radius: 2)
+            beamPath
+                .stroke(
+                    LinearGradient(
+                        colors: [wispColor.opacity(glowUp ? 0.55 : 0.3), wispColor.opacity(0.05)],
+                        startPoint: .leading, endPoint: .trailing
+                    ),
+                    style: StrokeStyle(lineWidth: 5, lineCap: .round)
+                )
+                .blur(radius: 3)
 
-            path
-                .stroke(wispColor.opacity(glowUp ? 0.85 : 0.55), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
-
-            ForEach(Array(bends.enumerated()), id: \.offset) { _, point in
-                Circle()
-                    .fill(dotColor.opacity(0.6))
-                    .frame(width: 5, height: 5)
-                    .position(point)
-            }
+            beamPath
+                .stroke(
+                    LinearGradient(
+                        colors: [wispColor.opacity(glowUp ? 0.95 : 0.6), wispColor.opacity(0.15)],
+                        startPoint: .leading, endPoint: .trailing
+                    ),
+                    style: StrokeStyle(lineWidth: 1.2, lineCap: .round)
+                )
         }
         .opacity(hasAppeared ? 1 : 0)
         .animation(.easeIn(duration: 0.4).delay(Double(index) * 0.06), value: hasAppeared)

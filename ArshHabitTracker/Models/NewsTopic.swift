@@ -31,13 +31,13 @@ enum NewsTopic: String, Codable, CaseIterable, Identifiable {
             ]
         case .accounting:
             return [
-                ("https://www.journalofaccountancy.com/feed.xml", "Journal of Accountancy"),
+                ("https://www.journalofaccountancy.com/feed/", "Journal of Accountancy"),
                 ("https://www.accountingtoday.com/feed", "Accounting Today"),
             ]
         case .economics:
             return [
                 ("https://www.economist.com/finance-and-economics/rss.xml", "The Economist"),
-                ("https://feeds.content.dowjones.io/public/rss/RSSEconomy", "Dow Jones"),
+                ("https://feeds.content.dowjones.io/public/rss/RSSMarketsMain", "Dow Jones"),
             ]
         case .ai:
             return [

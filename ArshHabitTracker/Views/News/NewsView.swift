@@ -131,18 +131,12 @@ struct NewsView: View {
     }
 
     private var groupedList: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(filteredItems.enumerated()), id: \.element.id) { index, item in
-                if index > 0 {
-                    Divider().overlay(Theme.cardBorder)
-                }
+        VStack(spacing: 12) {
+            ForEach(filteredItems) { item in
                 NewsRowView(item: item)
                     .onTapGesture { selectedItem = item }
             }
         }
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.cardBorder, lineWidth: 1))
     }
 
     private func refresh() async {

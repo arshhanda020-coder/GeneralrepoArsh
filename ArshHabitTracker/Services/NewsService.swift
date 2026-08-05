@@ -52,6 +52,12 @@ actor NewsService {
         do {
             var request = URLRequest(url: url)
             request.timeoutInterval = 15
+            // Several feeds (CNBC in particular) return 403 to requests without
+            // a browser-shaped User-Agent — the default CFNetwork one gets blocked.
+            request.setValue(
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                forHTTPHeaderField: "User-Agent"
+            )
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 return nil
