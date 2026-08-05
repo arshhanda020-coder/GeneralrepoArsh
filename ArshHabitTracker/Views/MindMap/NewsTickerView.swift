@@ -4,9 +4,11 @@
 //
 //  A continuously-scrolling strip of the latest headlines along the bottom
 //  of the home screen. Tapping it opens the full News tab. Fetches its own
-//  headlines on first appear if nothing's cached yet — previously this only
-//  showed whatever News had already loaded, so a fresh install just sat on
-//  "No headlines yet" until you opened News manually.
+//  headlines on first appear if nothing's cached yet, with a hard timeout so
+//  it can never sit on "Loading…" forever, and batches all inserts into one
+//  write at the end instead of one per topic — the home screen has heavy
+//  animated content (the nebula, hovering nodes), and firing several small
+//  SwiftData inserts while that's on screen was causing visible stutter.
 //
 
 import SwiftUI
@@ -21,11 +23,19 @@ struct NewsTickerView: View {
     @State private var showingNews = false
     @State private var pulse = false
     @State private var isLoading = false
+    @State private var loadFailed = false
 
     private var styledHeadline: Text {
         let top = Array(items.prefix(12))
         guard !top.isEmpty else {
-            let message = isLoading ? "Loading headlines…" : "No headlines yet — tap to open News and refresh."
+            let message: String
+            if isLoading {
+                message = "Loading headlines…"
+            } else if loadFailed {
+                message = "Couldn't load headlines — tap to open News and retry."
+            } else {
+                message = "No headlines yet — tap to open News and refresh."
+            }
             return Text(message)
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(Theme.dimText)
@@ -92,17 +102,41 @@ struct NewsTickerView: View {
         .task {
             guard items.isEmpty else { return }
             isLoading = true
-            await withTaskGroup(of: Void.self) { group in
-                for topic in NewsTopic.allCases {
-                    group.addTask {
-                        let result = await NewsService.shared.fetchAll(topic: topic)
-                        await MainActor.run {
-                            merge(result.items, topic: topic)
-                        }
-                    }
-                }
+            loadFailed = false
+
+            let results = await Self.fetchAllTopicsWithTimeout()
+            for (topic, fetched) in results {
+                merge(fetched, topic: topic)
             }
             isLoading = false
+            loadFailed = results.allSatisfy { $0.1.isEmpty }
+        }
+    }
+
+    /// Bounds the total wait to ~18s no matter what — a slow or hung feed
+    /// can no longer leave the ticker stuck on "Loading…" indefinitely.
+    private static func fetchAllTopicsWithTimeout() async -> [(NewsTopic, [FetchedNewsItem])] {
+        await withTaskGroup(of: [(NewsTopic, [FetchedNewsItem])].self) { group in
+            group.addTask {
+                await withTaskGroup(of: (NewsTopic, [FetchedNewsItem]).self) { inner in
+                    for topic in NewsTopic.allCases {
+                        inner.addTask {
+                            let result = await NewsService.shared.fetchAll(topic: topic)
+                            return (topic, result.items)
+                        }
+                    }
+                    var collected: [(NewsTopic, [FetchedNewsItem])] = []
+                    for await pair in inner { collected.append(pair) }
+                    return collected
+                }
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 18_000_000_000)
+                return []
+            }
+            guard let first = await group.next() else { return [] }
+            group.cancelAll()
+            return first
         }
     }
 
