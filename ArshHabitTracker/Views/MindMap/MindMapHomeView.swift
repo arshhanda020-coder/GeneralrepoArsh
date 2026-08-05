@@ -72,7 +72,16 @@ struct MindMapHomeView: View {
                     }
 
                     ForEach(Array(MindMapSection.allCases.enumerated()), id: \.element) { index, section in
-                        sectionNode(section, index: index, total: MindMapSection.allCases.count)
+                        let offset = nodeOffset(index: index, total: MindMapSection.allCases.count)
+                        MindMapSectionNodeView(
+                            section: section,
+                            index: index,
+                            badge: badge(for: section),
+                            width: nodeWidth,
+                            height: nodeHeight,
+                            hasAppeared: hasAppeared
+                        )
+                        .position(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y)
                     }
 
                     centerNode
@@ -189,91 +198,15 @@ struct MindMapHomeView: View {
     }
 
     @ViewBuilder
-    private func sectionNode(_ section: MindMapSection, index: Int, total: Int) -> some View {
-        let offset = nodeOffset(index: index, total: total)
-        NavigationLink(value: section) {
-            VStack(spacing: 6) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(section.accentColor.opacity(0.14))
-                        .frame(width: 30, height: 30)
-                    Image(systemName: section.symbolName)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(section.accentColor)
-                }
-                Text(section.shortTitle.uppercased())
-                    .font(.system(.caption2, design: .monospaced).weight(.bold))
-                    .tracking(0.5)
-                    .foregroundStyle(Theme.primaryText)
-                if let badge = badge(for: section) {
-                    Text(badge)
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(section.accentColor)
-                }
-            }
-            .frame(width: nodeWidth, height: nodeHeight)
-            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.card))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(section.accentColor.opacity(0.7), lineWidth: 1))
-            .shadow(color: .black.opacity(0.35), radius: 5, y: 2)
-        }
-        .buttonStyle(.plain)
-        .position(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y)
-        .scaleEffect(hasAppeared ? 1 : 0.15)
-        .opacity(hasAppeared ? 1 : 0)
-        .animation(
-            .spring(response: 0.55, dampingFraction: 0.68).delay(Double(index) * 0.06),
-            value: hasAppeared
-        )
-    }
-
-    @ViewBuilder
     private func connector(index: Int, total: Int, section: MindMapSection) -> some View {
         let offset = nodeOffset(index: index, total: total)
-        let start = mapCenter
-        let end = CGPoint(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y)
-        let bends = elbowBends(from: start, to: end)
-
-        elbowPath(from: start, to: end)
-            .stroke(Theme.reactorGlow.opacity(0.2), style: StrokeStyle(lineWidth: 4, lineCap: .round))
-            .blur(radius: 2)
-            .opacity(hasAppeared ? 1 : 0)
-            .animation(.easeIn(duration: 0.4).delay(Double(index) * 0.06), value: hasAppeared)
-
-        elbowPath(from: start, to: end)
-            .stroke(Theme.reactorGlow.opacity(0.7), style: StrokeStyle(lineWidth: 1.1, lineCap: .round))
-            .opacity(hasAppeared ? 1 : 0)
-            .animation(.easeIn(duration: 0.4).delay(Double(index) * 0.06), value: hasAppeared)
-
-        ForEach(Array(bends.enumerated()), id: \.offset) { _, point in
-            Circle()
-                .fill(section.accentColor.opacity(0.6))
-                .frame(width: 5, height: 5)
-                .position(point)
-                .opacity(hasAppeared ? 1 : 0)
-                .animation(.easeIn(duration: 0.4).delay(Double(index) * 0.06 + 0.15), value: hasAppeared)
-        }
-    }
-
-    /// Right-angle "elbow" routing: horizontal, vertical, horizontal — reads as a
-    /// workflow-diagram connector rather than a straight mind-map spoke.
-    private func elbowPath(from start: CGPoint, to end: CGPoint) -> Path {
-        Path { path in
-            path.move(to: start)
-            if abs(end.y - start.y) < 1 || abs(end.x - start.x) < 1 {
-                path.addLine(to: end)
-                return
-            }
-            let midX = (start.x + end.x) / 2
-            path.addLine(to: CGPoint(x: midX, y: start.y))
-            path.addLine(to: CGPoint(x: midX, y: end.y))
-            path.addLine(to: end)
-        }
-    }
-
-    private func elbowBends(from start: CGPoint, to end: CGPoint) -> [CGPoint] {
-        guard abs(end.y - start.y) >= 1, abs(end.x - start.x) >= 1 else { return [] }
-        let midX = (start.x + end.x) / 2
-        return [CGPoint(x: midX, y: start.y), CGPoint(x: midX, y: end.y)]
+        MindMapConnectorView(
+            index: index,
+            start: mapCenter,
+            end: CGPoint(x: mapCenter.x + offset.x, y: mapCenter.y + offset.y),
+            dotColor: section.accentColor,
+            hasAppeared: hasAppeared
+        )
     }
 
     private func nodeOffset(index: Int, total: Int) -> CGPoint {

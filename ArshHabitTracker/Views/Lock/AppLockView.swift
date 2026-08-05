@@ -8,15 +8,18 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct AppLockView: View {
     var onUnlocked: () -> Void
 
+    @Environment(\.modelContext) private var modelContext
     @State private var hasPIN = KeychainService.shared.loadPIN() != nil
     @State private var entered = ""
     @State private var confirmStage = false
     @State private var firstEntry = ""
     @State private var errorMessage: String?
+    @State private var showingForgotConfirmation = false
 
     var body: some View {
         VStack(spacing: 28) {
@@ -48,11 +51,56 @@ struct AppLockView: View {
             Spacer()
 
             keypad
-                .padding(.bottom, 40)
+                .padding(.bottom, 24)
+
+            if hasPIN {
+                Button("Forgot PIN?") {
+                    showingForgotConfirmation = true
+                }
+                .font(.caption)
+                .foregroundStyle(Theme.dimText)
+                .padding(.bottom, 16)
+            }
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background.ignoresSafeArea())
+        .confirmationDialog(
+            "Reset PIN?",
+            isPresented: $showingForgotConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Erase All Data & Reset PIN", role: .destructive) {
+                resetEverything()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("There's no account to recover a PIN from — this is a device-only lock. The only way back in is to erase everything tracked in the app and set a new PIN.")
+        }
+    }
+
+    private func resetEverything() {
+        let types: [any PersistentModel.Type] = [
+            Habit.self, Completion.self,
+            Skill.self, SkillSession.self,
+            Project.self, ProjectTask.self,
+            NewsItem.self, ChatMessage.self,
+            AIToolItem.self, Exam.self, StudySession.self,
+            Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
+            Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
+            ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
+            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self,
+        ]
+        for type in types {
+            try? modelContext.delete(model: type)
+        }
+        try? modelContext.save()
+        KeychainService.shared.deletePIN()
+        hasPIN = false
+        entered = ""
+        confirmStage = false
+        firstEntry = ""
+        errorMessage = nil
     }
 
     private var keypad: some View {

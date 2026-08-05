@@ -13,6 +13,7 @@ enum ThemeToken: String, CaseIterable, Identifiable {
     case background, card, cardBorder, dimText, primaryText
     case accent, terminalGreen, terminalAmber
     case reactorCore, reactorDeep, reactorGlow
+    case nebulaWispB, nebulaWispC
 
     var id: String { rawValue }
 
@@ -26,9 +27,11 @@ enum ThemeToken: String, CaseIterable, Identifiable {
         case .accent: return "B8935B"
         case .terminalGreen: return "4F7A5B"
         case .terminalAmber: return "A8791E"
-        case .reactorCore: return "8B6FD6"
-        case .reactorDeep: return "1B1330"
-        case .reactorGlow: return "5B4FA8"
+        case .reactorCore: return "2FA79E"
+        case .reactorDeep: return "05080C"
+        case .reactorGlow: return "D9773D"
+        case .nebulaWispB: return "D9553F"
+        case .nebulaWispC: return "7FBF6B"
         }
     }
 
@@ -42,9 +45,11 @@ enum ThemeToken: String, CaseIterable, Identifiable {
         case .accent: return "Signature Accent"
         case .terminalGreen: return "Success / Done"
         case .terminalAmber: return "Highlight / Amber"
-        case .reactorCore: return "Reactor Core"
-        case .reactorDeep: return "Reactor Deep"
-        case .reactorGlow: return "Reactor Glow"
+        case .reactorCore: return "Nebula Core (Teal)"
+        case .reactorDeep: return "Nebula Void"
+        case .reactorGlow: return "Nebula Wisp (Orange)"
+        case .nebulaWispB: return "Nebula Wisp (Red)"
+        case .nebulaWispC: return "Nebula Wisp (Green)"
         }
     }
 }

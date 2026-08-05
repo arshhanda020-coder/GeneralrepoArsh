@@ -25,10 +25,13 @@ enum Theme {
     static var terminalGreen: Color { Color(hex: ThemeColorSettings.hex(for: .terminalGreen)) }
     static var terminalAmber: Color { Color(hex: ThemeColorSettings.hex(for: .terminalAmber)) }
 
-    /// Arc-reactor palette — home screen and Jarvis mode.
+    /// Nebula palette — the reactor visual (home screen centerpiece, Jarvis
+    /// mode, mind-map connectors) and every "themed around it" accent.
     static var reactorCore: Color { Color(hex: ThemeColorSettings.hex(for: .reactorCore)) }
     static var reactorDeep: Color { Color(hex: ThemeColorSettings.hex(for: .reactorDeep)) }
     static var reactorGlow: Color { Color(hex: ThemeColorSettings.hex(for: .reactorGlow)) }
+    static var nebulaWispB: Color { Color(hex: ThemeColorSettings.hex(for: .nebulaWispB)) }
+    static var nebulaWispC: Color { Color(hex: ThemeColorSettings.hex(for: .nebulaWispC)) }
 }
 
 extension Color {
