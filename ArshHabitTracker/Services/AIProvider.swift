@@ -27,8 +27,16 @@ nonisolated enum AISettings {
     private static let claudeModelKey = "ai_claude_model"
     private static let openAIModelKey = "ai_openai_model"
 
-    static let claudeModelOptions = ["claude-opus-5", "claude-sonnet-5", "claude-haiku-4-5"]
-    static let openAIModelOptions = ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "o3-mini"]
+    // Ordered best-balance-first — this is also the display order in the
+    // dropdown, so the recommended default is what a user sees at the top.
+    static let claudeModelOptions = ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"]
+    static let openAIModelOptions = ["gpt-4o", "gpt-4.1", "gpt-4o-mini", "o3-mini"]
+
+    /// Sonnet balances answer quality against cost/usage well for everyday
+    /// in-app features (chat, quizzes, drafts) — Opus and Haiku stay one tap
+    /// away in the dropdown for anyone who wants max quality or max savings.
+    private static let recommendedClaudeModel = "claude-sonnet-5"
+    private static let recommendedOpenAIModel = "gpt-4o"
 
     static var provider: AIProvider {
         get { AIProvider(rawValue: UserDefaults.standard.string(forKey: providerKey) ?? "") ?? .claude }
@@ -36,12 +44,12 @@ nonisolated enum AISettings {
     }
 
     static var claudeModel: String {
-        get { UserDefaults.standard.string(forKey: claudeModelKey) ?? claudeModelOptions[0] }
+        get { UserDefaults.standard.string(forKey: claudeModelKey) ?? recommendedClaudeModel }
         set { UserDefaults.standard.set(newValue, forKey: claudeModelKey) }
     }
 
     static var openAIModel: String {
-        get { UserDefaults.standard.string(forKey: openAIModelKey) ?? openAIModelOptions[0] }
+        get { UserDefaults.standard.string(forKey: openAIModelKey) ?? recommendedOpenAIModel }
         set { UserDefaults.standard.set(newValue, forKey: openAIModelKey) }
     }
 

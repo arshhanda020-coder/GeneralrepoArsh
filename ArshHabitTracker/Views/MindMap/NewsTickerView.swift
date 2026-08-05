@@ -21,6 +21,8 @@ struct NewsTickerView: View {
     @State private var pulse = false
     @State private var isLoading = false
     @State private var loadFailed = false
+    @State private var offset: CGFloat = 0
+    @State private var measuredWidth: CGFloat = 0
 
     private var topItems: [NewsItem] { Array(items.prefix(15)) }
 
@@ -33,15 +35,19 @@ struct NewsTickerView: View {
                     .padding(.horizontal, 14)
                     .padding(.bottom, 12)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
+                // Auto-scrolling marquee of cards — two copies side by side,
+                // continuously offset, so it loops seamlessly while still
+                // showing several headlines at once (not just one at a time).
+                ZStack {
                     HStack(spacing: 10) {
-                        ForEach(topItems) { item in
-                            headlineCard(item)
-                        }
+                        cardRow
+                        cardRow
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.bottom, 12)
+                    .offset(x: offset)
                 }
+                .frame(height: 78)
+                .clipped()
+                .padding(.bottom, 12)
             }
         }
         .padding(.top, 10)
@@ -86,6 +92,32 @@ struct NewsTickerView: View {
             .foregroundStyle(Theme.dimText)
             .contentShape(Rectangle())
             .onTapGesture { showingNews = true }
+    }
+
+    private var cardRow: some View {
+        HStack(spacing: 10) {
+            ForEach(topItems) { item in
+                headlineCard(item)
+            }
+        }
+        .padding(.horizontal, 14)
+        .background(
+            GeometryReader { proxy in
+                Color.clear.onAppear {
+                    guard measuredWidth == 0 else { return }
+                    measuredWidth = proxy.size.width
+                    startScrolling()
+                }
+            }
+        )
+    }
+
+    private func startScrolling() {
+        guard measuredWidth > 0 else { return }
+        offset = 0
+        withAnimation(.linear(duration: Double(measuredWidth) / 24).repeatForever(autoreverses: false)) {
+            offset = -(measuredWidth + 10)
+        }
     }
 
     private func headlineCard(_ item: NewsItem) -> some View {

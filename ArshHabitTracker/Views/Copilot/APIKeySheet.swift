@@ -37,9 +37,10 @@ struct APIKeySheet: View {
                         .autocorrectionDisabled()
                     Picker("Model", selection: $claudeModel) {
                         ForEach(AISettings.claudeModelOptions, id: \.self) { option in
-                            Text(option).tag(option)
+                            Text(option == "claude-sonnet-5" ? "\(option) (Recommended)" : option).tag(option)
                         }
                     }
+                    .pickerStyle(.menu)
                     if !claudeKey.isEmpty {
                         Button("Remove Claude key", role: .destructive) {
                             KeychainService.shared.deleteAPIKey()
@@ -54,9 +55,10 @@ struct APIKeySheet: View {
                         .autocorrectionDisabled()
                     Picker("Model", selection: $openAIModel) {
                         ForEach(AISettings.openAIModelOptions, id: \.self) { option in
-                            Text(option).tag(option)
+                            Text(option == "gpt-4o" ? "\(option) (Recommended)" : option).tag(option)
                         }
                     }
+                    .pickerStyle(.menu)
                     if !openAIKey.isEmpty {
                         Button("Remove ChatGPT key", role: .destructive) {
                             KeychainService.shared.deleteOpenAIKey()
