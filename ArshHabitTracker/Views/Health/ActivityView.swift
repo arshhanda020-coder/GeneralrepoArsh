@@ -50,7 +50,7 @@ struct ActivityView: View {
                 TimelineView(.periodic(from: startDate, by: 1)) { context in
                     Text(formatted(elapsed: context.date.timeIntervalSince(startDate)))
                         .font(.system(.largeTitle, design: .monospaced).weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                 }
             } else {
                 Text("00:00")
@@ -96,7 +96,7 @@ struct ActivityView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(session.activityName)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Text("\(formatted(elapsed: Double(session.durationSeconds))) · \(session.startedAt.formatted(.dateTime.month(.abbreviated).day()))")
                     .font(.caption2)
                     .foregroundStyle(Theme.dimText)

@@ -67,7 +67,7 @@ struct SchoolClassDetailView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(topic.name)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     let pending = topic.assignments.filter { !$0.isDone }.count
                     Text(pending == 0 ? "All caught up" : "\(pending) pending")
                         .font(.caption2)

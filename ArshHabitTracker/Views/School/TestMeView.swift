@@ -39,7 +39,7 @@ struct TestMeView: View {
                     if presetSubject != nil {
                         Text(subject)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                             .padding(10)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Theme.card)
@@ -121,7 +121,7 @@ struct TestMeView: View {
         HStack {
             Text(entry.subject)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             Spacer()
             Text("\(entry.correct)/\(entry.total)")
                 .foregroundStyle(MindMapSection.school.accentColor)
@@ -141,7 +141,7 @@ struct TestMeView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(session.subject)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     Text(session.createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
                         .font(.caption2)
                         .foregroundStyle(Theme.dimText)

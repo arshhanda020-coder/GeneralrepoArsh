@@ -134,6 +134,7 @@ struct SettingsView: View {
             Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
             ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
+            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self,
         ]
         for type in types {
             try? modelContext.delete(model: type)

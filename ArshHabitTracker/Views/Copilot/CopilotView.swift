@@ -90,7 +90,7 @@ struct CopilotView: View {
                     Text("JARVIS MODE")
                         .font(.caption.weight(.bold))
                         .tracking(0.5)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     Text(jarvis.isActive ? "Listening across the app — tap to open" : "Hands-free voice — tap to activate")
                         .font(.caption2)
                         .foregroundStyle(Theme.dimText)
@@ -241,7 +241,7 @@ private struct ChatBubble: View {
                 }
                 Text(message.content)
                     .font(.subheadline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             }
             .padding(10)
             .background(isUser ? Theme.accent.opacity(0.25) : Theme.card)

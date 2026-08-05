@@ -107,7 +107,7 @@ struct GitHubView: View {
             HStack {
                 Text(repo.name)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 if repo.isPrivate {
                     Image(systemName: "lock.fill")
                         .font(.caption2)

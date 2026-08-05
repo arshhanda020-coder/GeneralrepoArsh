@@ -56,7 +56,7 @@ struct ExtracurricularsView: View {
             HStack {
                 Text(item.title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 if item.isAISuggested {
                     Image(systemName: "sparkles")
                         .font(.caption2)

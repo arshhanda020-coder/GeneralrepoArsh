@@ -16,7 +16,7 @@ struct HabitStatsCard: View {
                 Text(habit.emoji).font(.subheadline)
                 Text(habit.name)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Spacer()
             }
 
@@ -48,7 +48,7 @@ struct HabitStatsCard: View {
                     .foregroundStyle(accentColor)
                 Text(value)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             }
             Text(label)
                 .font(.caption2)

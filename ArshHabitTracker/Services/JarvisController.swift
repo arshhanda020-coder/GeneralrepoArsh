@@ -27,9 +27,6 @@ final class JarvisController: NSObject, ObservableObject {
     @Published var liveTranscript = ""
     @Published var statusMessage: String?
     @Published var latestSuggestion: String?
-    /// The home screen has its own top search bar in that same corner —
-    /// JarvisOverlay reads this to drop its floating cluster below it there.
-    @Published var isShowingHomeSearchBar = false
 
     let voice = VoiceManager()
 
@@ -268,9 +265,31 @@ final class JarvisController: NSObject, ObservableObject {
                 recipients: input["recipients"] as? [[String: Any]] ?? [],
                 context: modelContext
             )
+        case "remember_fact":
+            return rememberFact(input["fact"] as? String ?? "", context: modelContext)
+        case "forget_fact":
+            return forgetFact(matching: input["query"] as? String ?? "", context: modelContext)
         default:
             return "Unknown tool."
         }
+    }
+
+    private func rememberFact(_ fact: String, context: ModelContext) -> String {
+        let trimmed = fact.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "No fact given." }
+        context.insert(MemoryEntry(content: trimmed, isAISaved: true))
+        MemoryStore.rebuild(context: context)
+        return "Remembered: \(trimmed)"
+    }
+
+    private func forgetFact(matching query: String, context: ModelContext) -> String {
+        guard !query.isEmpty else { return "No fact to forget was given." }
+        let entries = (try? context.fetch(FetchDescriptor<MemoryEntry>())) ?? []
+        let matches = entries.filter { $0.content.localizedCaseInsensitiveContains(query) }
+        guard !matches.isEmpty else { return "No remembered fact matching \"\(query)\"." }
+        for entry in matches { context.delete(entry) }
+        MemoryStore.rebuild(context: context)
+        return "Forgot \(matches.count) matching fact\(matches.count == 1 ? "" : "s")."
     }
 
     private func addExtracurricular(title: String, description: String, category: String?, context: ModelContext) -> String {

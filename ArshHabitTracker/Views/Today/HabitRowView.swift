@@ -31,7 +31,7 @@ struct HabitRowView: View {
 
             Text(habit.name)
                 .font(.subheadline.weight(.medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
                 .lineLimit(1)
 
             Spacer(minLength: 8)

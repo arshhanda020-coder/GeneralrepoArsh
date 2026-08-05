@@ -343,9 +343,12 @@ actor AnthropicService: AIProviderService {
     tools together — e.g. add an extracurricular entry describing the activity, search for a few real \
     organizations or people to reach out to, and draft an outreach email addressed to each one you found. When \
     the user asks you to do something ("mark X done", "log a session for Y", "add a task to Z", "what repos do \
-    I have"), call the matching tool rather than just describing what you'd do. Be concise — replies may be read \
-    aloud.
-    """ + WritingProfile.styleInstruction
+    I have"), call the matching tool rather than just describing what you'd do. You also have a persistent \
+    memory: use remember_fact whenever the user shares something worth recalling later (a preference, an \
+    ongoing situation, something important to them) — don't ask permission first, just save it naturally. Use \
+    forget_fact if they ask you to forget something or correct something you remembered wrong. Be concise — \
+    replies may be read aloud.
+    """ + WritingProfile.styleInstruction + MemoryStore.contextInstruction
     }
 
     nonisolated private static let tools: [[String: Any]] = [
@@ -447,5 +450,27 @@ actor AnthropicService: AIProviderService {
             ] as [String: Any],
         ],
         ["type": "web_search_20260209", "name": "web_search"],
+        [
+            "name": "remember_fact",
+            "description": "Save a fact about the user to persistent memory, so you recall it in every future conversation, not just this one. Use it proactively whenever the user shares a preference, ongoing situation, or anything worth remembering — don't ask first.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "fact": ["type": "string", "description": "The fact to remember, written plainly, e.g. \"Prefers oat milk over regular milk\" or \"Working on a robotics project due in October\"."] as [String: Any],
+                ] as [String: Any],
+                "required": ["fact"],
+            ] as [String: Any],
+        ],
+        [
+            "name": "forget_fact",
+            "description": "Delete a remembered fact — use when the user asks you to forget something, or corrects something you remembered wrong.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "query": ["type": "string", "description": "A distinctive substring of the fact to forget."] as [String: Any],
+                ] as [String: Any],
+                "required": ["query"],
+            ] as [String: Any],
+        ],
     ]
 }

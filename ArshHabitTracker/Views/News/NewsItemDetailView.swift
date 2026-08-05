@@ -29,7 +29,7 @@ struct NewsItemDetailView: View {
                         .foregroundStyle(Theme.accent)
                     Text(item.title)
                         .font(.title3.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     if let snippet = item.snippet, !snippet.isEmpty {
                         Text(snippet)
                             .font(.subheadline)
@@ -59,7 +59,7 @@ struct NewsItemDetailView: View {
 
             Text(item.link)
                 .font(.caption)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
                 .lineLimit(3)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -119,7 +119,7 @@ struct NewsItemDetailView: View {
                 }
                 if let answer {
                     Divider().overlay(Theme.cardBorder)
-                    Text(answer).font(.caption).foregroundStyle(.white)
+                    Text(answer).font(.caption).foregroundStyle(Theme.primaryText)
                 }
             }
             .padding(12)

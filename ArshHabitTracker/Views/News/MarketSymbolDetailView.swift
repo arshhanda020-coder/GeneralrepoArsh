@@ -42,7 +42,7 @@ struct MarketSymbolDetailView: View {
             if let quote {
                 Text(String(format: "%.2f", quote.close))
                     .font(.system(.largeTitle, design: .rounded).weight(.heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 HStack(spacing: 4) {
                     Image(systemName: quote.isUp ? "arrow.up.right" : "arrow.down.right")
                     Text(String(format: "%.2f (%.2f%%)", quote.change, quote.changePercent))
@@ -67,7 +67,7 @@ struct MarketSymbolDetailView: View {
                 if isLoadingCause {
                     ProgressView().tint(Theme.dimText)
                 } else if let cause {
-                    Text(cause).font(.caption).foregroundStyle(.white)
+                    Text(cause).font(.caption).foregroundStyle(Theme.primaryText)
                 } else if let causeError {
                     Text(causeError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
                 }
@@ -106,7 +106,7 @@ struct MarketSymbolDetailView: View {
                 }
                 if let answer {
                     Divider().overlay(Theme.cardBorder)
-                    Text(answer).font(.caption).foregroundStyle(.white)
+                    Text(answer).font(.caption).foregroundStyle(Theme.primaryText)
                 }
             }
             .padding(12)

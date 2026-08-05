@@ -156,7 +156,7 @@ struct BodyProgressView: View {
             HStack {
                 Text(report.periodStart.formatted(.dateTime.month(.abbreviated).day()) + " – " + report.periodEnd.formatted(.dateTime.month(.abbreviated).day()))
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Spacer()
                 if let start = report.startWeight, let end = report.endWeight {
                     let change = end - start
@@ -199,7 +199,7 @@ struct BodyProgressView: View {
                             if let weight = entry.weight {
                                 Text(String(format: "%.0f", weight))
                                     .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.primaryText)
                             }
                             Text(entry.date.formatted(.dateTime.month(.abbreviated).day()))
                                 .font(.caption2)

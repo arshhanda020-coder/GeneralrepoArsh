@@ -19,7 +19,7 @@ struct ProjectRowView: View {
                 HStack {
                     Text(project.name)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     Spacer()
                     statusPill
                 }

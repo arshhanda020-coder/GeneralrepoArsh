@@ -91,7 +91,7 @@ struct TodayView: View {
         HStack(alignment: .firstTextBaseline) {
             Text("Let's level up")
                 .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             Spacer()
             Text("\(Int(momentum * 100))%")
                 .font(.title3.weight(.bold).monospacedDigit())

@@ -77,7 +77,7 @@ struct MarketView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(symbol.symbol.uppercased())
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     if let error = loadErrors[symbol.symbol.uppercased()] {
                         Text(error)
                             .font(.caption2)
@@ -89,7 +89,7 @@ struct MarketView: View {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(String(format: "%.2f", quote.close))
                             .font(.subheadline.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.primaryText)
                         HStack(spacing: 2) {
                             Image(systemName: quote.isUp ? "arrow.up.right" : "arrow.down.right")
                             Text(String(format: "%.2f%%", abs(quote.changePercent)))

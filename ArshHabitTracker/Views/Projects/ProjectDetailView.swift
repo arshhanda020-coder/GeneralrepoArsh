@@ -72,7 +72,7 @@ struct ProjectDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(project.name)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Text("\(project.tasks.filter { $0.isDone }.count)/\(project.tasks.count) tasks")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(Theme.dimText)
@@ -115,7 +115,7 @@ struct ProjectDetailView: View {
             Image(systemName: "plus.circle")
                 .foregroundStyle(Theme.dimText)
             TextField("Add task", text: $newTaskTitle)
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
                 .onSubmit(addTask)
         }
     }

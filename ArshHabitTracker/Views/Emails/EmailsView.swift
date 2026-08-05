@@ -33,7 +33,7 @@ struct EmailsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(draft.subject.isEmpty ? "(no subject)" : draft.subject)
                                     .font(.subheadline.weight(.medium))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.primaryText)
                                 Text(draft.recipientLabel.isEmpty ? "Tap to review" : draft.recipientLabel)
                                     .font(.caption)
                                     .foregroundStyle(Theme.dimText)

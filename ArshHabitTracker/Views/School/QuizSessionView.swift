@@ -76,7 +76,7 @@ struct QuizSessionView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(session.score)/\(session.totalQuestions)")
                     .font(.title2.weight(.heavy).monospacedDigit())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Text("Score")
                     .font(.caption2)
                     .foregroundStyle(Theme.dimText)
@@ -98,7 +98,7 @@ struct QuizSessionView: View {
                     .foregroundStyle(Theme.dimText)
                 Text(question.text)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Spacer()
                 if session.isSubmitted, let isCorrect = question.isCorrect {
                     Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -115,7 +115,7 @@ struct QuizSessionView: View {
             } else if session.isSubmitted {
                 Text("Your answer: \(question.userAnswer ?? "—")")
                     .font(.caption)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             } else {
                 TextField("Your answer", text: Binding(
                     get: { question.userAnswer ?? "" },

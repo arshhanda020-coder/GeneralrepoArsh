@@ -33,7 +33,7 @@ struct TopicDetailView: View {
                         Spacer()
                         Image(systemName: "chevron.right").font(.caption2)
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                     .padding(12)
                     .background(Theme.card)
                     .clipShape(RoundedRectangle(cornerRadius: 10))

@@ -2,55 +2,21 @@
 //  JarvisOverlay.swift
 //  ArshHabitTracker
 //
-//  Floating chrome mounted once at the app root (above the NavigationStack)
-//  so it persists across every screen: Settings up top, Jarvis's orb just
-//  below it, tucked into the top-trailing corner. Search lives as a real
-//  search bar on the home screen instead of living here.
+//  Mounted once at the app root (above the NavigationStack) purely to host
+//  Jarvis's full-screen takeover — it draws nothing itself. Settings and the
+//  Jarvis entry point live as normal, non-floating controls on the home
+//  screen's top row instead of a persistent overlay on every screen.
 //
 
 import SwiftUI
 
 struct JarvisOverlay: View {
     @EnvironmentObject private var jarvis: JarvisController
-    @State private var showingSettings = false
 
     var body: some View {
-        VStack {
-            HStack {
-                Spacer()
-                VStack(spacing: 14) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape.fill")
-                            .font(.body)
-                            .foregroundStyle(Theme.dimText)
-                            .frame(width: 32, height: 32)
-                            .background(Theme.card)
-                            .clipShape(Circle())
-                            .overlay(Circle().stroke(Theme.cardBorder, lineWidth: 1))
-                    }
-                    .accessibilityLabel("Settings")
-
-                    Button {
-                        jarvis.activate()
-                    } label: {
-                        ArcReactorView(size: 48, isActive: jarvis.isActive)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Jarvis")
-                }
-                .padding(.trailing, 16)
-                .padding(.top, jarvis.isShowingHomeSearchBar ? 64 : 8)
+        Color.clear
+            .fullScreenCover(isPresented: $jarvis.isExpanded) {
+                JarvisTerminalView()
             }
-            Spacer()
-        }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
-        .fullScreenCover(isPresented: $jarvis.isExpanded) {
-            JarvisTerminalView()
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-        }
     }
 }

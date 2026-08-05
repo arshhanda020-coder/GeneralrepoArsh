@@ -113,7 +113,7 @@ struct WorkoutContentView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(completion.habit?.name ?? "Workout")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 if let note = completion.note, !note.isEmpty {
                     Text(note)
                         .font(.caption2)

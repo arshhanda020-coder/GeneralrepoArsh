@@ -16,7 +16,7 @@ struct SkillStatsRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(skill.name)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 ProgressView(value: skill.progress)
                     .tint(Color(hex: skill.colorHex))
             }

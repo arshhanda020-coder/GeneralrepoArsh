@@ -20,7 +20,7 @@ struct SkillCardView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(skill.name)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     Text(skill.skillDescription)
                         .font(.caption2)
                         .foregroundStyle(Theme.dimText)

@@ -28,7 +28,7 @@ struct AppLockView: View {
 
             Text(hasPIN ? "Enter PIN" : (confirmStage ? "Confirm PIN" : "Create a PIN"))
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
 
             HStack(spacing: 16) {
                 ForEach(0..<4, id: \.self) { index in
@@ -80,7 +80,7 @@ struct AppLockView: View {
                 }
             }
             .font(.title2.weight(.medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.primaryText)
             .frame(width: 68, height: 68)
             .background(key.isEmpty ? Color.clear : Theme.card)
             .clipShape(Circle())

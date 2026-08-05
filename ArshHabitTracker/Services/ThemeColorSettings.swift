@@ -3,14 +3,14 @@
 //  ArshHabitTracker
 //
 //  Every color token in the app is overridable from Settings > Appearance.
-//  These are the built-in defaults (the muted, professional palette) — an
-//  override in UserDefaults wins when present.
+//  These are the built-in defaults (a clean light palette) — an override in
+//  UserDefaults wins when present.
 //
 
 import Foundation
 
 enum ThemeToken: String, CaseIterable, Identifiable {
-    case background, card, cardBorder, dimText
+    case background, card, cardBorder, dimText, primaryText
     case accent, terminalGreen, terminalAmber
     case reactorCore, reactorDeep, reactorGlow
 
@@ -18,16 +18,17 @@ enum ThemeToken: String, CaseIterable, Identifiable {
 
     var defaultHex: String {
         switch self {
-        case .background: return "0B0F14"
-        case .card: return "151B23"
-        case .cardBorder: return "232B36"
-        case .dimText: return "8A94A3"
+        case .background: return "F7F5F1"
+        case .card: return "FFFFFF"
+        case .cardBorder: return "E3DFD6"
+        case .dimText: return "756F63"
+        case .primaryText: return "211D17"
         case .accent: return "B8935B"
-        case .terminalGreen: return "7FA285"
-        case .terminalAmber: return "C9A227"
-        case .reactorCore: return "C9A227"
-        case .reactorDeep: return "15110A"
-        case .reactorGlow: return "8A6E3D"
+        case .terminalGreen: return "4F7A5B"
+        case .terminalAmber: return "A8791E"
+        case .reactorCore: return "8B6FD6"
+        case .reactorDeep: return "1B1330"
+        case .reactorGlow: return "5B4FA8"
         }
     }
 
@@ -37,6 +38,7 @@ enum ThemeToken: String, CaseIterable, Identifiable {
         case .card: return "Card Surface"
         case .cardBorder: return "Card Border"
         case .dimText: return "Secondary Text"
+        case .primaryText: return "Primary Text"
         case .accent: return "Signature Accent"
         case .terminalGreen: return "Success / Done"
         case .terminalAmber: return "Highlight / Amber"

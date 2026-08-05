@@ -102,7 +102,7 @@ struct CalendarView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
                     .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 if let subtitle = item.subtitle {
                     Text(subtitle)
                         .font(.caption2)

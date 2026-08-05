@@ -69,7 +69,7 @@ struct HealthView: View {
             if let steps = healthKit.todaysSteps {
                 Text("\(steps)")
                     .font(.subheadline.weight(.bold).monospacedDigit())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
             } else {
                 Text("—")
                     .font(.subheadline.weight(.bold))

@@ -87,7 +87,7 @@ struct AIIntegrationView: View {
             }
             Text(item.title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             if let snippet = item.snippet, !snippet.isEmpty {
                 Text(snippet)
                     .font(.caption)

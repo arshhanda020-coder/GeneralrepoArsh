@@ -23,7 +23,7 @@ struct NewsRowView: View {
 
             Text(item.title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
             if let snippet = item.snippet, !snippet.isEmpty {

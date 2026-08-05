@@ -15,6 +15,8 @@ enum Theme {
     static var card: Color { Color(hex: ThemeColorSettings.hex(for: .card)) }
     static var cardBorder: Color { Color(hex: ThemeColorSettings.hex(for: .cardBorder)) }
     static var dimText: Color { Color(hex: ThemeColorSettings.hex(for: .dimText)) }
+    /// Primary text color — near-black on the default light background.
+    static var primaryText: Color { Color(hex: ThemeColorSettings.hex(for: .primaryText)) }
 
     /// The app's one signature accent — used for interactive elements
     /// (buttons, links, the nav tint) across the whole app.

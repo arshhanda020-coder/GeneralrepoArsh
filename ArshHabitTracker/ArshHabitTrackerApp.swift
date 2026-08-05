@@ -20,6 +20,7 @@ struct ArshHabitTrackerApp: App {
             Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
             ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
+            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self,
         ])
         container = Self.makeContainer(schema: schema)
         Self.seedClassesIfNeeded(container: container)
@@ -74,7 +75,7 @@ struct ArshHabitTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(.light)
         }
         .modelContainer(container)
     }

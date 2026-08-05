@@ -298,8 +298,11 @@ actor OpenAIService: AIProviderService {
     get into something (e.g. "I want to work on finance research"), proactively offer or use these tools together — \
     e.g. add an extracurricular entry describing the activity, and draft an outreach email to the kind of person \
     they'd want to contact about it. When the user asks you to do something, call the matching tool rather than \
-    just describing what you'd do. Be concise — replies may be read aloud.
-    """ + WritingProfile.styleInstruction
+    just describing what you'd do. You also have a persistent memory: use remember_fact whenever the user shares \
+    something worth recalling later (a preference, an ongoing situation, something important to them) — don't \
+    ask permission first, just save it naturally. Use forget_fact if they ask you to forget something or correct \
+    something you remembered wrong. Be concise — replies may be read aloud.
+    """ + WritingProfile.styleInstruction + MemoryStore.contextInstruction
     }
 
     nonisolated private static let tools: [[String: Any]] = [
@@ -421,6 +424,34 @@ actor OpenAIService: AIProviderService {
                         ] as [String: Any],
                     ] as [String: Any],
                     "required": ["subject", "topic", "recipients"],
+                ] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "remember_fact",
+                "description": "Save a fact about the user to persistent memory, so you recall it in every future conversation, not just this one. Use it proactively whenever the user shares a preference, ongoing situation, or anything worth remembering — don't ask first.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "fact": ["type": "string", "description": "The fact to remember, written plainly, e.g. \"Prefers oat milk over regular milk\" or \"Working on a robotics project due in October\"."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["fact"],
+                ] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "forget_fact",
+                "description": "Delete a remembered fact — use when the user asks you to forget something, or corrects something you remembered wrong.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "query": ["type": "string", "description": "A distinctive substring of the fact to forget."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["query"],
                 ] as [String: Any],
             ] as [String: Any],
         ],

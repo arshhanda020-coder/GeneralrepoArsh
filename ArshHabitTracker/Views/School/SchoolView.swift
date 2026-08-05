@@ -64,7 +64,7 @@ struct SchoolView: View {
                 Spacer()
                 Image(systemName: "chevron.right").font(.caption2)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Theme.primaryText)
             .padding(12)
             .background(Theme.card)
             .clipShape(RoundedRectangle(cornerRadius: 10))
@@ -124,7 +124,7 @@ struct SchoolView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(schoolClass.name)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     let pendingCount = schoolClass.topics.flatMap(\.assignments).filter { !$0.isDone }.count
                     Text(schoolClass.topics.isEmpty ? "No topics yet" : (pendingCount == 0 ? "All caught up" : "\(pendingCount) pending"))
                         .font(.caption2)
@@ -187,7 +187,7 @@ struct SchoolView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exam.name)
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                     Text(exam.examDate.formatted(.dateTime.month(.wide).day().year()))
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
@@ -237,9 +237,18 @@ struct SchoolView: View {
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(Theme.dimText)
                 Spacer()
-                Button("Log session") { loggingExam = exam }
+                if exam.category == .act {
+                    NavigationLink("Prep Plan") {
+                        ACTPrepView(exam: exam)
+                    }
                     .font(.caption.weight(.semibold))
                     .buttonStyle(.borderedProminent)
+                    .tint(MindMapSection.school.accentColor)
+                    .controlSize(.small)
+                }
+                Button("Log session") { loggingExam = exam }
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.bordered)
                     .tint(MindMapSection.school.accentColor)
                     .controlSize(.small)
             }
@@ -297,7 +306,7 @@ struct SchoolView: View {
                     Divider().overlay(Theme.cardBorder)
                     Text(homeworkAnswer)
                         .font(.caption)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.primaryText)
                 }
             }
             .padding(12)

@@ -15,9 +15,11 @@ struct MindMapHomeView: View {
     @Query private var assignments: [Assignment]
     @Query private var exams: [Exam]
     @Query private var extracurriculars: [Extracurricular]
+    @Query private var memories: [MemoryEntry]
 
     @State private var hasAppeared = false
     @State private var showingSearch = false
+    @State private var showingSettings = false
 
     private let radius: CGFloat = 240
     private let nodeWidth: CGFloat = 84
@@ -50,7 +52,7 @@ struct MindMapHomeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            searchBar
+            topBar
                 .padding(.top, 8)
 
             DailyQuoteView()
@@ -86,39 +88,64 @@ struct MindMapHomeView: View {
         .navigationTitle("")
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
-            jarvis.isShowingHomeSearchBar = true
             guard !hasAppeared else { return }
             withAnimation(.spring(response: 0.6, dampingFraction: 0.72).delay(0.05)) {
                 hasAppeared = true
             }
         }
-        .onDisappear {
-            jarvis.isShowingHomeSearchBar = false
-        }
         .sheet(isPresented: $showingSearch) {
             SearchView()
         }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
     }
 
-    private var searchBar: some View {
-        Button {
-            showingSearch = true
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
+    /// Everything lives in normal layout flow here — nothing floats over
+    /// anything else, so there's no overlap to worry about.
+    private var topBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape.fill")
+                    .font(.body)
                     .foregroundStyle(Theme.dimText)
-                Text("Search everything")
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.dimText)
-                Spacer()
+                    .frame(width: 38, height: 38)
+                    .background(Theme.card)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Theme.cardBorder, lineWidth: 1))
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.cardBorder, lineWidth: 1))
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+
+            Button {
+                showingSearch = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(Theme.dimText)
+                    Text("Search everything")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.dimText)
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(Theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.cardBorder, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                jarvis.activate()
+            } label: {
+                ArcReactorView(size: 38, isActive: jarvis.isActive)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Jarvis")
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, 16)
     }
 
@@ -149,7 +176,7 @@ struct MindMapHomeView: View {
                 Text("\(Int(momentum * 100))%")
                     .font(.system(.title2, design: .rounded).weight(.heavy))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 Text("TODAY")
                     .font(.caption2.weight(.bold))
                     .tracking(1.5)
@@ -177,7 +204,7 @@ struct MindMapHomeView: View {
                 Text(section.shortTitle.uppercased())
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
                     .tracking(0.5)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.primaryText)
                 if let badge = badge(for: section) {
                     Text(badge)
                         .font(.system(.caption2, design: .monospaced))
@@ -282,6 +309,8 @@ struct MindMapHomeView: View {
             return upcomingAgendaCount == 0 ? nil : "\(upcomingAgendaCount)"
         case .extracurriculars:
             return extracurriculars.isEmpty ? nil : "\(extracurriculars.count)"
+        case .memory:
+            return memories.isEmpty ? nil : "\(memories.count)"
         }
     }
 }

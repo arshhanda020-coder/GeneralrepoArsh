@@ -73,7 +73,7 @@ struct GPACalculatorView: View {
         VStack(spacing: 2) {
             Text(value.map { String(format: "%.2f", $0) } ?? "—")
                 .font(.title.weight(.heavy).monospacedDigit())
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.primaryText)
             Text(label)
                 .font(.caption2.weight(.bold))
                 .tracking(0.5)
@@ -125,7 +125,7 @@ struct GPACalculatorView: View {
                     ForEach(Array(scaleEntries.enumerated()), id: \.element.id) { index, entry in
                         if index > 0 { Divider().overlay(Theme.cardBorder) }
                         HStack {
-                            Text(entry.label).font(.subheadline.weight(.medium)).foregroundStyle(.white)
+                            Text(entry.label).font(.subheadline.weight(.medium)).foregroundStyle(Theme.primaryText)
                             Spacer()
                             Text(String(format: "%.2f", entry.points)).font(.caption.monospacedDigit()).foregroundStyle(Theme.dimText)
                             Button {
@@ -218,7 +218,7 @@ struct GPACalculatorView: View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 4) {
-                    Text(entry.courseName).font(.subheadline.weight(.medium)).foregroundStyle(.white)
+                    Text(entry.courseName).font(.subheadline.weight(.medium)).foregroundStyle(Theme.primaryText)
                     if entry.isWeighted {
                         Text("W").font(.caption2.weight(.bold)).foregroundStyle(MindMapSection.school.accentColor)
                     }
