@@ -20,9 +20,18 @@ final class Project {
     var planText: String?
     /// GitHub repo linked to this project (e.g. "https://github.com/owner/repo").
     var repoURLString: String?
+    /// Absolute path (on the Mac running bridge/server.js) to this project's
+    /// real repo, if any — what a bridge run's `cwd` is scoped to.
+    var repoPath: String?
 
     @Relationship(deleteRule: .cascade, inverse: \ProjectTask.project)
     var tasks: [ProjectTask] = []
+
+    /// Claude Code / Codex runs made against `repoPath` through the bridge,
+    /// logged here so the project keeps a real history instead of the
+    /// one-shot request/response DevAgentBridgeView shows.
+    @Relationship(deleteRule: .cascade, inverse: \AgentRun.project)
+    var agentRuns: [AgentRun] = []
 
     init(
         id: String = UUID().uuidString,
@@ -33,7 +42,8 @@ final class Project {
         status: ProjectStatus = .building,
         createdAt: Date = .now,
         planText: String? = nil,
-        repoURLString: String? = nil
+        repoURLString: String? = nil,
+        repoPath: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -44,6 +54,7 @@ final class Project {
         self.createdAt = createdAt
         self.planText = planText
         self.repoURLString = repoURLString
+        self.repoPath = repoPath
     }
 
     var status: ProjectStatus {

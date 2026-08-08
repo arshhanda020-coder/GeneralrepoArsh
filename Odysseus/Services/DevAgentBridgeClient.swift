@@ -47,6 +47,14 @@ struct BridgeRunResult {
     let error: String?
 }
 
+struct BridgeGitStatus {
+    let isRepo: Bool
+    let branch: String?
+    let ahead: Int
+    let behind: Int
+    let dirty: Int
+}
+
 enum DevAgentBridgeClient {
     /// Cheap, unauthenticated reachability check — GET / just confirms
     /// *something* answering as odysseus-bridge is listening at this URL.
@@ -101,6 +109,38 @@ enum DevAgentBridgeClient {
             sessionId: json["sessionId"] as? String,
             costUSD: json["costUSD"] as? Double,
             error: json["error"] as? String
+        )
+    }
+
+    /// Cheap branch/dirty/ahead-behind snapshot for a project's `repoPath` —
+    /// used by ProjectDetailView so linking a repo shows real state, not
+    /// just the path string.
+    static func gitStatus(baseURL: String, token: String, cwd: String) async throws -> BridgeGitStatus {
+        guard let base = normalizedURL(baseURL, path: "/git-status"),
+              var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else {
+            throw BridgeError.noURL
+        }
+        components.queryItems = [URLQueryItem(name: "cwd", value: cwd)]
+        guard let url = components.url else { throw BridgeError.noURL }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 10
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await send(request)
+        guard let http = response as? HTTPURLResponse else { throw BridgeError.unreachable }
+        guard http.statusCode != 401 else { throw BridgeError.unauthorized }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw BridgeError.malformedResponse
+        }
+        if http.statusCode >= 400, let error = json["error"] as? String { throw BridgeError.server(error) }
+
+        return BridgeGitStatus(
+            isRepo: json["isRepo"] as? Bool ?? false,
+            branch: json["branch"] as? String,
+            ahead: json["ahead"] as? Int ?? 0,
+            behind: json["behind"] as? Int ?? 0,
+            dirty: json["dirty"] as? Int ?? 0
         )
     }
 
