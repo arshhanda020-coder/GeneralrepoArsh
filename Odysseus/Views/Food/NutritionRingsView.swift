@@ -2,10 +2,12 @@
 //  NutritionRingsView.swift
 //  Odysseus
 //
-//  The Cal AI / MyFitnessPal signature dashboard — one big "calories
-//  remaining" ring plus three small macro rings underneath — reskinned in
-//  Odysseus's glass-panel HUD material instead of a flat rounded card.
-//  Same equation MyFitnessPal uses: Remaining = Goal - Food + Exercise.
+//  MyFitnessPal's exact Diary summary, reskinned in Odysseus's glass-panel
+//  HUD material instead of MFP's flat white card: the "calories remaining"
+//  ring worked from MFP's own equation (Remaining = Goal - Food + Exercise),
+//  an explicit Consumed/Burned stat row so those two numbers are never
+//  buried in the equation, and macros as MFP-style horizontal bars (MFP
+//  doesn't use circles for macros — that's a Cal AI-ism) instead of rings.
 //
 
 import SwiftUI
@@ -31,7 +33,7 @@ struct NutritionRingsView: View {
     private var ringColor: Color { isOverBudget ? Theme.terminalAmber : MindMapSection.health.accentColor }
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             HStack(alignment: .center, spacing: 20) {
                 bigRing
                 VStack(alignment: .leading, spacing: 7) {
@@ -54,9 +56,14 @@ struct NutritionRingsView: View {
             }
 
             HStack(spacing: 10) {
-                macroRing(label: "PROTEIN", eaten: proteinEaten, goal: proteinGoal, color: Theme.accent)
-                macroRing(label: "CARBS", eaten: carbsEaten, goal: carbsGoal, color: Theme.terminalAmber)
-                macroRing(label: "FAT", eaten: fatEaten, goal: fatGoal, color: Theme.reactorGlow)
+                statTile(label: "CONSUMED", value: caloriesEaten, icon: "fork.knife", color: MindMapSection.health.accentColor)
+                statTile(label: "BURNED", value: exerciseCalories, icon: "flame.fill", color: Theme.terminalAmber)
+            }
+
+            VStack(spacing: 10) {
+                macroBar(label: "PROTEIN", eaten: proteinEaten, goal: proteinGoal, color: Theme.accent)
+                macroBar(label: "CARBS", eaten: carbsEaten, goal: carbsGoal, color: Theme.terminalAmber)
+                macroBar(label: "FAT", eaten: fatEaten, goal: fatGoal, color: Theme.reactorGlow)
             }
         }
         .padding(14)
@@ -98,30 +105,56 @@ struct NutritionRingsView: View {
         }
     }
 
-    private func macroRing(label: String, eaten: Double, goal: Double, color: Color) -> some View {
-        let progress = goal > 0 ? min(eaten / goal, 1) : 0
-        let remainingGrams = max(goal - eaten, 0)
-        return VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .stroke(Theme.cardBorder.opacity(0.5), lineWidth: 6)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(color, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.4), value: progress)
-                Text("\(Int(remainingGrams))g")
+    /// Explicit "Calories Consumed" / "Calories Burned" tiles — MFP folds
+    /// these into its Goal/Food/Exercise equation, but callers asked for
+    /// them called out as their own readable numbers, not buried in the sum.
+    private func statTile(label: String, value: Int, icon: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(color)
+                Text(label)
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
-                    .foregroundStyle(Theme.primaryText)
-                    .minimumScaleFactor(0.7)
+                    .tracking(0.3)
+                    .foregroundStyle(Theme.dimText)
             }
-            .frame(width: 56, height: 56)
-            Text(label)
-                .font(.system(.caption2, design: .monospaced))
-                .tracking(0.3)
+            Text("\(value)")
+                .font(.system(.title3, design: .monospaced).weight(.bold))
+                .foregroundStyle(Theme.primaryText)
+            Text("cal")
+                .font(.caption2)
                 .foregroundStyle(Theme.dimText)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .glassPanel(cornerRadius: 10)
+    }
+
+    /// MFP-style horizontal macro progress bar (MFP's Nutrition tab uses
+    /// bars, not the circular macro rings Cal AI popularized).
+    private func macroBar(label: String, eaten: Double, goal: Double, color: Color) -> some View {
+        let progress = goal > 0 ? min(eaten / goal, 1) : 0
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(.caption2, design: .monospaced).weight(.bold))
+                    .tracking(0.3)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+                Text("\(Int(eaten))g / \(Int(goal))g")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(Theme.primaryText)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.cardBorder.opacity(0.4))
+                    Capsule().fill(color)
+                        .frame(width: geo.size.width * progress)
+                }
+            }
+            .frame(height: 6)
+        }
     }
 }
 

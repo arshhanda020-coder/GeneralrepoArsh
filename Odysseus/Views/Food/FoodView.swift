@@ -21,10 +21,13 @@ struct FoodContentView: View {
     @State private var showingGoals = false
     @State private var logMealType: MealType = .snack
     @State private var editingEntry: FoodEntry?
+    @State private var showingLogWorkout = false
+    @State private var editingWorkout: WorkoutEntry?
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
     private var todaysEntries: [FoodEntry] { allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: today) } }
     private var historyEntries: [FoodEntry] { allEntries.filter { !Calendar.current.isDate($0.date, inSameDayAs: today) } }
+    private var todaysWorkoutEntries: [WorkoutEntry] { workoutEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: today) } }
 
     private var todaysTotals: (calories: Int, protein: Double, carbs: Double, fat: Double) {
         let cals = todaysEntries.compactMap { $0.calories }.reduce(0, +)
@@ -86,6 +89,8 @@ struct FoodContentView: View {
                 mealSection(meal)
             }
 
+            exerciseSection
+
             if !historyEntries.isEmpty {
                 historySection
             }
@@ -98,6 +103,12 @@ struct FoodContentView: View {
         }
         .sheet(isPresented: $showingGoals) {
             NutritionGoalsSheet(maintenanceCalories: maintenanceCalories)
+        }
+        .sheet(isPresented: $showingLogWorkout) {
+            LogWorkoutSheet(entry: nil)
+        }
+        .sheet(item: $editingWorkout) { entry in
+            LogWorkoutSheet(entry: entry)
         }
     }
 
@@ -173,6 +184,49 @@ struct FoodContentView: View {
         }
     }
 
+    private var exerciseSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "flame.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.terminalAmber)
+                Text("EXERCISE")
+                    .font(.system(.caption2, design: .monospaced).weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                if todaysExerciseCalories > 0 {
+                    Text("· \(todaysExerciseCalories) cal burned")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.dimText)
+                }
+                Spacer()
+                Button {
+                    showingLogWorkout = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(Theme.terminalAmber)
+                }
+                .buttonStyle(.plain)
+            }
+            VStack(spacing: 0) {
+                if todaysWorkoutEntries.isEmpty {
+                    Text("No exercise logged yet.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.dimText)
+                        .padding(10)
+                } else {
+                    ForEach(Array(todaysWorkoutEntries.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 {
+                            Divider().overlay(Theme.cardBorder)
+                        }
+                        workoutRow(entry)
+                    }
+                }
+            }
+            .glassPanel(cornerRadius: 10)
+        }
+    }
+
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("HISTORY")
@@ -233,6 +287,47 @@ struct FoodContentView: View {
         .padding(10)
         .contentShape(Rectangle())
         .onTapGesture { editingEntry = entry }
+    }
+
+    private func workoutRow(_ entry: WorkoutEntry) -> some View {
+        HStack(spacing: 10) {
+            if let imageData = entry.imageData, let uiImage = PlatformImage(data: imageData) {
+                Image(platformImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Image(systemName: "flame.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.terminalAmber)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.card.opacity(0.4))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.note)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primaryText)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if let cal = entry.caloriesBurned {
+                        Text("-\(cal) cal")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.terminalAmber)
+                    }
+                    if let mins = entry.durationMinutes {
+                        Text("\(mins) min")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.dimText)
+                    }
+                }
+            }
+            Spacer()
+        }
+        .padding(10)
+        .contentShape(Rectangle())
+        .onTapGesture { editingWorkout = entry }
     }
 
     private func macroLabel(_ entry: FoodEntry) -> String {
