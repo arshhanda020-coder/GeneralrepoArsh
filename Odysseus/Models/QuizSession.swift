@@ -17,6 +17,8 @@ final class QuizSession {
     var isSubmitted: Bool
     var score: Int
     var totalQuestions: Int
+    /// How long the test took, start to submit — set once isSubmitted flips true.
+    var durationSeconds: Int?
 
     @Relationship(deleteRule: .cascade, inverse: \QuizQuestion.session)
     var questions: [QuizQuestion] = []
@@ -27,7 +29,8 @@ final class QuizSession {
         createdAt: Date = .now,
         isSubmitted: Bool = false,
         score: Int = 0,
-        totalQuestions: Int = 0
+        totalQuestions: Int = 0,
+        durationSeconds: Int? = nil
     ) {
         self.id = id
         self.subject = subject
@@ -35,6 +38,7 @@ final class QuizSession {
         self.isSubmitted = isSubmitted
         self.score = score
         self.totalQuestions = totalQuestions
+        self.durationSeconds = durationSeconds
     }
 }
 

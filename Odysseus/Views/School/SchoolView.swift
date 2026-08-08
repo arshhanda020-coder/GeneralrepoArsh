@@ -233,15 +233,13 @@ struct SchoolView: View {
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(Theme.dimText)
                 Spacer()
-                if exam.category == .act {
-                    NavigationLink("Prep Plan") {
-                        ACTPrepView(exam: exam)
-                    }
-                    .font(.caption.weight(.semibold))
-                    .buttonStyle(.borderedProminent)
-                    .tint(MindMapSection.school.accentColor)
-                    .controlSize(.small)
+                NavigationLink("Study Plan") {
+                    ExamStudyPlanView(exam: exam)
                 }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .tint(MindMapSection.school.accentColor)
+                .controlSize(.small)
                 Button("Log session") { loggingExam = exam }
                     .font(.caption.weight(.semibold))
                     .buttonStyle(.bordered)

@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct TopicDetailView: View {
     @Bindable var topic: Topic
@@ -18,14 +19,35 @@ struct TopicDetailView: View {
     @State private var explainingAssignment: Assignment?
     @State private var isExplaining = false
     @State private var explainError: String?
+    /// Gates "Help understand" on a photo when none is attached yet — asked
+    /// once per tap rather than silently skipping straight to a blind answer.
+    @State private var promptingPhotoFor: Assignment?
+    @State private var helpPhotoItem: PhotosPickerItem?
 
     private var pendingAssignments: [Assignment] { topic.assignments.filter { !$0.isDone } }
     private var doneAssignments: [Assignment] { topic.assignments.filter { $0.isDone } }
 
+    /// Everything logged under this topic — assignments, quizzes, tests,
+    /// projects, with notes and scores — so "Test me" quizzes on what's
+    /// actually here instead of guessing from the topic name alone.
+    private var loggedMaterialSummary: String {
+        topic.assignments.map { assignment -> String in
+            var line = "[\(assignment.type.displayName)] \(assignment.title)"
+            line += assignment.isDone ? " (completed)" : " (pending)"
+            if let percent = assignment.percentScore {
+                line += " — scored \(String(format: "%.0f%%", percent))"
+            }
+            if let notes = assignment.notes, !notes.isEmpty {
+                line += " — notes: \(notes)"
+            }
+            return line
+        }.joined(separator: "\n")
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                NavigationLink(destination: TestMeView(presetSubject: topic.name)) {
+                NavigationLink(destination: TestMeView(presetSubject: topic.name, contextMaterial: loggedMaterialSummary)) {
                     HStack {
                         Image(systemName: "questionmark.circle.fill")
                         Text("Test me on \(topic.name)")
@@ -85,6 +107,41 @@ struct TopicDetailView: View {
         .sheet(item: $editingAssignment) { assignment in
             AddEditAssignmentView(assignment: assignment)
         }
+        .confirmationDialog(
+            "Add a photo of this first?",
+            isPresented: Binding(get: { promptingPhotoFor != nil }, set: { if !$0 { promptingPhotoFor = nil } }),
+            titleVisibility: .visible
+        ) {
+            PhotosPicker(selection: $helpPhotoItem, matching: .images) {
+                Text("Add photo")
+            }
+            Button("Continue without a photo") {
+                if let assignment = promptingPhotoFor { helpUnderstand(assignment) }
+                promptingPhotoFor = nil
+            }
+            Button("Cancel", role: .cancel) { promptingPhotoFor = nil }
+        } message: {
+            Text("No photo attached yet — a photo of the assignment, question, or your work usually gets a much better answer.")
+        }
+        .onChange(of: helpPhotoItem) { _, newItem in
+            guard let assignment = promptingPhotoFor else { return }
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self) {
+                    assignment.photoData = PlatformImage(data: data)?.jpegData(compressionQuality: 0.6) ?? data
+                }
+                helpPhotoItem = nil
+                promptingPhotoFor = nil
+                helpUnderstand(assignment)
+            }
+        }
+    }
+
+    private func requestHelp(_ assignment: Assignment) {
+        if assignment.photoData == nil {
+            promptingPhotoFor = assignment
+        } else {
+            helpUnderstand(assignment)
+        }
     }
 
     private func assignmentRow(_ assignment: Assignment) -> some View {
@@ -101,15 +158,27 @@ struct TopicDetailView: View {
                 .buttonStyle(.plain)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(assignment.title)
-                        .font(.subheadline)
-                        .foregroundStyle(assignment.isDone ? Theme.dimText : Theme.primaryText)
-                        .strikethrough(assignment.isDone)
-                    if let due = assignment.dueDate {
-                        Text(due.formatted(.dateTime.month(.abbreviated).day()))
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(Theme.dimText)
+                    HStack(spacing: 5) {
+                        Text(assignment.title)
+                            .font(.subheadline)
+                            .foregroundStyle(assignment.isDone ? Theme.dimText : Theme.primaryText)
+                            .strikethrough(assignment.isDone)
+                        if assignment.type != .assignment {
+                            Text(assignment.type.displayName.uppercased())
+                                .font(.system(.caption2, design: .monospaced).weight(.bold))
+                                .foregroundStyle(MindMapSection.school.accentColor)
+                        }
                     }
+                    HStack(spacing: 6) {
+                        if let due = assignment.dueDate {
+                            Text(due.formatted(.dateTime.month(.abbreviated).day()))
+                        }
+                        if let earned = assignment.pointsEarned, let possible = assignment.pointsPossible, possible > 0 {
+                            Text("\(earned.formatted())/\(possible.formatted()) (\(String(format: "%.0f%%", earned / possible * 100)))")
+                        }
+                    }
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(Theme.dimText)
                 }
 
                 Spacer()
@@ -131,7 +200,7 @@ struct TopicDetailView: View {
                 .tint(Theme.terminalGreen)
 
                 Button {
-                    helpUnderstand(assignment)
+                    requestHelp(assignment)
                 } label: {
                     Label(
                         isExplaining && explainingAssignment?.id == assignment.id ? "Thinking…" : "Help understand",
@@ -164,7 +233,11 @@ struct TopicDetailView: View {
     private func addAssignment() {
         let trimmed = newAssignmentTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        modelContext.insert(Assignment(title: trimmed, topic: topic))
+        // Defaults to today so it shows up on the Calendar immediately —
+        // edit the assignment afterward to push the date out or clear it.
+        let assignment = Assignment(title: trimmed, dueDate: Date(), topic: topic)
+        modelContext.insert(assignment)
+        NotificationManager.shared.sync(assignment: assignment)
         newAssignmentTitle = ""
     }
 
@@ -179,7 +252,7 @@ struct TopicDetailView: View {
             do {
                 let explanation = try await AISettings.currentService.askAboutImage(
                     prompt: prompt,
-                    imageData: nil,
+                    imageData: assignment.photoData,
                     systemPrompt: "You are a patient, encouraging tutor. Explain concepts step by step so the student actually understands the reasoning, not just the answer. Keep it focused and not overly long."
                 )
                 assignment.helpExplanation = explanation

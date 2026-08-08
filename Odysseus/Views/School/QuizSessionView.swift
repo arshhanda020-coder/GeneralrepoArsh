@@ -14,6 +14,7 @@ struct QuizSessionView: View {
     @Bindable var session: QuizSession
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isSubmitting = false
     @State private var submitError: String?
 
@@ -30,9 +31,13 @@ struct QuizSessionView: View {
                     if session.isSubmitted {
                         scoreHeader
                     } else {
-                        Text("Answer every question, then submit. You can't leave until you do.")
-                            .font(.caption)
-                            .foregroundStyle(Theme.dimText)
+                        HStack {
+                            Text("Answer every question, then submit. You can't leave until you do.")
+                                .font(.caption)
+                                .foregroundStyle(Theme.dimText)
+                            Spacer()
+                            elapsedTimer
+                        }
                     }
 
                     ForEach(Array(orderedQuestions.enumerated()), id: \.element.id) { index, question in
@@ -69,6 +74,42 @@ struct QuizSessionView: View {
             }
         }
         .interactiveDismissDisabled(!session.isSubmitted)
+        .onChange(of: scenePhase) { _, newPhase in
+            // Locked like a Google Form: leaving mid-test (backgrounding the
+            // app, getting a call, switching apps) locks in whatever's
+            // answered instead of leaving the test hanging open indefinitely.
+            guard newPhase == .background, !session.isSubmitted, !isSubmitting else { return }
+            autoSubmitOnLeave()
+        }
+    }
+
+    /// Grades locally (exact match, no AI round-trip) so it finishes
+    /// instantly before the app gets suspended in the background.
+    private func autoSubmitOnLeave() {
+        var correctCount = 0
+        for question in orderedQuestions {
+            let userAnswer = (question.userAnswer ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let isCorrect = !userAnswer.isEmpty && userAnswer.caseInsensitiveCompare(question.correctAnswer) == .orderedSame
+            question.isCorrect = isCorrect
+            if question.type == .shortAnswer {
+                question.feedback = userAnswer.isEmpty
+                    ? "Left blank — auto-submitted when you left the test."
+                    : "Auto-submitted when you left the test (matched against the reference answer, not AI-graded)."
+            }
+            if isCorrect { correctCount += 1 }
+        }
+        session.score = correctCount
+        session.isSubmitted = true
+        session.durationSeconds = max(0, Int(Date().timeIntervalSince(session.createdAt)))
+    }
+
+    private var elapsedTimer: some View {
+        TimelineView(.periodic(from: session.createdAt, by: 1)) { context in
+            let elapsed = max(0, Int(context.date.timeIntervalSince(session.createdAt)))
+            Text(String(format: "%d:%02d", elapsed / 60, elapsed % 60))
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Theme.dimText)
+        }
     }
 
     private var scoreHeader: some View {

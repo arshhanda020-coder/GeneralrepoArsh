@@ -20,6 +20,7 @@ struct SchoolClassDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                gradeHeader
                 HStack(spacing: 8) {
                     TextField("Add a topic (e.g. Recursion, Photosynthesis)", text: $newTopicName)
                         .padding(10)
@@ -55,6 +56,29 @@ struct SchoolClassDetailView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle(schoolClass.name)
         .inlineNavigationTitle()
+    }
+
+    private var gradeHeader: some View {
+        let summary = schoolClass.gradeSummary(includeMock: false)
+        return HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                if let percent = summary.percent {
+                    Text(summary.isManual ? "Manual grade" : "\(String(format: "%.0f", summary.pointsEarned))/\(String(format: "%.0f", summary.pointsPossible)) points")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.dimText)
+                    Text(String(format: "%.1f%%", percent))
+                        .font(.title2.weight(.heavy).monospacedDigit())
+                        .foregroundStyle(MindMapSection.school.accentColor)
+                } else {
+                    Text("No graded work logged yet")
+                        .font(.caption)
+                        .foregroundStyle(Theme.dimText)
+                }
+            }
+            Spacer()
+        }
+        .padding(12)
+        .glassPanel(cornerRadius: 10)
     }
 
     private func topicRow(_ topic: Topic) -> some View {

@@ -10,6 +10,11 @@ struct TestMeView: View {
     /// Set when navigated to from a specific Topic — locks the subject instead
     /// of making the user retype the topic name.
     var presetSubject: String?
+    /// Everything logged under the topic (assignments/quizzes/tests/projects,
+    /// with notes and scores) — folded into the quiz-generation prompt so
+    /// questions are grounded in what's actually been covered, not just the
+    /// topic name. Never shown, never stored on the session.
+    var contextMaterial: String?
 
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \QuizSession.createdAt, order: .reverse) private var sessions: [QuizSession]
@@ -138,9 +143,14 @@ struct TestMeView: View {
                     Text(session.subject)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.primaryText)
-                    Text(session.createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
-                        .font(.caption2)
-                        .foregroundStyle(Theme.dimText)
+                    HStack(spacing: 6) {
+                        Text(session.createdAt.formatted(.dateTime.month(.abbreviated).day().year()))
+                        if let seconds = session.durationSeconds {
+                            Text("· \(seconds / 60)m \(seconds % 60)s")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
                 }
                 Spacer()
                 Text("\(session.score)/\(session.totalQuestions)")
@@ -160,10 +170,14 @@ struct TestMeView: View {
         isGenerating = true
         errorMessage = nil
         let topic = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let material = contextMaterial?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        // The subject sent to the AI carries the logged material as context;
+        // the session itself still stores just the plain topic name.
+        let subjectForAI = material.isEmpty ? topic : "\(topic)\n\nMaterial actually logged for this topic — base questions on this, not just the topic name:\n\(material)"
 
         Task {
             do {
-                let drafts = try await AISettings.currentService.generateQuiz(subject: topic, count: 6)
+                let drafts = try await AISettings.currentService.generateQuiz(subject: subjectForAI, count: 6)
                 guard !drafts.isEmpty else {
                     errorMessage = "Couldn't generate questions — try again."
                     isGenerating = false
