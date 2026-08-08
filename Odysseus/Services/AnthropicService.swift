@@ -36,6 +36,8 @@ actor AnthropicService: AIProviderService {
     func send(
         history: [ChatMessage],
         onTextDelta: ((String) -> Void)? = nil,
+        systemPrompt: String? = nil,
+        tools: [[String: Any]]? = nil,
         toolExecutor: @escaping (String, [String: Any]) async -> String
     ) async throws -> String {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
@@ -68,9 +70,9 @@ actor AnthropicService: AIProviderService {
                 "model": model,
                 "max_tokens": 4096,
                 "thinking": ["type": "adaptive"],
-                "system": Self.systemPrompt,
+                "system": systemPrompt ?? Self.systemPrompt,
                 "messages": messages,
-                "tools": Self.tools,
+                "tools": tools ?? Self.tools,
             ]
 
             let (contentBlocks, stopReason) = try await performRequestStreaming(body: body, apiKey: apiKey, onTextDelta: onTextDelta)
@@ -143,18 +145,28 @@ actor AnthropicService: AIProviderService {
     }
 
     /// Generates a mixed set of multiple-choice and short-answer questions for the Test Me feature.
-    func generateQuiz(subject: String, count: Int) async throws -> [QuizQuestionDraft] {
+    /// `material` (assignments/notes logged for the topic) and `difficulty` steer the AI without
+    /// changing the fixed output format, so parsing stays the same regardless.
+    func generateQuiz(subject: String, count: Int, material: String? = nil, difficulty: String? = nil) async throws -> [QuizQuestionDraft] {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
         let clamped = max(1, min(count, 10))
+
+        var userText = "Subject/topic: \(subject)\nNumber of questions: \(clamped)"
+        if let difficulty, !difficulty.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userText += "\nDifficulty: \(difficulty)"
+        }
+        if let material, !material.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userText += "\n\nThe student's own logged material for this topic — base questions on this directly rather than generic textbook knowledge wherever it applies:\n\(material)"
+        }
 
         let body: [String: Any] = [
             "model": model,
             "max_tokens": 2000,
             "thinking": ["type": "adaptive"],
             "system": Self.quizSystemPrompt,
-            "messages": [["role": "user", "content": [["type": "text", "text": "Subject/topic: \(subject)\nNumber of questions: \(clamped)"]]]],
+            "messages": [["role": "user", "content": [["type": "text", "text": userText]]]],
         ]
 
         let (contentBlocks, _) = try await performRequest(body: body, apiKey: apiKey)
@@ -193,7 +205,10 @@ actor AnthropicService: AIProviderService {
 
     nonisolated private static let quizSystemPrompt = """
     You are a tutor writing a short quiz to test understanding of a topic. Write a mix of multiple-choice and \
-    short-answer questions (roughly half and half). Respond with ONLY the questions, no markdown, no extra \
+    short-answer questions (roughly half and half). If the student's own logged material (assignments/notes) is \
+    given, prioritize testing that material specifically over generic textbook trivia. If a difficulty is given, \
+    follow it: "harder"/"more advanced" means more application/synthesis questions and fewer plain recall ones; \
+    "easier"/"more basic" means simpler, more foundational questions. Respond with ONLY the questions, no markdown, no extra \
     commentary, in EXACTLY this format, repeated once per question, with a line containing only === between \
     each question:
 

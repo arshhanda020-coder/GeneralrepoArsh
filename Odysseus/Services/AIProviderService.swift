@@ -23,13 +23,17 @@ struct ShortAnswerGrade: Sendable {
 }
 
 protocol AIProviderService: Sendable {
-    /// Full chat turn with tool use — used by Copilot/Odysseus. Streams via
-    /// onTextDelta as tokens arrive (called on the response's final text
-    /// turn only, not during tool-use turns) so the UI/voice can start
-    /// responding before the whole reply is generated.
+    /// Full chat turn with tool use — used by Copilot/Odysseus, and by any
+    /// other scoped assistant (e.g. the per-topic Study Assistant) that
+    /// needs its own system prompt/tool set instead of Copilot's global one.
+    /// Streams via onTextDelta as tokens arrive (called on the response's
+    /// final text turn only, not during tool-use turns) so the UI/voice can
+    /// start responding before the whole reply is generated.
     func send(
         history: [ChatMessage],
         onTextDelta: ((String) -> Void)?,
+        systemPrompt: String?,
+        tools: [[String: Any]]?,
         toolExecutor: @escaping (String, [String: Any]) async -> String
     ) async throws -> String
 
@@ -43,8 +47,29 @@ protocol AIProviderService: Sendable {
     func suggestion(for statusContext: String) async throws -> String
 
     /// A mixed set of multiple-choice and short-answer questions for the Test Me feature.
-    func generateQuiz(subject: String, count: Int) async throws -> [QuizQuestionDraft]
+    /// `material` (assignments/notes logged for the topic) and `difficulty` are both
+    /// optional — nil for the plain "type a subject and go" flow.
+    func generateQuiz(subject: String, count: Int, material: String?, difficulty: String?) async throws -> [QuizQuestionDraft]
 
     /// Grades a free-typed short answer against the reference answer.
     func gradeShortAnswer(question: String, correctAnswer: String, userAnswer: String) async throws -> ShortAnswerGrade
+}
+
+extension AIProviderService {
+    /// Convenience overload for the common case (Copilot/Odysseus, one-shot
+    /// research/agent calls): use the provider's own built-in system prompt
+    /// and full tool set rather than a caller-supplied scoped one.
+    func send(
+        history: [ChatMessage],
+        onTextDelta: ((String) -> Void)? = nil,
+        toolExecutor: @escaping (String, [String: Any]) async -> String
+    ) async throws -> String {
+        try await send(history: history, onTextDelta: onTextDelta, systemPrompt: nil, tools: nil, toolExecutor: toolExecutor)
+    }
+
+    /// Convenience overload for the plain "type a subject and go" Test Me
+    /// flow, with no topic material or difficulty steer to fold in.
+    func generateQuiz(subject: String, count: Int) async throws -> [QuizQuestionDraft] {
+        try await generateQuiz(subject: subject, count: count, material: nil, difficulty: nil)
+    }
 }

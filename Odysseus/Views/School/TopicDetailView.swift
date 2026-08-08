@@ -3,7 +3,9 @@
 //  Odysseus
 //
 //  Assignments for one topic, each with "I understand" / "Help me understand"
-//  buttons, plus a direct line into Test Me scoped to this topic.
+//  buttons, plus a direct line into Test Me (which pulls in every assignment
+//  and note logged here as quiz material) and the Study Assistant chat,
+//  both scoped to this topic.
 //
 
 import SwiftUI
@@ -25,10 +27,23 @@ struct TopicDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                NavigationLink(destination: TestMeView(presetSubject: topic.name)) {
+                NavigationLink(destination: TestMeView(presetTopic: topic)) {
                     HStack {
                         Image(systemName: "questionmark.circle.fill")
                         Text("Test me on \(topic.name)")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.caption2)
+                    }
+                    .foregroundStyle(Theme.primaryText)
+                    .padding(12)
+                    .glassPanel(cornerRadius: 10, borderColor: MindMapSection.school.accentColor.opacity(0.7))
+                }
+
+                NavigationLink(destination: TopicAssistantView(topic: topic)) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                        Text("Study Assistant")
                             .font(.subheadline.weight(.semibold))
                         Spacer()
                         Image(systemName: "chevron.right").font(.caption2)

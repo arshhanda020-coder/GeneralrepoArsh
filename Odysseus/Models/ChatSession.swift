@@ -16,6 +16,11 @@ final class ChatSession {
     var title: String
     var createdAt: Date
     var lastActivityAt: Date
+    /// Set when this thread is a per-topic Study Assistant session (School)
+    /// rather than a general Copilot conversation — holds the `Topic.id`.
+    /// Nil for every ordinary Copilot session. Used to keep the two kinds of
+    /// thread out of each other's history list.
+    var topicID: String?
 
     @Relationship(deleteRule: .cascade, inverse: \ChatMessage.session)
     var messages: [ChatMessage] = []
@@ -24,11 +29,13 @@ final class ChatSession {
         id: String = UUID().uuidString,
         title: String = "New Chat",
         createdAt: Date = .now,
-        lastActivityAt: Date = .now
+        lastActivityAt: Date = .now,
+        topicID: String? = nil
     ) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.lastActivityAt = lastActivityAt
+        self.topicID = topicID
     }
 }

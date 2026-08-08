@@ -33,13 +33,15 @@ actor OpenAIService: AIProviderService {
     func send(
         history: [ChatMessage],
         onTextDelta: ((String) -> Void)? = nil,
+        systemPrompt: String? = nil,
+        tools: [[String: Any]]? = nil,
         toolExecutor: @escaping (String, [String: Any]) async -> String
     ) async throws -> String {
         guard let apiKey = KeychainService.shared.loadOpenAIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
 
-        var messages: [[String: Any]] = [["role": "system", "content": Self.systemPrompt]]
+        var messages: [[String: Any]] = [["role": "system", "content": systemPrompt ?? Self.systemPrompt]]
         messages += history.map { message -> [String: Any] in
             guard let imageData = message.imageData else {
                 return ["role": message.role, "content": message.content]
@@ -58,7 +60,7 @@ actor OpenAIService: AIProviderService {
             let body: [String: Any] = [
                 "model": model,
                 "messages": messages,
-                "tools": Self.tools,
+                "tools": tools ?? Self.tools,
             ]
 
             let (message, finishReason) = try await performRequestStreaming(body: body, apiKey: apiKey, onTextDelta: onTextDelta)
@@ -176,17 +178,25 @@ actor OpenAIService: AIProviderService {
         return data
     }
 
-    func generateQuiz(subject: String, count: Int) async throws -> [QuizQuestionDraft] {
+    func generateQuiz(subject: String, count: Int, material: String? = nil, difficulty: String? = nil) async throws -> [QuizQuestionDraft] {
         guard let apiKey = KeychainService.shared.loadOpenAIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
         let clamped = max(1, min(count, 10))
 
+        var userText = "Subject/topic: \(subject)\nNumber of questions: \(clamped)"
+        if let difficulty, !difficulty.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userText += "\nDifficulty: \(difficulty)"
+        }
+        if let material, !material.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            userText += "\n\nThe student's own logged material for this topic — base questions on this directly rather than generic textbook knowledge wherever it applies:\n\(material)"
+        }
+
         let body: [String: Any] = [
             "model": model,
             "messages": [
                 ["role": "system", "content": Self.quizSystemPrompt],
-                ["role": "user", "content": "Subject/topic: \(subject)\nNumber of questions: \(clamped)"],
+                ["role": "user", "content": userText],
             ],
         ]
 
@@ -221,7 +231,10 @@ actor OpenAIService: AIProviderService {
 
     nonisolated private static let quizSystemPrompt = """
     You are a tutor writing a short quiz to test understanding of a topic. Write a mix of multiple-choice and \
-    short-answer questions (roughly half and half). Respond with ONLY the questions, no markdown, no extra \
+    short-answer questions (roughly half and half). If the student's own logged material (assignments/notes) is \
+    given, prioritize testing that material specifically over generic textbook trivia. If a difficulty is given, \
+    follow it: "harder"/"more advanced" means more application/synthesis questions and fewer plain recall ones; \
+    "easier"/"more basic" means simpler, more foundational questions. Respond with ONLY the questions, no markdown, no extra \
     commentary, in EXACTLY this format, repeated once per question, with a line containing only === between \
     each question:
 

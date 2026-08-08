@@ -15,7 +15,12 @@ struct ChatHistoryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var odysseus: OdysseusController
-    @Query(sort: \ChatSession.lastActivityAt, order: .reverse) private var sessions: [ChatSession]
+    // Per-topic Study Assistant threads (School) live in their own history,
+    // reachable from the topic itself — keep them out of this general list.
+    @Query(
+        filter: #Predicate<ChatSession> { $0.topicID == nil },
+        sort: \ChatSession.lastActivityAt, order: .reverse
+    ) private var sessions: [ChatSession]
 
     var body: some View {
         NavigationStack {
