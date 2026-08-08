@@ -163,7 +163,7 @@ struct BodyProgressView: View {
             .disabled(isGeneratingReport)
 
             if let reportError {
-                Text(reportError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                Text(reportError).font(.caption).foregroundStyle(Theme.negative)
             }
 
             ForEach(reports) { report in

@@ -87,7 +87,7 @@ struct ObsidianView: View {
             if let error = vault.lastError {
                 Text(error)
                     .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(Color(hex: "FF6B6B"))
+                    .foregroundStyle(Theme.negative)
             }
 
             HStack(spacing: 8) {

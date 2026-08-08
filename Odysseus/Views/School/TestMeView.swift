@@ -67,7 +67,7 @@ struct TestMeView: View {
                 if let errorMessage {
                     Text(errorMessage)
                         .font(.caption)
-                        .foregroundStyle(Color(hex: "C0605C"))
+                        .foregroundStyle(Theme.negative)
                 }
 
                 if !masterySummary.isEmpty {

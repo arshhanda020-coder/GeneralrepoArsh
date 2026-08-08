@@ -132,7 +132,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .research: return "6E8C7D"
         case .agents: return "5E8AA6"
         case .claudeCode: return "B8935B"
-        case .codex: return "6FD6A8"
+        case .codex: return "5FA88C"
         case .obsidian: return "8C7BA6"
         }
     }

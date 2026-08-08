@@ -48,7 +48,7 @@ struct ChangePINView: View {
             }
 
             if let errorMessage {
-                Text(errorMessage).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                Text(errorMessage).font(.caption).foregroundStyle(Theme.negative)
             }
 
             Spacer()

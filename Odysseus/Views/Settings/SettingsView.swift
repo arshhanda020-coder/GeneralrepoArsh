@@ -65,7 +65,7 @@ struct SettingsView: View {
                     if let message = healthKit.statusMessage {
                         Text(message)
                             .font(.caption)
-                            .foregroundStyle(Color(hex: "C0605C"))
+                            .foregroundStyle(Theme.negative)
                     }
                     #endif
                 }

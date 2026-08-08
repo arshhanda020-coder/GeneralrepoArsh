@@ -80,7 +80,7 @@ struct EmailsView: View {
                         .foregroundStyle(Theme.dimText)
                 }
                 if let message = auth.statusMessage {
-                    Text(message).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                    Text(message).font(.caption).foregroundStyle(Theme.negative)
                 }
             }
 

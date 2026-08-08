@@ -48,7 +48,7 @@ struct MarketSymbolDetailView: View {
                     Text(String(format: "%.2f (%.2f%%)", quote.change, quote.changePercent))
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(quote.isUp ? Theme.terminalGreen : Color(hex: "C0605C"))
+                .foregroundStyle(quote.isUp ? Theme.terminalGreen : Theme.negative)
             } else {
                 Text("No price loaded yet.")
                     .font(.subheadline)
@@ -69,7 +69,7 @@ struct MarketSymbolDetailView: View {
                 } else if let cause {
                     Text(cause).font(.caption).foregroundStyle(Theme.primaryText)
                 } else if let causeError {
-                    Text(causeError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                    Text(causeError).font(.caption).foregroundStyle(Theme.negative)
                 }
                 Text("AI's best guess from general knowledge — not a verified citation.")
                     .font(.caption2)
@@ -104,7 +104,7 @@ struct MarketSymbolDetailView: View {
                 .disabled(isAsking || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 if let askError {
-                    Text(askError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                    Text(askError).font(.caption).foregroundStyle(Theme.negative)
                 }
                 if let answer {
                     Divider().overlay(Theme.cardBorder)

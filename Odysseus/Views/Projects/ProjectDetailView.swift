@@ -60,7 +60,7 @@ struct ProjectDetailView: View {
                 .disabled(isGeneratingBreakdown || (project.planText ?? "").isEmpty)
 
                 if let breakdownError {
-                    Text(breakdownError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                    Text(breakdownError).font(.caption).foregroundStyle(Theme.negative)
                 }
             }
             .listRowBackground(Theme.card)

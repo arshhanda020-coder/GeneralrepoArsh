@@ -90,7 +90,7 @@ struct ACTPrepView: View {
                 .disabled(isGeneratingPlan)
 
                 if let errorMessage {
-                    Text(errorMessage).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                    Text(errorMessage).font(.caption).foregroundStyle(Theme.negative)
                 }
             }
             .padding(12)

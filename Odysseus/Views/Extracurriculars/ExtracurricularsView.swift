@@ -97,7 +97,7 @@ struct ExtracurricularsView: View {
                 .disabled(isSuggesting || goals.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 if let suggestError {
-                    Text(suggestError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                    Text(suggestError).font(.caption).foregroundStyle(Theme.negative)
                 }
             }
             .padding(12)

@@ -145,7 +145,7 @@ struct TopicDetailView: View {
             .controlSize(.small)
 
             if explainingAssignment?.id == assignment.id, let error = explainError {
-                Text(error).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                Text(error).font(.caption).foregroundStyle(Theme.negative)
             }
             if let explanation = assignment.helpExplanation, assignment.understood == false {
                 Divider().overlay(Theme.cardBorder)

@@ -67,7 +67,7 @@ struct ActivityView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .tint(isRunning ? Color(hex: "C0605C") : MindMapSection.health.accentColor)
+            .tint(isRunning ? Theme.negative : MindMapSection.health.accentColor)
         }
         .padding(14)
         .glassPanel(cornerRadius: 10)
@@ -160,7 +160,7 @@ private struct ActivityQuestionnaireSheet: View {
                 }
                 if let errorMessage {
                     Section {
-                        Text(errorMessage).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                        Text(errorMessage).font(.caption).foregroundStyle(Theme.negative)
                     }
                 }
             }

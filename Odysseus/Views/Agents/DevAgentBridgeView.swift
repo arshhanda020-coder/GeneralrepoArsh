@@ -127,9 +127,9 @@ struct DevAgentBridgeView: View {
 
     private var statusColor: Color {
         switch connection {
-        case .connected(let available, _): return available ? Theme.terminalGreen : Color(hex: "E0A030")
+        case .connected(let available, _): return available ? Theme.terminalGreen : Theme.terminalAmber
         case .checking: return Theme.dimText.opacity(0.5)
-        case .unreachable, .unauthorized: return Color(hex: "FF6B6B")
+        case .unreachable, .unauthorized: return Theme.negative
         case .unknown: return Theme.dimText.opacity(0.5)
         }
     }
@@ -262,7 +262,7 @@ struct DevAgentBridgeView: View {
             .disabled(isRunning || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             if let runError {
-                Text(runError).font(.system(.caption, design: .monospaced)).foregroundStyle(Color(hex: "FF6B6B"))
+                Text(runError).font(.system(.caption, design: .monospaced)).foregroundStyle(Theme.negative)
             }
 
             if let lastResult {
@@ -271,7 +271,7 @@ struct DevAgentBridgeView: View {
                         Text(lastResult.ok ? "RESULT" : "ERROR")
                             .font(.system(.caption2, design: .monospaced).weight(.bold))
                             .tracking(1)
-                            .foregroundStyle(lastResult.ok ? Theme.dimText : Color(hex: "FF6B6B"))
+                            .foregroundStyle(lastResult.ok ? Theme.dimText : Theme.negative)
                         Spacer()
                         if let sessionId = lastResult.sessionId {
                             Text(String(sessionId.prefix(8)))

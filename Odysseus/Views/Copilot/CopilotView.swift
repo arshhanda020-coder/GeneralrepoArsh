@@ -191,7 +191,7 @@ private struct ChatThreadView: View {
                         if let message = odysseus.statusMessage {
                             Text(message)
                                 .font(.caption)
-                                .foregroundStyle(Color(hex: "FF6B6B"))
+                                .foregroundStyle(Theme.negative)
                         }
                     }
                     .padding(12)

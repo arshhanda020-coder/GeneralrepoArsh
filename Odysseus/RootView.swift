@@ -9,8 +9,8 @@ import SwiftData
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var odysseus = OdysseusController.shared
-    @State private var showingWritingSample = false // TEMP-DEBUG-BYPASS
-    @State private var isUnlocked = true // TEMP-DEBUG-BYPASS
+    @State private var showingWritingSample = !WritingProfile.hasAnswered
+    @State private var isUnlocked = false
 
     var body: some View {
         Group {

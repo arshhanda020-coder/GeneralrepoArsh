@@ -127,7 +127,7 @@ struct NewsItemDetailView: View {
                 .disabled(isAsking || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 if let askError {
-                    Text(askError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                    Text(askError).font(.caption).foregroundStyle(Theme.negative)
                 }
                 if let answer {
                     Divider().overlay(Theme.cardBorder)

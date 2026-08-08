@@ -43,7 +43,7 @@ struct SavedGitHubLinksView: View {
             }
 
             if let addError {
-                Text(addError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                Text(addError).font(.caption).foregroundStyle(Theme.negative)
             }
 
             if links.isEmpty {

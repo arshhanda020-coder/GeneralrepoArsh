@@ -91,7 +91,7 @@ struct MemoryNeuroCanvas: View {
             Circle()
                 .fill(RadialGradient(colors: [Theme.reactorGlow.opacity(0.18), .clear], center: .center, startRadius: 0, endRadius: size * 0.55))
             Circle()
-                .fill(RadialGradient(colors: [Color(hex: "C77DFF").opacity(0.12), .clear], center: UnitPoint(x: 0.35, y: 0.4), startRadius: 0, endRadius: size * 0.4))
+                .fill(RadialGradient(colors: [Theme.reactorAccentB.opacity(0.12), .clear], center: UnitPoint(x: 0.35, y: 0.4), startRadius: 0, endRadius: size * 0.4))
         }
         .frame(width: size, height: size)
     }

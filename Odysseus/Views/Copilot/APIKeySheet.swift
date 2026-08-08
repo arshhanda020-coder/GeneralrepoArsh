@@ -105,7 +105,7 @@ struct APIKeySheet: View {
                     if let statusMessage = voice.statusMessage {
                         Text(statusMessage)
                             .font(.caption2)
-                            .foregroundStyle(Color(hex: "FF6B6B"))
+                            .foregroundStyle(Theme.negative)
                     }
                 }
 

@@ -24,10 +24,10 @@ enum ProjectStatus: String, Codable, CaseIterable, Identifiable {
 
     var color: Color {
         switch self {
-        case .planning: return Color(hex: "38BDF8")
-        case .building: return Color(hex: "4ADE80")
-        case .paused: return Color(hex: "8A94A3")
-        case .shipped: return Color(hex: "A78BFA")
+        case .planning: return Color(hex: "4F8FA8")
+        case .building: return Color(hex: "5FCB8C")
+        case .paused: return Color(hex: "7C8A8D")
+        case .shipped: return Color(hex: "8A7CA8")
         }
     }
 }

@@ -98,7 +98,7 @@ struct LogFoodSheet: View {
                     .disabled(isEstimating || imageData == nil)
 
                     if let estimateError {
-                        Text(estimateError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                        Text(estimateError).font(.caption).foregroundStyle(Theme.negative)
                     }
 
                     #if os(iOS)
@@ -111,7 +111,7 @@ struct LogFoodSheet: View {
                     #endif
 
                     if let scanError {
-                        Text(scanError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                        Text(scanError).font(.caption).foregroundStyle(Theme.negative)
                     }
                 }
 
