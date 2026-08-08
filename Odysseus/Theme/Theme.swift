@@ -4,7 +4,9 @@
 //
 //  Every value here reads through ThemeColorSettings, so Settings >
 //  Appearance can override any of them; the hex values in
-//  ThemeColorSettings/ThemeToken are just the defaults.
+//  ThemeColorSettings/ThemeToken are just the defaults. Each color adapts to
+//  the system's light/dark setting automatically (the app no longer forces
+//  dark mode) via the light/dark Color initializer below.
 //
 
 import SwiftUI
@@ -15,32 +17,32 @@ import AppKit
 #endif
 
 enum Theme {
-    static var background: Color { Color(hex: ThemeColorSettings.hex(for: .background)) }
-    static var card: Color { Color(hex: ThemeColorSettings.hex(for: .card)) }
-    static var cardBorder: Color { Color(hex: ThemeColorSettings.hex(for: .cardBorder)) }
-    static var dimText: Color { Color(hex: ThemeColorSettings.hex(for: .dimText)) }
-    /// Primary text color — near-black on the default light background.
-    static var primaryText: Color { Color(hex: ThemeColorSettings.hex(for: .primaryText)) }
+    static var background: Color { Color(token: .background) }
+    static var card: Color { Color(token: .card) }
+    static var cardBorder: Color { Color(token: .cardBorder) }
+    static var dimText: Color { Color(token: .dimText) }
+    /// Primary text color — near-black on light backgrounds, near-white on dark.
+    static var primaryText: Color { Color(token: .primaryText) }
 
     /// The app's one signature accent — used for interactive elements
     /// (buttons, links, the nav tint) across the whole app.
-    static var accent: Color { Color(hex: ThemeColorSettings.hex(for: .accent)) }
+    static var accent: Color { Color(token: .accent) }
 
-    static var terminalGreen: Color { Color(hex: ThemeColorSettings.hex(for: .terminalGreen)) }
-    static var terminalAmber: Color { Color(hex: ThemeColorSettings.hex(for: .terminalAmber)) }
+    static var terminalGreen: Color { Color(token: .terminalGreen) }
+    static var terminalAmber: Color { Color(token: .terminalAmber) }
     /// The one error/alert/destructive red used everywhere — previously two
     /// different hardcoded reds (FF6B6B and C0605C) were sprinkled across
     /// ~30 files for the same meaning; this is the single source now.
-    static var negative: Color { Color(hex: ThemeColorSettings.hex(for: .negative)) }
+    static var negative: Color { Color(token: .negative) }
 
     /// Nebula palette — the reactor visual (home screen centerpiece, Odysseus
     /// mode, mind-map connectors) and every "themed around it" accent.
-    static var reactorCore: Color { Color(hex: ThemeColorSettings.hex(for: .reactorCore)) }
-    static var reactorDeep: Color { Color(hex: ThemeColorSettings.hex(for: .reactorDeep)) }
-    static var reactorGlow: Color { Color(hex: ThemeColorSettings.hex(for: .reactorGlow)) }
-    static var nebulaWispB: Color { Color(hex: ThemeColorSettings.hex(for: .nebulaWispB)) }
-    static var nebulaWispC: Color { Color(hex: ThemeColorSettings.hex(for: .nebulaWispC)) }
-    static var reactorAccentB: Color { Color(hex: ThemeColorSettings.hex(for: .reactorAccentB)) }
+    static var reactorCore: Color { Color(token: .reactorCore) }
+    static var reactorDeep: Color { Color(token: .reactorDeep) }
+    static var reactorGlow: Color { Color(token: .reactorGlow) }
+    static var nebulaWispB: Color { Color(token: .nebulaWispB) }
+    static var nebulaWispC: Color { Color(token: .nebulaWispC) }
+    static var reactorAccentB: Color { Color(token: .reactorAccentB) }
 }
 
 extension Color {
@@ -55,7 +57,32 @@ extension Color {
         self.init(red: r, green: g, blue: b)
     }
 
-    /// Best-effort hex round-trip for the Appearance color pickers.
+    /// A color that resolves to a different hex in light vs. dark mode,
+    /// switching live as the system appearance changes (unlike a plain
+    /// `Color(hex:)`, which is fixed the moment it's created).
+    init(hexLight: String, hexDark: String) {
+        #if canImport(UIKit)
+        self.init(uiColor: UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(Color(hex: hexDark)) : UIColor(Color(hex: hexLight))
+        })
+        #elseif canImport(AppKit)
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            return NSColor(Color(hex: isDark ? hexDark : hexLight))
+        })
+        #else
+        self.init(hex: hexDark)
+        #endif
+    }
+
+    /// Convenience for reading a `ThemeToken` as an adaptive light/dark color.
+    init(token: ThemeToken) {
+        self.init(hexLight: ThemeColorSettings.lightHex(for: token), hexDark: ThemeColorSettings.darkHex(for: token))
+    }
+
+    /// Best-effort hex round-trip for the Appearance color pickers. Reads
+    /// back whatever the picker is currently showing on screen, so it stays
+    /// correct in both light and dark mode without needing to know which.
     var hexString: String {
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         #if canImport(UIKit)
