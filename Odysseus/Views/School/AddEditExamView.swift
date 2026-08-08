@@ -9,6 +9,7 @@ import SwiftData
 struct AddEditExamView: View {
     let exam: Exam?
     var presetCategory: ExamCategory?
+    var presetDate: Date?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -73,8 +74,9 @@ struct AddEditExamView: View {
     }
 
     private func populateIfEditing() {
-        if let presetCategory, exam == nil {
-            category = presetCategory
+        if exam == nil {
+            if let presetCategory { category = presetCategory }
+            if let presetDate { examDate = presetDate }
         }
         guard let exam else { return }
         name = exam.name

@@ -5,20 +5,26 @@
 //  A unified agenda across everything with a date: exams, assignments, and
 //  project tasks. Not a separate data model — just a merged, date-grouped
 //  view over what already exists. Presented as a navigable week strip (past
-//  and future both reachable) with the selected day's items below.
+//  and future both reachable) with the selected day's items below. Tap an
+//  item to edit it, or use + to add a new dated item (a test/quiz/assignment
+//  against a class, or an exam) straight from here.
 //
 
 import SwiftUI
 import SwiftData
 
-private struct AgendaItem: Identifiable {
-    enum Kind { case exam, assignment, projectTask }
+private enum AgendaKind {
+    case exam(Exam)
+    case assignment(Assignment)
+    case projectTask(ProjectTask)
+}
 
+private struct AgendaItem: Identifiable {
     let id: String
     let title: String
     let subtitle: String?
     let date: Date
-    let kind: Kind
+    let kind: AgendaKind
     let isDone: Bool
 
     var accentColor: Color {
@@ -45,20 +51,26 @@ struct CalendarView: View {
 
     @State private var weekStart: Date = CalendarView.startOfWeek(containing: .now)
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
+    @State private var showingAddChoice = false
+    @State private var showingAddClassWork = false
+    @State private var showingAddExam = false
+    @State private var editingExam: Exam?
+    @State private var editingAssignment: Assignment?
+    @State private var editingProjectTask: ProjectTask?
 
     private var today: Date { Calendar.current.startOfDay(for: .now) }
 
     private var allItems: [AgendaItem] {
         let examItems = exams.map {
-            AgendaItem(id: "exam-\($0.id)", title: $0.name, subtitle: "Test", date: $0.examDate, kind: .exam, isDone: $0.isPast)
+            AgendaItem(id: "exam-\($0.id)", title: $0.name, subtitle: $0.category.displayName, date: $0.examDate, kind: .exam($0), isDone: $0.isPast)
         }
         let assignmentItems = assignments.compactMap { assignment -> AgendaItem? in
             guard let due = assignment.dueDate else { return nil }
-            return AgendaItem(id: "assignment-\(assignment.id)", title: assignment.title, subtitle: "Assignment", date: due, kind: .assignment, isDone: assignment.isDone)
+            return AgendaItem(id: "assignment-\(assignment.id)", title: assignment.title, subtitle: assignment.type.displayName, date: due, kind: .assignment(assignment), isDone: assignment.isDone)
         }
         let taskItems = projectTasks.compactMap { task -> AgendaItem? in
             guard let due = task.dueDate else { return nil }
-            return AgendaItem(id: "task-\(task.id)", title: task.title, subtitle: task.project?.name ?? "Project", date: due, kind: .projectTask, isDone: task.isDone)
+            return AgendaItem(id: "task-\(task.id)", title: task.title, subtitle: task.project?.name ?? "Project", date: due, kind: .projectTask(task), isDone: task.isDone)
         }
         return examItems + assignmentItems + taskItems
     }
@@ -108,6 +120,31 @@ struct CalendarView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Calendar")
         .inlineNavigationTitle()
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button { showingAddChoice = true } label: { Image(systemName: "plus") }
+            }
+        }
+        .confirmationDialog("Add to \(selectedDayLabel)", isPresented: $showingAddChoice, titleVisibility: .visible) {
+            Button("Test, Quiz, Assignment, or Project") { showingAddClassWork = true }
+            Button("Exam (ACT/AP/March)") { showingAddExam = true }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showingAddClassWork) {
+            AddClassWorkView(presetDate: selectedDate)
+        }
+        .sheet(isPresented: $showingAddExam) {
+            AddEditExamView(exam: nil, presetDate: selectedDate)
+        }
+        .sheet(item: $editingExam) { exam in
+            AddEditExamView(exam: exam)
+        }
+        .sheet(item: $editingAssignment) { assignment in
+            AddEditAssignmentView(assignment: assignment)
+        }
+        .sheet(item: $editingProjectTask) { task in
+            AddEditProjectTaskView(task: task)
+        }
     }
 
     private var weekHeader: some View {
@@ -215,8 +252,19 @@ struct CalendarView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(Theme.terminalGreen)
             }
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundStyle(Theme.dimText)
         }
         .padding(10)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            switch item.kind {
+            case .exam(let exam): editingExam = exam
+            case .assignment(let assignment): editingAssignment = assignment
+            case .projectTask(let task): editingProjectTask = task
+            }
+        }
     }
 
     private var selectedDayLabel: String {
@@ -255,5 +303,5 @@ struct CalendarView: View {
     NavigationStack {
         CalendarView()
     }
-    .modelContainer(for: [Exam.self, Assignment.self, ProjectTask.self], inMemory: true)
+    .modelContainer(for: [Exam.self, Assignment.self, ProjectTask.self, SchoolClass.self, Topic.self], inMemory: true)
 }
