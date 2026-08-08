@@ -121,7 +121,7 @@ struct NotesView: View {
             }
 
             if allFreeformNotes.isEmpty {
-                Text("Notes you write live here by default, or attach to Today, a Project, a School topic, or a Subagent — move them anytime from the note itself.")
+                Text("Notes you write live here by default, or attach to Today, a Project, a School topic, or an Agentic Workflow — move them anytime from the note itself.")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Theme.dimText)
             } else {
