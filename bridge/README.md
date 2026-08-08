@@ -82,31 +82,24 @@ token — there's no per-request user, expiry, or rate limiting.
 ## Autostart with launchd
 
 To have it start automatically at login instead of running `node
-server.js` by hand:
+server.js` by hand, run the installer script from this directory:
 
 ```sh
-cat > ~/Library/LaunchAgents/com.odysseus.bridge.plist <<'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>com.odysseus.bridge</string>
-  <key>ProgramArguments</key>
-  <array>
-    <string>/usr/local/bin/node</string>
-    <string>REPLACE_WITH_ABSOLUTE_PATH/bridge/server.js</string>
-  </array>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><true/>
-  <key>StandardOutPath</key><string>/tmp/odysseus-bridge.log</string>
-  <key>StandardErrorPath</key><string>/tmp/odysseus-bridge.log</string>
-</dict>
-</plist>
-EOF
-# Edit the plist above to replace REPLACE_WITH_ABSOLUTE_PATH, and confirm
-# node's path with `which node` (it may not be /usr/local/bin/node on your Mac).
-launchctl load ~/Library/LaunchAgents/com.odysseus.bridge.plist
+cd bridge
+./install-launchd.sh
 ```
+
+It detects `node`'s path and this repo's location, writes
+`~/Library/LaunchAgents/com.odysseus.bridge.plist`, and loads it —
+`RunAtLoad` + `KeepAlive` mean it starts at login and restarts itself if it
+ever crashes. Safe to re-run any time (after a repo move, a Node upgrade,
+etc.) — it replaces the previous copy rather than erroring on a duplicate.
 
 Check it's running: `curl http://localhost:8787/` — logs land in
 `/tmp/odysseus-bridge.log`.
+
+To stop it and go back to running `node server.js` by hand:
+
+```sh
+./uninstall-launchd.sh
+```
