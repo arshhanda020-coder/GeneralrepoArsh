@@ -146,7 +146,11 @@ actor AnthropicService: AIProviderService {
 
     /// Generates a mixed set of multiple-choice and short-answer questions for the Test Me feature.
     /// `material` (assignments/notes logged for the topic) and `difficulty` steer the AI without
-    /// changing the fixed output format, so parsing stays the same regardless.
+    /// changing the fixed output format, so parsing stays the same regardless. Web search is
+    /// available so questions on fast-moving subjects (current events, recent data) can be
+    /// accurate/current rather than relying only on training-data knowledge; the server-side tool
+    /// occasionally needs a follow-up turn to finish searching (stop_reason "pause_turn"), same as
+    /// Copilot's chat loop, so this resends the in-progress turn instead of a single one-shot call.
     func generateQuiz(subject: String, count: Int, material: String? = nil, difficulty: String? = nil) async throws -> [QuizQuestionDraft] {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
@@ -161,19 +165,34 @@ actor AnthropicService: AIProviderService {
             userText += "\n\nThe student's own logged material for this topic — base questions on this directly rather than generic textbook knowledge wherever it applies:\n\(material)"
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 2000,
-            "thinking": ["type": "adaptive"],
-            "system": Self.quizSystemPrompt,
-            "messages": [["role": "user", "content": [["type": "text", "text": userText]]]],
-        ]
+        var messages: [[String: Any]] = [["role": "user", "content": [["type": "text", "text": userText]]]]
 
-        let (contentBlocks, _) = try await performRequest(body: body, apiKey: apiKey)
-        let text = contentBlocks
-            .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
-            .joined(separator: "\n")
-        return Self.parseQuizBatch(text)
+        for _ in 0..<4 {
+            let body: [String: Any] = [
+                "model": model,
+                "max_tokens": 2000,
+                "thinking": ["type": "adaptive"],
+                "system": Self.quizSystemPrompt,
+                "messages": messages,
+                "tools": [["type": "web_search_20260209", "name": "web_search"]],
+            ]
+
+            let (contentBlocks, stopReason) = try await performRequest(body: body, apiKey: apiKey)
+
+            if stopReason == "pause_turn" {
+                // Server-side web search hit its internal step limit — resume
+                // by re-sending the assistant turn as-is, no new user message.
+                messages.append(["role": "assistant", "content": contentBlocks])
+                continue
+            }
+
+            let text = contentBlocks
+                .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
+                .joined(separator: "\n")
+            return Self.parseQuizBatch(text)
+        }
+
+        throw ServiceError.requestFailed("Quiz generation took too many steps — try again.")
     }
 
     /// Grades a free-typed short answer against the reference answer.
@@ -208,7 +227,10 @@ actor AnthropicService: AIProviderService {
     short-answer questions (roughly half and half). If the student's own logged material (assignments/notes) is \
     given, prioritize testing that material specifically over generic textbook trivia. If a difficulty is given, \
     follow it: "harder"/"more advanced" means more application/synthesis questions and fewer plain recall ones; \
-    "easier"/"more basic" means simpler, more foundational questions. Respond with ONLY the questions, no markdown, no extra \
+    "easier"/"more basic" means simpler, more foundational questions. You have live web search available — use it \
+    for anything time-sensitive or fact-specific (current events, recent statistics/data, a real date/name/number \
+    you're unsure of) so questions are accurate and current rather than guessed from training data; don't bother \
+    for stable, well-known material. Respond with ONLY the questions, no markdown, no citations, no source list, no extra \
     commentary, in EXACTLY this format, repeated once per question, with a line containing only === between \
     each question:
 

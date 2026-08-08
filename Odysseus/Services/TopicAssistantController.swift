@@ -90,10 +90,16 @@ final class TopicAssistantController: ObservableObject {
     // MARK: - System prompt (rebuilt every turn so edits are always current)
 
     private func systemPrompt(for topic: Topic, context: ModelContext) -> String {
-        """
+        // Live web search is a Claude-only server-side tool in this app (the
+        // OpenAI integration goes through Chat Completions, which has no
+        // built-in browsing) — only claim the ability when it's actually wired up.
+        let webSearchLine = AISettings.provider == .claude
+            ? " You also have live web search — use it for anything time-sensitive or fact-specific (current events, recent data, a real date/name/number you're unsure of) rather than guessing from training data."
+            : " You don't have live internet access — say so if asked about something that needs current information, rather than guessing."
+        return """
         You are a study assistant for exactly one School topic — "\(topic.name)"\(topic.schoolClass.map { " in \($0.name)" } ?? "") — \
         stay scoped to it. Answer questions and help the student understand this topic using their own logged material below \
-        (assignments and notes) plus your general knowledge of the subject to fill gaps or explain further. You can also: \
+        (assignments and notes) plus your general knowledge of the subject to fill gaps or explain further.\(webSearchLine) You can also: \
         generate_quiz — put together (or regenerate) a practice quiz on this topic, built from the material below, and open \
         it for them to take right away. If they ask to be tested/quizzed, or to make the last one harder or easier, call this \
         — pass their difficulty ask straight through in the `difficulty` field (e.g. "harder than last time", "easier"). \
@@ -215,9 +221,13 @@ final class TopicAssistantController: ObservableObject {
         return "Logged \(score)/\(total) for \(subject) — it'll show up in past tests and mastery."
     }
 
-    // MARK: - Tool definitions (provider-specific shapes, same two tools)
+    // MARK: - Tool definitions (provider-specific shapes)
+    // web_search is Claude-only (server-side tool, Anthropic Messages API) —
+    // the OpenAI integration runs on Chat Completions, which has no
+    // built-in browsing tool, so openAITools stays at the same two tools.
 
     private static let anthropicTools: [[String: Any]] = [
+        ["type": "web_search_20260209", "name": "web_search"],
         [
             "name": "generate_quiz",
             "description": "Generate (or regenerate) a practice quiz for this topic from its logged assignments/notes, and open it for the student to take. Call this when they ask to be tested/quizzed, or to make the last quiz harder/easier.",
