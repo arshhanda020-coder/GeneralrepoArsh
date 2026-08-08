@@ -8,13 +8,13 @@ import SwiftData
 
 @Model
 final class Skill {
-    var id: String
-    var name: String
-    var emoji: String
-    var colorHex: String
-    var skillDescription: String
-    var createdAt: Date
-    var targetSessions: Int
+    var id: String = UUID().uuidString
+    var name: String = ""
+    var emoji: String = ""
+    var colorHex: String = ""
+    var skillDescription: String = ""
+    var createdAt: Date = .now
+    var targetSessions: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \SkillSession.skill)
     var sessions: [SkillSession] = []

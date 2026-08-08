@@ -10,11 +10,11 @@ import SwiftData
 
 @Model
 final class WatchedSymbol {
-    var id: String
-    var symbol: String
+    var id: String = UUID().uuidString
+    var symbol: String = ""
     var displayName: String?
-    var sortIndex: Int
-    var createdAt: Date
+    var sortIndex: Int = 0
+    var createdAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

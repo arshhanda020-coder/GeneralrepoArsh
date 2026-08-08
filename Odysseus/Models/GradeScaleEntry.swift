@@ -11,10 +11,10 @@ import SwiftData
 
 @Model
 final class GradeScaleEntry {
-    var id: String
-    var label: String
-    var points: Double
-    var sortIndex: Int
+    var id: String = UUID().uuidString
+    var label: String = ""
+    var points: Double = 0
+    var sortIndex: Int = 0
 
     init(id: String = UUID().uuidString, label: String, points: Double, sortIndex: Int = 0) {
         self.id = id

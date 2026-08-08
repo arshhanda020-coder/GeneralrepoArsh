@@ -12,10 +12,10 @@ import SwiftData
 
 @Model
 final class AgentDefinition {
-    var id: String
-    var name: String
-    var instructions: String
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var name: String = ""
+    var instructions: String = ""
+    var createdAt: Date = .now
 
     @Relationship(deleteRule: .cascade, inverse: \AgentRun.agent)
     var runs: [AgentRun] = []
@@ -35,9 +35,9 @@ final class AgentDefinition {
 
 @Model
 final class AgentRun {
-    var id: String
-    var output: String
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var output: String = ""
+    var createdAt: Date = .now
     var agent: AgentDefinition?
 
     init(

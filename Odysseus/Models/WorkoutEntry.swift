@@ -10,9 +10,9 @@ import SwiftData
 
 @Model
 final class WorkoutEntry {
-    var id: String
-    var date: Date
-    var note: String
+    var id: String = UUID().uuidString
+    var date: Date = .now
+    var note: String = ""
     var imageData: Data?
     var durationMinutes: Int?
     var caloriesBurned: Int?

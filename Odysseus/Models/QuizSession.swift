@@ -11,12 +11,12 @@ import SwiftData
 
 @Model
 final class QuizSession {
-    var id: String
-    var subject: String
-    var createdAt: Date
-    var isSubmitted: Bool
-    var score: Int
-    var totalQuestions: Int
+    var id: String = UUID().uuidString
+    var subject: String = ""
+    var createdAt: Date = .now
+    var isSubmitted: Bool = false
+    var score: Int = 0
+    var totalQuestions: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \QuizQuestion.session)
     var questions: [QuizQuestion] = []
@@ -45,13 +45,13 @@ enum QuizQuestionType: String, Codable {
 
 @Model
 final class QuizQuestion {
-    var id: String
-    var sortIndex: Int
-    var text: String
-    var typeRaw: String
+    var id: String = UUID().uuidString
+    var sortIndex: Int = 0
+    var text: String = ""
+    var typeRaw: String = QuizQuestionType.shortAnswer.rawValue
     /// Empty for short-answer questions.
-    var choices: [String]
-    var correctAnswer: String
+    var choices: [String] = []
+    var correctAnswer: String = ""
     var userAnswer: String?
     var isCorrect: Bool?
     /// AI grading feedback — mainly meaningful for short-answer questions.

@@ -8,15 +8,15 @@ import SwiftData
 
 @Model
 final class GradeEntry {
-    var id: String
-    var courseName: String
+    var id: String = UUID().uuidString
+    var courseName: String = ""
     /// Matched against a GradeScaleEntry.label to resolve GPA points.
-    var gradeLabel: String
-    var credits: Double
+    var gradeLabel: String = ""
+    var credits: Double = 1.0
     /// Honors/AP — gets GPASettings.honorsBonus added on top when computing weighted GPA.
-    var isWeighted: Bool
+    var isWeighted: Bool = false
     var term: String?
-    var createdAt: Date
+    var createdAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

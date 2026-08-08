@@ -12,12 +12,12 @@ import SwiftData
 
 @Model
 final class ObsidianNote {
-    var id: String
-    var title: String
-    var excerpt: String
-    var content: String
-    var relativePath: String
-    var modifiedAt: Date
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var excerpt: String = ""
+    var content: String = ""
+    var relativePath: String = ""
+    var modifiedAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

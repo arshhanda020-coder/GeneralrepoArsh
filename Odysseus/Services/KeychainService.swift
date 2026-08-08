@@ -6,6 +6,12 @@
 //  (Anthropic API key, Gmail OAuth tokens, GitHub PAT). Nothing here is ever
 //  written to UserDefaults, logs, or source.
 //
+//  Items are marked synchronizable so they ride along with the user's iCloud
+//  Keychain (when they have that enabled in system Settings) — the same API
+//  keys/tokens show up on iPhone and Mac instead of needing to be re-entered
+//  per device. This is opt-in on Apple's end: with iCloud Keychain off,
+//  these items just behave like plain on-device Keychain storage.
+//
 
 import Foundation
 import Security
@@ -19,16 +25,28 @@ nonisolated final class KeychainService {
 
     // MARK: - Generic storage
 
+    /// Items saved before sync support was added have no `kSecAttrSynchronizable`
+    /// flag set at all (Keychain treats that as "local-only"). Searches use
+    /// `kSecAttrSynchronizableAny` so those pre-existing items are still found —
+    /// a query that instead pinned `= true` would silently miss them and make
+    /// every saved key/token look deleted. Each item migrates to synchronizable
+    /// automatically the next time it's saved (delete-then-insert-as-synced).
     private func save(_ data: Data, account: String) {
-        let query: [String: Any] = [
+        let searchQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
         ]
-        SecItemDelete(query as CFDictionary)
+        SecItemDelete(searchQuery as CFDictionary)
 
-        var attributes = query
-        attributes[kSecValueData as String] = data
+        let attributes: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: true,
+            kSecValueData as String: data,
+        ]
         SecItemAdd(attributes as CFDictionary, nil)
     }
 
@@ -37,6 +55,7 @@ nonisolated final class KeychainService {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
@@ -51,6 +70,7 @@ nonisolated final class KeychainService {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
         ]
         SecItemDelete(query as CFDictionary)
     }
@@ -161,4 +181,30 @@ nonisolated final class KeychainService {
     func loadPIN() -> String? { loadString(account: "app-pin") }
     func savePIN(_ pin: String) { saveString(pin, account: "app-pin") }
     func deletePIN() { delete(account: "app-pin") }
+
+    // MARK: - One-time sync migration
+
+    /// Existing items only pick up the synchronizable flag when they're next
+    /// saved (see `save(_:account:)`). Fixed-name secrets like the API keys
+    /// might otherwise never get rewritten, so force one read+rewrite per
+    /// known account on first launch after this update — after that they
+    /// ride iCloud Keychain like everything else. Per-account-ID secrets
+    /// (GitHub PATs, Gmail/bridge tokens) aren't covered here since their IDs
+    /// aren't known statically, but they get rewritten naturally on the next
+    /// token refresh or re-auth.
+    func migrateFixedSecretsToSynchronizableIfNeeded() {
+        let key = "keychain_migrated_synchronizable_v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        let fixedAccounts = [
+            "api-key", "openai-api-key", "elevenlabs-api-key",
+            "gmail-client-id", "googledocs-refresh-token", "googledocs-access-token",
+            "app-pin",
+        ]
+        for account in fixedAccounts {
+            guard let data = load(account: account) else { continue }
+            save(data, account: account)
+        }
+    }
 }

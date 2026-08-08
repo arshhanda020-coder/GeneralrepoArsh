@@ -12,10 +12,10 @@ import SwiftData
 
 @Model
 final class Topic {
-    var id: String
-    var name: String
-    var createdAt: Date
-    var sortIndex: Int
+    var id: String = UUID().uuidString
+    var name: String = ""
+    var createdAt: Date = .now
+    var sortIndex: Int = 0
     var schoolClass: SchoolClass?
 
     @Relationship(deleteRule: .cascade, inverse: \Assignment.topic)

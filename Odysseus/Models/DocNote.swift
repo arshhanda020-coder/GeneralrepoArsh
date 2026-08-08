@@ -25,17 +25,17 @@ enum DocNoteSource: String, Codable {
 
 @Model
 final class DocNote {
-    var id: String
-    var title: String
-    var excerpt: String
-    var content: String
-    var sourceRaw: String
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var excerpt: String = ""
+    var content: String = ""
+    var sourceRaw: String = DocNoteSource.notability.rawValue
     /// Google Doc file ID for `.googleDocs`, or the imported file's original
     /// name for `.notability` — used to upsert on re-import instead of
     /// duplicating.
-    var sourceIdentifier: String
-    var modifiedAt: Date
-    var importedAt: Date
+    var sourceIdentifier: String = ""
+    var modifiedAt: Date = .now
+    var importedAt: Date = .now
     /// Like `Note`, an imported doc can be attached somewhere else in the
     /// app (a Project, a School topic, pinned to Today, …) instead of only
     /// living in the Notes hub.

@@ -24,11 +24,11 @@ enum ResearchCategory: String, Codable, CaseIterable, Identifiable {
 
 @Model
 final class ResearchEntry {
-    var id: String
-    var topic: String
-    var categoryRaw: String
-    var content: String
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var topic: String = ""
+    var categoryRaw: String = ResearchCategory.other.rawValue
+    var content: String = ""
+    var createdAt: Date = .now
     var project: Project?
     /// Set when this research auto-created a matching Extracurricular entry
     /// (school-category research), so the two stay linked.

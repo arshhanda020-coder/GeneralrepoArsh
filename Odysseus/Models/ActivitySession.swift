@@ -12,17 +12,17 @@ import SwiftData
 
 @Model
 final class ActivitySession {
-    var id: String
-    var activityName: String
-    var startedAt: Date
-    var durationSeconds: Int
+    var id: String = UUID().uuidString
+    var activityName: String = ""
+    var startedAt: Date = .now
+    var durationSeconds: Int = 0
     /// 1 (light) ... 5 (max effort)
-    var intensity: Int
+    var intensity: Int = 1
     /// 1 (barely) ... 5 (drenched)
-    var sweatLevel: Int
+    var sweatLevel: Int = 1
     var estimatedCalories: Int?
     var notes: String?
-    var createdAt: Date
+    var createdAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

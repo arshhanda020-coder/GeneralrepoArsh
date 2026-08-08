@@ -12,11 +12,11 @@ import SwiftData
 
 @Model
 final class SavedGitHubLink {
-    var id: String
-    var urlString: String
+    var id: String = UUID().uuidString
+    var urlString: String = ""
     var repoName: String?
     var overview: String?
-    var addedAt: Date
+    var addedAt: Date = .now
 
     init(
         id: String = UUID().uuidString,
