@@ -60,7 +60,10 @@ struct AddEditProjectTaskView: View {
 
     private func save() {
         task.title = title
-        task.dueDate = hasDueDate ? dueDate : nil
+        // Date-only picker only ever edits the day, never resets the time —
+        // re-anchor to midnight so the reminder lands on NotificationManager's
+        // clean 9am default instead of whatever time this sheet was opened.
+        task.dueDate = hasDueDate ? Calendar.current.startOfDay(for: dueDate) : nil
         task.remindersOn = hasDueDate && remindersOn
         NotificationManager.shared.sync(projectTask: task)
         dismiss()
