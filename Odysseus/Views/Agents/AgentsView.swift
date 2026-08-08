@@ -42,6 +42,7 @@ struct AgentsView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Subagents")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.agents)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

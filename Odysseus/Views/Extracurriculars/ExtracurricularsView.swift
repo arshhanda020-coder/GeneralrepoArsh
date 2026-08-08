@@ -51,6 +51,7 @@ struct ExtracurricularsView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Extracurriculars")
+        .sectionAssistantButton(.extracurriculars)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAdd = true } label: { Image(systemName: "plus") }

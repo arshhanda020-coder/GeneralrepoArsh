@@ -33,6 +33,18 @@ protocol AIProviderService: Sendable {
         toolExecutor: @escaping (String, [String: Any]) async -> String
     ) async throws -> String
 
+    /// Multi-turn chat scoped to a single app section (School, Health, Projects, …)
+    /// — used by each section's own AI assistant. Unlike `send`, the system
+    /// prompt is supplied by the caller (built fresh per section with a live
+    /// snapshot of that section's data) instead of the fixed Copilot persona,
+    /// and there's no tool use — a section assistant answers and advises, it
+    /// doesn't take actions (Copilot remains the one place for that).
+    func sendSectionChat(
+        history: [ChatMessage],
+        systemPrompt: String,
+        onTextDelta: ((String) -> Void)?
+    ) async throws -> String
+
     /// One-shot vision-capable call — homework help, macro estimation.
     func askAboutImage(prompt: String, imageData: Data?, systemPrompt: String) async throws -> String
 

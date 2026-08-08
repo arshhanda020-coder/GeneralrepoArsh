@@ -68,6 +68,7 @@ struct HealthView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Health")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.health)
         .task {
             await healthKit.requestAuthorizationAndRefresh()
         }

@@ -108,6 +108,7 @@ struct CalendarView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Calendar")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.calendar)
     }
 
     private var weekHeader: some View {

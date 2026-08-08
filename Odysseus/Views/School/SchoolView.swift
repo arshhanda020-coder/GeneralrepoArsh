@@ -41,6 +41,7 @@ struct SchoolView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("School")
+        .sectionAssistantButton(.school)
         .sheet(item: $addingExamCategory) { category in
             AddEditExamView(exam: nil, presetCategory: category)
         }

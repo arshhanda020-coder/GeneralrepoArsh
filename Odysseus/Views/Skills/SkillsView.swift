@@ -45,6 +45,7 @@ struct SkillsView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Skills")
+        .sectionAssistantButton(.skills)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
