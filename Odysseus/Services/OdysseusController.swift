@@ -360,6 +360,7 @@ final class OdysseusController: NSObject, ObservableObject {
                 name: input["name"] as? String ?? "",
                 examDateString: input["exam_date"] as? String,
                 category: input["category"] as? String,
+                className: input["class"] as? String,
                 context: modelContext
             )
         case "edit_exam":
@@ -367,6 +368,13 @@ final class OdysseusController: NSObject, ObservableObject {
                 query: input["query"] as? String ?? "",
                 newName: input["new_name"] as? String,
                 newExamDateString: input["new_exam_date"] as? String,
+                newClassName: input["new_class"] as? String,
+                context: modelContext
+            )
+        case "set_project_target_date":
+            return setProjectTargetDate(
+                project: input["project"] as? String ?? "",
+                targetDateString: input["target_date"] as? String,
                 context: modelContext
             )
         case "delete_exam":
@@ -673,6 +681,27 @@ final class OdysseusController: NSObject, ObservableObject {
         return "Deleted \"\(name)\"."
     }
 
+    /// Sets (or clears, with an empty date) the whole project's target
+    /// completion date — separate from any individual task's due date. This
+    /// is what makes a passion/research project itself show up on Calendar,
+    /// the same way an assignment or exam does.
+    private func setProjectTargetDate(project: String, targetDateString: String?, context: ModelContext) -> String {
+        guard !project.isEmpty else { return "No project name given." }
+        let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
+        guard let proj = projects.first(where: { $0.name.localizedCaseInsensitiveContains(project) }) else {
+            return "No project found matching \"\(project)\"."
+        }
+        guard let targetDateString, !targetDateString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            proj.targetDate = nil
+            return "Cleared the target date for \"\(proj.name)\"."
+        }
+        guard let date = Self.isoDateFormatter.date(from: targetDateString) else {
+            return "Need a valid date (yyyy-MM-dd)."
+        }
+        proj.targetDate = date
+        return "\"\(proj.name)\" is now on the Calendar, due \(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+    }
+
     private func addProjectTask(project: String, title: String, context: ModelContext) -> String {
         guard !project.isEmpty else { return "No project name given." }
         let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
@@ -866,18 +895,27 @@ final class OdysseusController: NSObject, ObservableObject {
         return "Deleted \"\(title)\"."
     }
 
-    private func addExam(name: String, examDateString: String?, category: String?, context: ModelContext) -> String {
+    private func findSchoolClass(matching name: String, context: ModelContext) -> SchoolClass? {
+        let classes = (try? context.fetch(FetchDescriptor<SchoolClass>())) ?? []
+        return classes.first { $0.name.localizedCaseInsensitiveContains(name) }
+    }
+
+    private func addExam(name: String, examDateString: String?, category: String?, className: String?, context: ModelContext) -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return "No exam name given." }
         guard let dateString = examDateString, let examDate = Self.isoDateFormatter.date(from: dateString) else {
             return "Need a valid exam date (yyyy-MM-dd)."
         }
         let resolvedCategory = category.flatMap { ExamCategory(rawValue: $0) } ?? .marchExams
-        context.insert(Exam(name: trimmedName, examDate: examDate, category: resolvedCategory))
-        return "Added exam \"\(trimmedName)\" on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+        // Linking to a class is what makes this exam also show up on that
+        // class's own page — not just Calendar/School exams.
+        let matchedClass = className.flatMap { findSchoolClass(matching: $0, context: context) }
+        context.insert(Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory))
+        let classNote = matchedClass.map { " under \($0.name)" } ?? ""
+        return "Added exam \"\(trimmedName)\"\(classNote) on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
     }
 
-    private func editExam(query: String, newName: String?, newExamDateString: String?, context: ModelContext) -> String {
+    private func editExam(query: String, newName: String?, newExamDateString: String?, newClassName: String?, context: ModelContext) -> String {
         guard !query.isEmpty else { return "No exam specified to edit." }
         let exams = (try? context.fetch(FetchDescriptor<Exam>())) ?? []
         guard let exam = exams.first(where: { $0.name.localizedCaseInsensitiveContains(query) }) else {
@@ -888,6 +926,10 @@ final class OdysseusController: NSObject, ObservableObject {
         }
         if let newExamDateString, let newDate = Self.isoDateFormatter.date(from: newExamDateString) {
             exam.examDate = newDate
+        }
+        if let newClassName {
+            let trimmed = newClassName.trimmingCharacters(in: .whitespacesAndNewlines)
+            exam.schoolClass = trimmed.isEmpty ? nil : findSchoolClass(matching: trimmed, context: context)
         }
         return "Updated \"\(exam.name)\"."
     }

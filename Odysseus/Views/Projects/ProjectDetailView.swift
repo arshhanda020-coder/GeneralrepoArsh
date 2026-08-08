@@ -35,6 +35,14 @@ struct ProjectDetailView: View {
                 }
                 ProgressView(value: project.progress)
                     .tint(accentColor)
+                if let targetDate = project.targetDate {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                        Text("Due \(targetDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+                }
             }
             .listRowBackground(Theme.card)
 

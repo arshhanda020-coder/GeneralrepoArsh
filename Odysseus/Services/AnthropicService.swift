@@ -473,7 +473,13 @@ actor AnthropicService: AIProviderService {
     something ("mark X done", "log a session for Y", "add a task to Z", "edit this", "what repos do I have"), \
     call the matching tool rather than just describing what you'd do. If the user wants to change or update \
     something that already exists, use the edit tool for it — never create a new duplicate entry instead of \
-    editing the existing one. CRITICAL: every delete tool takes a `confirmed` flag. The first time you'd call a \
+    editing the existing one. Cross-link things that belong together instead of leaving them siloed: logging a \
+    test for a class means calling add_exam with `class` set, so it shows up on that class's page in School as \
+    well as Calendar — don't leave `class` off just because the user only mentioned the date. Likewise, if the \
+    user wants a whole project (a passion project, a research project, anything without individual dated tasks) \
+    done by some date, call set_project_target_date so it lands on the Calendar too, not just a task buried \
+    inside the project. Whenever an action you're taking has an obvious place it should also surface, make it \
+    show up there rather than making the user do it manually. CRITICAL: every delete tool takes a `confirmed` flag. The first time you'd call a \
     delete tool for a given item, call it WITHOUT confirmed (or confirmed: false) — it will find the item and \
     ask the user to confirm, and you should relay that confirmation question to them in your reply rather than \
     deleting anything yet. Only call the delete tool again with confirmed: true after the user has explicitly \
@@ -641,28 +647,42 @@ actor AnthropicService: AIProviderService {
         ],
         [
             "name": "add_exam",
-            "description": "Add an exam/test with a date — shows up on Calendar and Stats. Resolve any relative date into an exact date first.",
+            "description": "Add an exam/test with a date — shows up on Calendar and Stats. Resolve any relative date into an exact date first. If it's for a specific class, always pass `class` too — that's what makes it also show up on that class's page in School, not just Calendar.",
             "input_schema": [
                 "type": "object",
                 "properties": [
                     "name": ["type": "string", "description": "Exam name, e.g. \"AP Chemistry\" or \"March SAT\"."] as [String: Any],
                     "exam_date": ["type": "string", "description": "Exact date in yyyy-MM-dd format."] as [String: Any],
                     "category": ["type": "string", "enum": ["act", "marchExams", "apExams"], "description": "Which category this falls under."] as [String: Any],
+                    "class": ["type": "string", "description": "The school class this test is for, e.g. \"AP Chemistry\" — a distinctive substring of its name. Links the exam so it shows up on that class's page too."] as [String: Any],
                 ] as [String: Any],
                 "required": ["name", "exam_date"],
             ] as [String: Any],
         ],
         [
             "name": "edit_exam",
-            "description": "Edit an existing exam's name or date.",
+            "description": "Edit an existing exam's name, date, or which class it's linked to.",
             "input_schema": [
                 "type": "object",
                 "properties": [
                     "query": ["type": "string", "description": "A distinctive substring of the existing exam's name."] as [String: Any],
                     "new_name": ["type": "string", "description": "New name, if renaming."] as [String: Any],
                     "new_exam_date": ["type": "string", "description": "New date, exact yyyy-MM-dd format."] as [String: Any],
+                    "new_class": ["type": "string", "description": "The class to link this exam to, or an empty string to unlink it."] as [String: Any],
                 ] as [String: Any],
                 "required": ["query"],
+            ] as [String: Any],
+        ],
+        [
+            "name": "set_project_target_date",
+            "description": "Set (or clear) the date a whole project is meant to be done by — separate from any individual task's due date. This is what makes a project itself (e.g. a passion project or research project) show up on the Calendar. Resolve any relative date into an exact date first.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "project": ["type": "string", "description": "Project name, or a distinctive substring of it."] as [String: Any],
+                    "target_date": ["type": "string", "description": "Exact target completion date in yyyy-MM-dd format. Omit or pass an empty string to clear an existing target date."] as [String: Any],
+                ] as [String: Any],
+                "required": ["project"],
             ] as [String: Any],
         ],
         [
