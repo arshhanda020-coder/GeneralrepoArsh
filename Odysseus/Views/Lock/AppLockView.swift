@@ -4,7 +4,9 @@
 //
 //  Local device lock only — a 4-digit PIN stored in Keychain, checked on
 //  every cold launch. Not an account/auth system; there's no server to
-//  authenticate against.
+//  authenticate against. Face ID (iPhone) / Touch ID (Mac, iPad) is an
+//  optional faster path in front of the same PIN — never a replacement for
+//  it, since biometrics can be turned off in Settings or simply unavailable.
 //
 
 import SwiftUI
@@ -20,6 +22,12 @@ struct AppLockView: View {
     @State private var firstEntry = ""
     @State private var errorMessage: String?
     @State private var showingForgotConfirmation = false
+    @State private var biometricKind = BiometricAuthService.shared.availableKind
+    @State private var isPromptingBiometrics = false
+
+    private var biometricUnlockAvailable: Bool {
+        hasPIN && biometricKind != nil && BiometricLockSettings.isEnabled
+    }
 
     var body: some View {
         VStack(spacing: 28) {
@@ -48,6 +56,18 @@ struct AppLockView: View {
                     .foregroundStyle(Theme.negative)
             }
 
+            if biometricUnlockAvailable, let biometricKind {
+                Button {
+                    Task { await attemptBiometricUnlock() }
+                } label: {
+                    Label("Unlock with \(biometricKind.label)", systemImage: biometricKind.systemImage)
+                        .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Theme.accent)
+                .disabled(isPromptingBiometrics)
+            }
+
             Spacer()
 
             keypad
@@ -65,6 +85,14 @@ struct AppLockView: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background.ignoresSafeArea())
+        .task {
+            // Fires once when the lock screen first appears (cold launch) —
+            // offer the fast path immediately instead of making the user
+            // tap through to it.
+            if biometricUnlockAvailable {
+                await attemptBiometricUnlock()
+            }
+        }
         .confirmationDialog(
             "Reset PIN?",
             isPresented: $showingForgotConfirmation,
@@ -77,6 +105,18 @@ struct AppLockView: View {
         } message: {
             Text("There's no account to recover a PIN from — this is a device-only lock. The only way back in is to erase everything tracked in the app and set a new PIN.")
         }
+    }
+
+    private func attemptBiometricUnlock() async {
+        guard !isPromptingBiometrics else { return }
+        isPromptingBiometrics = true
+        let success = await BiometricAuthService.shared.authenticate(reason: "Unlock Odysseus")
+        isPromptingBiometrics = false
+        if success {
+            onUnlocked()
+        }
+        // On failure/cancel, just leave the PIN pad up — no error message,
+        // since backing out of Face ID/Touch ID isn't a wrong PIN attempt.
     }
 
     private func resetEverything() {
