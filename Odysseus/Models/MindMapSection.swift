@@ -113,36 +113,8 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    /// A restrained, closely-related family of muted tones — one design, not
-    /// a different saturated color per tab. Copilot/AI Tools share the app's
-    /// signature brass accent; everything else sits in quiet steel-blue or
-    /// warm taupe, varying just enough to still tell sections apart at a glance.
-    var builtInAccentHex: String {
-        switch self {
-        case .today: return "5C7A99"
-        case .skills: return "6C8AA6"
-        case .projects: return "748CA3"
-        case .news: return "8A8368"
-        case .copilot: return "C9A227"
-        case .stats: return "5F6672"
-        case .emails: return "6B7280"
-        case .aiIntegration: return "B8935B"
-        case .github: return "747C87"
-        case .school: return "7D8570"
-        case .health: return "9C8F6E"
-        case .calendar: return "6C8AA6"
-        case .extracurriculars: return "A08A5E"
-        case .memory: return "8C7BA6"
-        case .research: return "6E8C7D"
-        case .agents: return "5E8AA6"
-        case .claudeCode: return "B8935B"
-        case .codex: return "5FA88C"
-        case .obsidian: return "8C7BA6"
-        case .notes: return "7A9488"
-        }
-    }
-
-    /// Reads Settings > Appearance's override when set, otherwise the built-in default.
-    var accentHex: String { ThemeColorSettings.sectionHex(for: self) }
-    var accentColor: Color { Color(hex: accentHex) }
+    /// Every section shares the app's one signature accent now, instead of a
+    /// different muted hue per tab — closer to how Messages/Settings-style
+    /// apps use a single accent everywhere rather than a color-coded tab bar.
+    var accentColor: Color { Theme.accent }
 }
