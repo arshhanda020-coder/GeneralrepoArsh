@@ -15,6 +15,14 @@ struct OdysseusOverlay: View {
 
     var body: some View {
         Color.clear
+            // Color.clear is still hit-testable in SwiftUI by default — left
+            // as-is, this full-screen layer sat directly on top of
+            // ContentView in RootView's ZStack and silently swallowed every
+            // tap/click app-wide (buttons, list rows, sheet controls like
+            // "Delete project") whenever Odysseus wasn't expanded. It draws
+            // nothing and exists only to host the full-screen-cover
+            // modifier, so it must never intercept touches itself.
+            .allowsHitTesting(false)
             .platformFullScreenCover(isPresented: $odysseus.isExpanded) {
                 OdysseusTerminalView()
             }
