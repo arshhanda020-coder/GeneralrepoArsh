@@ -307,6 +307,8 @@ final class OdysseusController: NSObject, ObservableObject {
             return newsSummary(topicRaw: input["topic"] as? String ?? "all", context: modelContext)
         case "get_today_summary":
             return todaySummary(context: modelContext)
+        case "get_notes":
+            return notesSummary(query: input["query"] as? String, whereFilter: input["where"] as? String, context: modelContext)
         case "log_skill_session":
             return logSkillSession(named: input["name"] as? String ?? "", note: input["note"] as? String, context: modelContext)
         case "add_project_task":
@@ -621,6 +623,48 @@ final class OdysseusController: NSObject, ObservableObject {
         let assignmentLines = assignments.map { "- \($0.title): \($0.isDone ? "done" : "not done")" }
         let taskLines = tasks.map { "- \($0.title): \($0.isDone ? "done" : "not done")" }
         return "Today: \(done)/\(total) done\n" + (assignmentLines + taskLines).joined(separator: "\n")
+    }
+
+    /// Freeform notes the user wrote themselves — same `Note` model backing
+    /// the Notes hub and every embedded `NotesSectionView` (Today, a
+    /// project, a school topic, a subagent). `query` matches title/content;
+    /// `where` scopes to one attachment point by name (or "today"/"standalone").
+    private func notesSummary(query: String?, whereFilter: String?, context: ModelContext) -> String {
+        var notes = (try? context.fetch(
+            FetchDescriptor<Note>(sortBy: [SortDescriptor(\.updatedAt, order: .reverse)])
+        )) ?? []
+
+        let trimmedQuery = query?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmedQuery.isEmpty {
+            notes = notes.filter { $0.title.localizedCaseInsensitiveContains(trimmedQuery) || $0.content.localizedCaseInsensitiveContains(trimmedQuery) }
+        }
+
+        let trimmedWhere = whereFilter?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmedWhere.isEmpty {
+            notes = notes.filter { note in
+                guard let noteContext = note.context else {
+                    return trimmedWhere.localizedCaseInsensitiveContains("standalone")
+                }
+                if noteContext == .today, trimmedWhere.localizedCaseInsensitiveContains("today") { return true }
+                let resolvedName = noteContext.resolvedName(in: context) ?? noteContext.label
+                return resolvedName.localizedCaseInsensitiveContains(trimmedWhere)
+            }
+        }
+
+        guard !notes.isEmpty else {
+            if !trimmedQuery.isEmpty || !trimmedWhere.isEmpty {
+                return "No notes found matching that."
+            }
+            return "No notes written yet."
+        }
+
+        let lines = notes.prefix(15).map { note -> String in
+            let location = note.context.map { $0.resolvedName(in: context) ?? $0.label } ?? "Standalone"
+            let imageTag = note.imageDatas.isEmpty ? "" : " [\(note.imageDatas.count) image\(note.imageDatas.count == 1 ? "" : "s")]"
+            let excerpt = note.content.isEmpty ? "" : ": \(note.content.prefix(300))"
+            return "- \(note.title) (\(location))\(imageTag)\(excerpt)"
+        }
+        return lines.joined(separator: "\n")
     }
 
     private func logSkillSession(named name: String, note: String?, context: ModelContext) -> String {

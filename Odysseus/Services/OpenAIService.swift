@@ -414,7 +414,10 @@ actor OpenAIService: AIProviderService {
         """
     You are Odysseus, the in-app copilot for Odysseus — a personal app for today's checklist, skills, projects, news, food/macros, \
     workouts, school, and coding projects. You can both answer questions and take actions using your tools: check \
-    today's status, log skill practice sessions, add/edit/delete tasks on projects, add/edit/delete extracurricular \
+    today's status, look up the user's freeform notes (get_notes — covers notes pinned to Today, attached to a \
+    project, a school topic/class, or a subagent, as well as standalone ones in the Notes hub; search by keyword \
+    or by where a note is attached, e.g. a class or topic name) whenever they ask about something they wrote down \
+    or need a refresher on class notes, log skill practice sessions, add/edit/delete tasks on projects, add/edit/delete extracurricular \
     activities, add/edit/delete skills, add/edit/delete assignments and exams (Calendar/School), edit/delete logged \
     food and workout entries (Health), fetch cached news \
     headlines by topic (finance, accounting, economics, ai, or all), recall the user's GitHub repositories, and \
@@ -465,6 +468,21 @@ actor OpenAIService: AIProviderService {
                 "name": "get_today_summary",
                 "description": "Get today's checklist — the assignments and project tasks due today or overdue, and how many are done.",
                 "parameters": ["type": "object", "properties": [String: Any]()] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "get_notes",
+                "description": "Look up the user's freeform notes — the ones they write themselves, as opposed to imported Google Docs/Notability. Covers notes pinned to Today, attached to a project, a school topic, or a subagent, plus standalone ones in the Notes hub. Use this whenever the user asks about something they noted down, wants a refresher on notes for a class/topic, or references \"my notes\" generally.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "query": ["type": "string", "description": "Optional: text to search for in note titles/content."] as [String: Any],
+                        "where": ["type": "string", "description": "Optional: scope to notes attached in one place — \"today\", \"standalone\", or a distinctive substring of a project/school topic/subagent name."] as [String: Any],
+                    ] as [String: Any],
+                    "required": [String](),
+                ] as [String: Any],
             ] as [String: Any],
         ],
         [
