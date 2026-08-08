@@ -25,6 +25,7 @@ struct MindMapHomeView: View {
     @Query private var researchEntries: [ResearchEntry]
     @Query private var agentDefinitions: [AgentDefinition]
     @Query private var obsidianNotes: [ObsidianNote]
+    @Query private var docNotes: [DocNote]
     @Query private var aiToolItems: [AIToolItem]
     @Query(sort: \FoodEntry.date, order: .reverse) private var foodEntries: [FoodEntry]
     @Query(sort: \WorkoutEntry.date, order: .reverse) private var workoutEntries: [WorkoutEntry]
@@ -293,34 +294,20 @@ struct MindMapHomeView: View {
         case .news: NewsView()
         case .copilot: CopilotView()
         case .stats: StatsView()
-        case .emails:
-            #if os(iOS)
-            EmailsView()
-            #else
-            ComingSoonView(title: "Emails")
-            #endif
+        case .emails: EmailsView()
         case .aiIntegration: AIIntegrationView()
         case .github: GitHubView()
         case .school: SchoolView()
-        case .health:
-            #if os(iOS)
-            HealthView()
-            #else
-            ComingSoonView(title: "Health")
-            #endif
+        case .health: HealthView()
         case .calendar: CalendarView()
-        case .extracurriculars:
-            #if os(iOS)
-            ExtracurricularsView()
-            #else
-            ComingSoonView(title: "Extracurriculars")
-            #endif
+        case .extracurriculars: ExtracurricularsView()
         case .memory: MemoryView()
         case .research: ResearchView()
         case .agents: AgentsView()
         case .claudeCode: DevAgentBridgeView(kind: .claudeCode)
         case .codex: DevAgentBridgeView(kind: .codex)
         case .obsidian: ObsidianView()
+        case .notes: NotesView()
         }
     }
 
@@ -363,6 +350,8 @@ struct MindMapHomeView: View {
             return nil
         case .obsidian:
             return obsidianNotes.isEmpty ? nil : "\(obsidianNotes.count)"
+        case .notes:
+            return docNotes.isEmpty ? nil : "\(docNotes.count)"
         }
     }
 

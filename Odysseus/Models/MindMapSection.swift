@@ -25,6 +25,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
     case claudeCode
     case codex
     case obsidian
+    case notes
 
     var id: String { rawValue }
 
@@ -49,6 +50,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .claudeCode: return "Claude Code"
         case .codex: return "Codex"
         case .obsidian: return "Obsidian Vault"
+        case .notes: return "Notes"
         }
     }
 
@@ -80,6 +82,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .claudeCode: return "CLAUDE"
         case .codex: return "CODEX"
         case .obsidian: return "VAULT"
+        case .notes: return "NOTES"
         }
     }
 
@@ -106,6 +109,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .claudeCode: return "terminal"
         case .codex: return "chevron.left.forwardslash.chevron.right"
         case .obsidian: return "brain.head.profile"
+        case .notes: return "note.text"
         }
     }
 
@@ -134,6 +138,7 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .claudeCode: return "B8935B"
         case .codex: return "6FD6A8"
         case .obsidian: return "8C7BA6"
+        case .notes: return "7A9488"
         }
     }
 
