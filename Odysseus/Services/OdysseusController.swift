@@ -330,6 +330,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return addAssignment(
                 title: input["title"] as? String ?? "",
                 dueDateString: input["due_date"] as? String,
+                dueTimeString: input["due_time"] as? String,
                 notes: input["notes"] as? String,
                 context: modelContext
             )
@@ -338,7 +339,14 @@ final class OdysseusController: NSObject, ObservableObject {
                 query: input["query"] as? String ?? "",
                 newTitle: input["new_title"] as? String,
                 newDueDateString: input["new_due_date"] as? String,
+                newDueTimeString: input["new_due_time"] as? String,
                 markDone: input["mark_done"] as? Bool,
+                context: modelContext
+            )
+        case "get_school_material":
+            return getSchoolMaterial(
+                subject: input["subject"] as? String ?? "",
+                query: input["query"] as? String,
                 context: modelContext
             )
         case "delete_assignment":
@@ -352,6 +360,7 @@ final class OdysseusController: NSObject, ObservableObject {
                 name: input["name"] as? String ?? "",
                 examDateString: input["exam_date"] as? String,
                 category: input["category"] as? String,
+                className: input["class"] as? String,
                 context: modelContext
             )
         case "edit_exam":
@@ -359,6 +368,13 @@ final class OdysseusController: NSObject, ObservableObject {
                 query: input["query"] as? String ?? "",
                 newName: input["new_name"] as? String,
                 newExamDateString: input["new_exam_date"] as? String,
+                newClassName: input["new_class"] as? String,
+                context: modelContext
+            )
+        case "set_project_target_date":
+            return setProjectTargetDate(
+                project: input["project"] as? String ?? "",
+                targetDateString: input["target_date"] as? String,
                 context: modelContext
             )
         case "delete_exam":
@@ -665,6 +681,27 @@ final class OdysseusController: NSObject, ObservableObject {
         return "Deleted \"\(name)\"."
     }
 
+    /// Sets (or clears, with an empty date) the whole project's target
+    /// completion date — separate from any individual task's due date. This
+    /// is what makes a passion/research project itself show up on Calendar,
+    /// the same way an assignment or exam does.
+    private func setProjectTargetDate(project: String, targetDateString: String?, context: ModelContext) -> String {
+        guard !project.isEmpty else { return "No project name given." }
+        let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
+        guard let proj = projects.first(where: { $0.name.localizedCaseInsensitiveContains(project) }) else {
+            return "No project found matching \"\(project)\"."
+        }
+        guard let targetDateString, !targetDateString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            proj.targetDate = nil
+            return "Cleared the target date for \"\(proj.name)\"."
+        }
+        guard let date = Self.isoDateFormatter.date(from: targetDateString) else {
+            return "Need a valid date (yyyy-MM-dd)."
+        }
+        proj.targetDate = date
+        return "\"\(proj.name)\" is now on the Calendar, due \(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+    }
+
     private func addProjectTask(project: String, title: String, context: ModelContext) -> String {
         guard !project.isEmpty else { return "No project name given." }
         let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
@@ -719,20 +756,107 @@ final class OdysseusController: NSObject, ObservableObject {
         return formatter
     }()
 
-    private func addAssignment(title: String, dueDateString: String?, notes: String?, context: ModelContext) -> String {
+    private static let isoTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    /// Combines a yyyy-MM-dd date with an optional HH:mm time of day into one
+    /// Date — this is what lets Copilot put something on the calendar "at
+    /// 3pm" instead of only ever landing at midnight. A date with no time
+    /// given stays at midnight, same as picking a day in the date-only UI.
+    private func combinedDate(dateString: String?, timeString: String?) -> Date? {
+        guard let dateString, let day = Self.isoDateFormatter.date(from: dateString) else { return nil }
+        guard let timeString, let time = Self.isoTimeFormatter.date(from: timeString) else { return day }
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        let timeComps = Calendar.current.dateComponents([.hour, .minute], from: time)
+        comps.hour = timeComps.hour
+        comps.minute = timeComps.minute
+        return Calendar.current.date(from: comps) ?? day
+    }
+
+    /// Pulls up whatever's been saved under a School subject/topic: freeform
+    /// Notes and imported DocNotes (Google Docs/Notability) attached via
+    /// `NoteContext.topic`, plus that topic's assignments. `subject` matches
+    /// either a SchoolClass name (e.g. "AP Chemistry", pulling every topic
+    /// under it) or a specific Topic name (e.g. "Recursion") directly.
+    private func getSchoolMaterial(subject: String, query: String?, context: ModelContext) -> String {
+        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSubject.isEmpty else { return "No subject or topic given." }
+
+        let classes = (try? context.fetch(FetchDescriptor<SchoolClass>())) ?? []
+        let allTopics = (try? context.fetch(FetchDescriptor<Topic>())) ?? []
+
+        let matchedTopics: [Topic]
+        if let matchedClass = classes.first(where: { $0.name.localizedCaseInsensitiveContains(trimmedSubject) }) {
+            matchedTopics = matchedClass.topics
+        } else {
+            matchedTopics = allTopics.filter { $0.name.localizedCaseInsensitiveContains(trimmedSubject) }
+        }
+        guard !matchedTopics.isEmpty else {
+            return "No class or topic found matching \"\(trimmedSubject)\"."
+        }
+        let topicNames = Dictionary(uniqueKeysWithValues: matchedTopics.map { ($0.id, $0.name) })
+        let topicIDs = Set(topicNames.keys)
+
+        var notes = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { note in
+            note.contextTypeRaw == "topic" && topicIDs.contains(note.contextID ?? "")
+        }
+        var docNotes = ((try? context.fetch(FetchDescriptor<DocNote>())) ?? []).filter { doc in
+            doc.contextTypeRaw == "topic" && topicIDs.contains(doc.contextID ?? "")
+        }
+
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            notes = notes.filter { $0.title.localizedCaseInsensitiveContains(query) || $0.content.localizedCaseInsensitiveContains(query) }
+            docNotes = docNotes.filter { $0.title.localizedCaseInsensitiveContains(query) || $0.content.localizedCaseInsensitiveContains(query) }
+        }
+
+        guard !notes.isEmpty || !docNotes.isEmpty else {
+            let scopeNote = query.map { " matching \"\($0)\"" } ?? ""
+            return "No material found for \"\(trimmedSubject)\"\(scopeNote) — add notes or import docs under that topic in School."
+        }
+
+        func excerpt(_ text: String) -> String {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.count > 200 else { return trimmed }
+            return String(trimmed.prefix(200)) + "…"
+        }
+
+        var lines: [String] = []
+        for note in notes.sorted(by: { $0.updatedAt > $1.updatedAt }) {
+            let topicName = topicNames[note.contextID ?? ""] ?? "Untitled topic"
+            let body = excerpt(note.content)
+            lines.append("• [\(topicName)] \(note.title)" + (body.isEmpty ? "" : " — \(body)"))
+        }
+        for doc in docNotes.sorted(by: { $0.modifiedAt > $1.modifiedAt }) {
+            let topicName = topicNames[doc.contextID ?? ""] ?? "Untitled topic"
+            lines.append("• [\(topicName)] \(doc.title) (\(doc.source.label)) — \(excerpt(doc.excerpt.isEmpty ? doc.content : doc.excerpt))")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func addAssignment(title: String, dueDateString: String?, dueTimeString: String?, notes: String?, context: ModelContext) -> String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return "No assignment title given." }
-        let dueDate = dueDateString.flatMap { Self.isoDateFormatter.date(from: $0) }
+        let dueDate = combinedDate(dateString: dueDateString, timeString: dueTimeString)
         let assignment = Assignment(title: trimmedTitle, dueDate: dueDate, notes: notes, remindersOn: dueDate != nil)
         context.insert(assignment)
         if dueDate != nil {
             NotificationManager.shared.sync(assignment: assignment)
         }
-        let dateNote = dueDate.map { " due \($0.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))" } ?? ""
+        let dateNote = dueDate.map { date -> String in
+            let hasTime = dueTimeString != nil && !(dueTimeString?.isEmpty ?? true)
+            let style: Date.FormatStyle = hasTime
+                ? .dateTime.weekday(.wide).month(.abbreviated).day().hour().minute()
+                : .dateTime.weekday(.wide).month(.abbreviated).day()
+            return " due \(date.formatted(style))"
+        } ?? ""
         return "Added assignment \"\(trimmedTitle)\"\(dateNote)."
     }
 
-    private func editAssignment(query: String, newTitle: String?, newDueDateString: String?, markDone: Bool?, context: ModelContext) -> String {
+    private func editAssignment(query: String, newTitle: String?, newDueDateString: String?, newDueTimeString: String?, markDone: Bool?, context: ModelContext) -> String {
         guard !query.isEmpty else { return "No assignment specified to edit." }
         let assignments = (try? context.fetch(FetchDescriptor<Assignment>())) ?? []
         guard let assignment = assignments.first(where: { $0.title.localizedCaseInsensitiveContains(query) }) else {
@@ -741,8 +865,13 @@ final class OdysseusController: NSObject, ObservableObject {
         if let newTitle, !newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             assignment.title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if let newDueDateString, let newDate = Self.isoDateFormatter.date(from: newDueDateString) {
-            assignment.dueDate = newDate
+        if newDueDateString != nil || newDueTimeString != nil {
+            // Re-anchor on the existing due date's day when only a new time is
+            // given, so "move that to 5pm" doesn't require repeating the date.
+            let fallbackDateString = assignment.dueDate.map { Self.isoDateFormatter.string(from: $0) }
+            if let newDate = combinedDate(dateString: newDueDateString ?? fallbackDateString, timeString: newDueTimeString) {
+                assignment.dueDate = newDate
+            }
         }
         if let markDone {
             assignment.isDone = markDone
@@ -766,18 +895,27 @@ final class OdysseusController: NSObject, ObservableObject {
         return "Deleted \"\(title)\"."
     }
 
-    private func addExam(name: String, examDateString: String?, category: String?, context: ModelContext) -> String {
+    private func findSchoolClass(matching name: String, context: ModelContext) -> SchoolClass? {
+        let classes = (try? context.fetch(FetchDescriptor<SchoolClass>())) ?? []
+        return classes.first { $0.name.localizedCaseInsensitiveContains(name) }
+    }
+
+    private func addExam(name: String, examDateString: String?, category: String?, className: String?, context: ModelContext) -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return "No exam name given." }
         guard let dateString = examDateString, let examDate = Self.isoDateFormatter.date(from: dateString) else {
             return "Need a valid exam date (yyyy-MM-dd)."
         }
         let resolvedCategory = category.flatMap { ExamCategory(rawValue: $0) } ?? .marchExams
-        context.insert(Exam(name: trimmedName, examDate: examDate, category: resolvedCategory))
-        return "Added exam \"\(trimmedName)\" on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+        // Linking to a class is what makes this exam also show up on that
+        // class's own page — not just Calendar/School exams.
+        let matchedClass = className.flatMap { findSchoolClass(matching: $0, context: context) }
+        context.insert(Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory))
+        let classNote = matchedClass.map { " under \($0.name)" } ?? ""
+        return "Added exam \"\(trimmedName)\"\(classNote) on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
     }
 
-    private func editExam(query: String, newName: String?, newExamDateString: String?, context: ModelContext) -> String {
+    private func editExam(query: String, newName: String?, newExamDateString: String?, newClassName: String?, context: ModelContext) -> String {
         guard !query.isEmpty else { return "No exam specified to edit." }
         let exams = (try? context.fetch(FetchDescriptor<Exam>())) ?? []
         guard let exam = exams.first(where: { $0.name.localizedCaseInsensitiveContains(query) }) else {
@@ -788,6 +926,10 @@ final class OdysseusController: NSObject, ObservableObject {
         }
         if let newExamDateString, let newDate = Self.isoDateFormatter.date(from: newExamDateString) {
             exam.examDate = newDate
+        }
+        if let newClassName {
+            let trimmed = newClassName.trimmingCharacters(in: .whitespacesAndNewlines)
+            exam.schoolClass = trimmed.isEmpty ? nil : findSchoolClass(matching: trimmed, context: context)
         }
         return "Updated \"\(exam.name)\"."
     }

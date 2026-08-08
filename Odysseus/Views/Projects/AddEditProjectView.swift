@@ -17,6 +17,8 @@ struct AddEditProjectView: View {
     @State private var colorHex = "5B8CFF"
     @State private var description = ""
     @State private var status: ProjectStatus = .building
+    @State private var hasTargetDate = false
+    @State private var targetDate = Date()
 
     private let emojiOptions = ["🛠️", "🚀", "💻", "📱", "🧾", "💰", "🚛", "🤖", "🧠", "📊", "🗂️", "⚙️"]
     private let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
@@ -47,6 +49,17 @@ struct AddEditProjectView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section("Target Completion") {
+                    Toggle("Set a target date", isOn: $hasTargetDate)
+                    if hasTargetDate {
+                        DatePicker("Done by", selection: $targetDate, displayedComponents: .date)
+                    } else {
+                        Text("Set this so the project shows up on the Calendar.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
+                    }
                 }
 
                 if project != nil {
@@ -95,6 +108,12 @@ struct AddEditProjectView: View {
         colorHex = project.colorHex
         description = project.projectDescription
         status = project.status
+        if let target = project.targetDate {
+            hasTargetDate = true
+            targetDate = target
+        } else {
+            hasTargetDate = false
+        }
     }
 
     private func save() {
@@ -104,13 +123,15 @@ struct AddEditProjectView: View {
             project.colorHex = colorHex
             project.projectDescription = description
             project.status = status
+            project.targetDate = hasTargetDate ? targetDate : nil
         } else {
             let newProject = Project(
                 name: name,
                 emoji: emoji,
                 colorHex: colorHex,
                 projectDescription: description,
-                status: status
+                status: status,
+                targetDate: hasTargetDate ? targetDate : nil
             )
             modelContext.insert(newProject)
         }
