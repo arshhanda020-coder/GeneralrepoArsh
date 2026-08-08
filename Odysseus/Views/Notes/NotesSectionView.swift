@@ -14,6 +14,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct NotesSectionView: View {
     let context: NoteContext
@@ -87,6 +88,11 @@ struct NotesSectionView: View {
                 }
                 .buttonStyle(.plain)
             }
+            if let colorHex = note.colorHex {
+                Circle()
+                    .fill(Color(hex: colorHex))
+                    .frame(width: 8, height: 8)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(note.title)
                     .font(.subheadline.weight(.medium))
@@ -100,6 +106,11 @@ struct NotesSectionView: View {
                 }
             }
             Spacer(minLength: 0)
+            if !note.imageDatas.isEmpty {
+                Image(systemName: "photo")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
         }
         .padding(10)
         .contentShape(Rectangle())
@@ -114,9 +125,9 @@ struct NotesSectionView: View {
     }
 }
 
-/// Edit a freeform note's title/content, move it to a different context, or
-/// delete it. Used both by `NotesSectionView` (embedded contexts) and the
-/// standalone Notes hub.
+/// Edit a freeform note's title/content, move it to a different context,
+/// pick a color, attach images, export it, or delete it. Used both by
+/// `NotesSectionView` (embedded contexts) and the standalone Notes hub.
 struct NoteEditSheet: View {
     @Bindable var note: Note
     var accentColor: Color = MindMapSection.notes.accentColor
@@ -125,14 +136,22 @@ struct NoteEditSheet: View {
     @Environment(\.modelContext) private var modelContext
     @State private var titleDraft: String
     @State private var contentDraft: String
+    @State private var colorHexDraft: String?
+    @State private var imageDatasDraft: [Data]
     @State private var showingMove = false
     @State private var showingDeleteConfirmation = false
+    @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var shareURL: URL?
+
+    private static let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
 
     init(note: Note, accentColor: Color = MindMapSection.notes.accentColor) {
         self.note = note
         self.accentColor = accentColor
         _titleDraft = State(initialValue: note.title)
         _contentDraft = State(initialValue: note.content)
+        _colorHexDraft = State(initialValue: note.colorHex)
+        _imageDatasDraft = State(initialValue: note.imageDatas)
     }
 
     var body: some View {
@@ -144,6 +163,12 @@ struct NoteEditSheet: View {
                 Section("NOTE") {
                     TextField("Write anything…", text: $contentDraft, axis: .vertical)
                         .lineLimit(6...20)
+                }
+                Section("COLOR") {
+                    colorPicker
+                }
+                Section("IMAGES") {
+                    imagesPicker
                 }
                 Section {
                     Button {
@@ -157,6 +182,13 @@ struct NoteEditSheet: View {
                         }
                     }
                     .foregroundStyle(Theme.primaryText)
+
+                    Button {
+                        exportPDF()
+                    } label: {
+                        Label("Export & Share…", systemImage: "square.and.arrow.up")
+                    }
+                    .foregroundStyle(accentColor)
                 }
             }
             .navigationTitle("Note")
@@ -190,7 +222,98 @@ struct NoteEditSheet: View {
                     note.updatedAt = .now
                 }
             }
+            .sheet(item: Binding(
+                get: { shareURL.map { IdentifiableURL(url: $0) } },
+                set: { shareURL = $0?.url }
+            )) { wrapped in
+                ShareSheet(items: [wrapped.url])
+            }
+            .onChange(of: selectedPhotos) { _, newItems in
+                guard !newItems.isEmpty else { return }
+                Task {
+                    for item in newItems {
+                        guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
+                        let compressed = PlatformImage(data: data)?.jpegData(compressionQuality: 0.6) ?? data
+                        imageDatasDraft.append(compressed)
+                    }
+                    selectedPhotos = []
+                }
+            }
         }
+    }
+
+    private var colorPicker: some View {
+        HStack {
+            Circle()
+                .strokeBorder(Theme.dimText, lineWidth: 1)
+                .background(Circle().fill(Theme.background))
+                .frame(width: 24, height: 24)
+                .overlay {
+                    if colorHexDraft == nil {
+                        Image(systemName: "slash.circle").font(.caption2).foregroundStyle(Theme.dimText)
+                    }
+                }
+                .overlay(Circle().stroke(.white, lineWidth: colorHexDraft == nil ? 2 : 0))
+                .onTapGesture { colorHexDraft = nil }
+            Spacer(minLength: 4)
+            ForEach(Self.colorOptions, id: \.self) { hex in
+                Circle()
+                    .fill(Color(hex: hex))
+                    .frame(width: 24, height: 24)
+                    .overlay(Circle().stroke(.white, lineWidth: colorHexDraft == hex ? 2 : 0))
+                    .onTapGesture { colorHexDraft = hex }
+            }
+        }
+    }
+
+    private var imagesPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if !imageDatasDraft.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(imageDatasDraft.enumerated()), id: \.offset) { index, data in
+                            if let image = PlatformImage(data: data) {
+                                Image(platformImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(alignment: .topTrailing) {
+                                        Button {
+                                            imageDatasDraft.remove(at: index)
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundStyle(.white, .black.opacity(0.6))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .padding(3)
+                                    }
+                            }
+                        }
+                    }
+                }
+            }
+            PhotosPicker(selection: $selectedPhotos, matching: .images) {
+                Label(imageDatasDraft.isEmpty ? "Add photos" : "Add more photos", systemImage: "photo.badge.plus")
+            }
+        }
+    }
+
+    private func exportPDF() {
+        let trimmedTitle = titleDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = trimmedTitle.isEmpty ? note.title : trimmedTitle
+        let data = NoteExportGenerator.makePDF(
+            title: title,
+            content: contentDraft,
+            colorHex: colorHexDraft,
+            imageDatas: imageDatasDraft,
+            updatedAt: .now,
+            defaultColorHex: MindMapSection.notes.accentHex
+        )
+        let safeFileName = title.replacingOccurrences(of: "/", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(safeFileName).pdf")
+        try? data.write(to: url)
+        shareURL = url
     }
 
     private func save() {
@@ -198,6 +321,8 @@ struct NoteEditSheet: View {
         guard !trimmedTitle.isEmpty else { return }
         note.title = trimmedTitle
         note.content = contentDraft
+        note.colorHex = colorHexDraft
+        note.imageDatas = imageDatasDraft
         note.updatedAt = .now
         dismiss()
     }

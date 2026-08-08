@@ -130,7 +130,7 @@ struct NotesView: View {
     private func freeformRow(_ note: Note) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "note.text")
-                .foregroundStyle(Theme.dimText)
+                .foregroundStyle(note.colorHex.map { Color(hex: $0) } ?? Theme.dimText)
                 .frame(width: 16)
             VStack(alignment: .leading, spacing: 4) {
                 Text(note.title)
@@ -144,6 +144,11 @@ struct NotesView: View {
                 }
             }
             Spacer(minLength: 0)
+            if !note.imageDatas.isEmpty {
+                Image(systemName: "photo")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
             if let context = note.context {
                 Label(context.resolvedName(in: modelContext) ?? context.label, systemImage: context.symbolName)
                     .font(.system(.caption2, design: .monospaced))

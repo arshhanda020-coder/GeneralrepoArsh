@@ -24,6 +24,14 @@ final class Note {
     /// Only meaningful when pinned to Today: lets a quick reminder note be
     /// checked off (like a task) without deleting it.
     var isDone: Bool
+    /// User-picked accent color (hex, no `#`), shown as a dot/bar wherever the
+    /// note is listed and as the header stripe on export. Nil falls back to
+    /// the Notes section's default accent color.
+    var colorHex: String?
+    /// Images attached to the note, stored inline as JPEG data (same
+    /// compress-on-pick approach as Extracurricular proof photos). Shown as
+    /// thumbnails in the editor and embedded when exporting.
+    var imageDatas: [Data] = []
 
     init(
         id: String = UUID().uuidString,
@@ -32,7 +40,9 @@ final class Note {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         context: NoteContext? = nil,
-        isDone: Bool = false
+        isDone: Bool = false,
+        colorHex: String? = nil,
+        imageDatas: [Data] = []
     ) {
         self.id = id
         self.title = title
@@ -42,6 +52,8 @@ final class Note {
         self.contextTypeRaw = context?.typeRaw
         self.contextID = context?.recordID
         self.isDone = isDone
+        self.colorHex = colorHex
+        self.imageDatas = imageDatas
     }
 }
 
