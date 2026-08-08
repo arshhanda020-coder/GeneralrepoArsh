@@ -1,0 +1,33 @@
+//
+//  SkillStatsRow.swift
+//  Odysseus
+//
+
+import SwiftUI
+
+struct SkillStatsRow: View {
+    let skill: Skill
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(skill.emoji)
+                .font(.subheadline)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(skill.name)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(Theme.primaryText)
+                ProgressView(value: skill.progress)
+                    .tint(Color(hex: skill.colorHex))
+            }
+
+            Spacer()
+
+            Text("\(skill.sessions.count)/\(skill.targetSessions)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(Theme.dimText)
+        }
+        .padding(8)
+        .glassPanel(cornerRadius: 8)
+    }
+}
