@@ -137,7 +137,7 @@ struct TodayView: View {
             if let due = item.dueDate, Calendar.current.startOfDay(for: due) < today {
                 Text("OVERDUE")
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
-                    .foregroundStyle(Color(hex: "C0605C"))
+                    .foregroundStyle(Theme.negative)
             }
         }
         .padding(10)

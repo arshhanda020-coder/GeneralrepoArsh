@@ -149,7 +149,7 @@ private struct NewResearchSheet: View {
                     }
                 }
                 if let error {
-                    Text(error).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                    Text(error).font(.caption).foregroundStyle(Theme.negative)
                 }
             }
             .navigationTitle("New Research")

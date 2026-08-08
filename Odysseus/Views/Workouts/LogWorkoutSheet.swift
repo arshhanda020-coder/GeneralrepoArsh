@@ -80,7 +80,7 @@ struct LogWorkoutSheet: View {
                             .foregroundStyle(Theme.dimText)
                     }
                     if let estimateError {
-                        Text(estimateError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                        Text(estimateError).font(.caption).foregroundStyle(Theme.negative)
                     }
                 }
 

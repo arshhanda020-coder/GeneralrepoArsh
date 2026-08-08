@@ -50,7 +50,7 @@ struct GitHubView: View {
                 } else if let errorMessage {
                     Text(errorMessage)
                         .font(.subheadline)
-                        .foregroundStyle(Color(hex: "FF6B6B"))
+                        .foregroundStyle(Theme.negative)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 40)
                 } else if repos.isEmpty {

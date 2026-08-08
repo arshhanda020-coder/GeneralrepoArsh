@@ -164,7 +164,7 @@ private struct AgentDetailView: View {
                 .disabled(isRunning)
 
                 if let runError {
-                    Text(runError).font(.system(.caption, design: .monospaced)).foregroundStyle(Color(hex: "FF6B6B"))
+                    Text(runError).font(.system(.caption, design: .monospaced)).foregroundStyle(Theme.negative)
                 }
 
                 if !sortedRuns.isEmpty {

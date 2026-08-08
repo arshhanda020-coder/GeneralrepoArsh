@@ -123,7 +123,7 @@ struct OdysseusTerminalView: View {
             } label: {
                 Image(systemName: "power.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(Color(hex: "FF6B6B").opacity(0.85))
+                    .foregroundStyle(Theme.negative.opacity(0.85))
             }
         }
         .padding(.horizontal, 24)
@@ -133,7 +133,7 @@ struct OdysseusTerminalView: View {
     private var liveBadge: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(odysseus.status == .idle ? Theme.dimText : Color(hex: "FF6B6B"))
+                .fill(odysseus.status == .idle ? Theme.dimText : Theme.negative)
                 .frame(width: 6, height: 6)
             Text(odysseus.status == .idle ? "STANDBY" : "BRIEFING · LIVE")
                 .font(.system(size: 10, design: .monospaced).weight(.bold))
@@ -240,7 +240,7 @@ struct OdysseusTerminalView: View {
             }
 
             if let statusMessage = odysseus.statusMessage {
-                subtitleLine(prefix: "!", text: statusMessage, color: Color(hex: "FF6B6B"))
+                subtitleLine(prefix: "!", text: statusMessage, color: Theme.negative)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

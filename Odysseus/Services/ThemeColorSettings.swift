@@ -3,16 +3,18 @@
 //  Odysseus
 //
 //  Every color token in the app is overridable from Settings > Appearance.
-//  These are the built-in defaults — a neon-green HUD palette: black voids,
-//  glowing green rings/text/borders throughout the reactor and every
-//  section panel. An override in UserDefaults wins when present.
+//  These are the built-in defaults — a premium dark HUD palette: near-
+//  black graphite voids, a deep emerald signature accent, cooler blue and
+//  quiet olive wisps for depth, and exactly one gold used sparingly for
+//  highlights (never as a base color) instead of a saturated hue everywhere.
+//  An override in UserDefaults wins when present.
 //
 
 import Foundation
 
 enum ThemeToken: String, CaseIterable, Identifiable {
     case background, card, cardBorder, dimText, primaryText
-    case accent, terminalGreen, terminalAmber
+    case accent, terminalGreen, terminalAmber, negative
     case reactorCore, reactorDeep, reactorGlow
     case nebulaWispB, nebulaWispC, reactorAccentB
 
@@ -20,20 +22,21 @@ enum ThemeToken: String, CaseIterable, Identifiable {
 
     var defaultHex: String {
         switch self {
-        case .background: return "0B0910"
-        case .card: return "17131F"
-        case .cardBorder: return "2C2438"
-        case .dimText: return "9A90AC"
-        case .primaryText: return "F3EFFA"
-        case .accent: return "B48CE0"
-        case .terminalGreen: return "39FF14"
-        case .terminalAmber: return "E0B34C"
-        case .reactorCore: return "39FF14"
-        case .reactorDeep: return "021505"
-        case .reactorGlow: return "2BFF88"
-        case .nebulaWispB: return "7CFFB2"
-        case .nebulaWispC: return "1FAE58"
-        case .reactorAccentB: return "39FF14"
+        case .background: return "0B0E10"
+        case .card: return "141A1D"
+        case .cardBorder: return "232B2E"
+        case .dimText: return "7C8A8D"
+        case .primaryText: return "F1ECE2"
+        case .accent: return "2F8577"
+        case .terminalGreen: return "5FCB8C"
+        case .terminalAmber: return "C9A227"
+        case .negative: return "D9695F"
+        case .reactorCore: return "F2F5F4"
+        case .reactorDeep: return "060907"
+        case .reactorGlow: return "3FA98F"
+        case .nebulaWispB: return "4F8FA8"
+        case .nebulaWispC: return "8A7C6B"
+        case .reactorAccentB: return "C9A227"
         }
     }
 
@@ -47,12 +50,13 @@ enum ThemeToken: String, CaseIterable, Identifiable {
         case .accent: return "Signature Accent"
         case .terminalGreen: return "Success / Done"
         case .terminalAmber: return "Highlight / Amber"
-        case .reactorCore: return "Reactor Core (White-Cyan)"
+        case .negative: return "Error / Alert"
+        case .reactorCore: return "Reactor Core (Pale Mint)"
         case .reactorDeep: return "Reactor Void"
-        case .reactorGlow: return "Reactor Arc (Electric Blue)"
-        case .nebulaWispB: return "Reactor Arc (Cyan)"
-        case .nebulaWispC: return "Reactor Arc (Indigo)"
-        case .reactorAccentB: return "Reactor Arc (Magenta)"
+        case .reactorGlow: return "Reactor Arc (Teal)"
+        case .nebulaWispB: return "Reactor Arc (Blue)"
+        case .nebulaWispC: return "Reactor Arc (Olive)"
+        case .reactorAccentB: return "Reactor Arc (Gold)"
         }
     }
 }

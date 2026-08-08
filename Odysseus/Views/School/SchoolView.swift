@@ -297,7 +297,7 @@ struct SchoolView: View {
                 .disabled(isAsking || (homeworkQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && homeworkImageData == nil))
 
                 if let askError {
-                    Text(askError).font(.caption).foregroundStyle(Color(hex: "FF6B6B"))
+                    Text(askError).font(.caption).foregroundStyle(Theme.negative)
                 }
 
                 if let homeworkAnswer {

@@ -146,16 +146,16 @@ struct MindMapHomeView: View {
         ZStack {
             Theme.background
             RadialGradient(
-                colors: [Theme.reactorGlow.opacity(0.22), .clear],
-                center: UnitPoint(x: 0.5, y: 0.16), startRadius: 0, endRadius: 340
+                colors: [Theme.reactorGlow.opacity(0.1), .clear],
+                center: UnitPoint(x: 0.5, y: 0.16), startRadius: 0, endRadius: 260
             )
             RadialGradient(
-                colors: [Theme.nebulaWispB.opacity(0.14), .clear],
-                center: UnitPoint(x: 0.85, y: 0.55), startRadius: 0, endRadius: 260
+                colors: [Theme.nebulaWispB.opacity(0.06), .clear],
+                center: UnitPoint(x: 0.85, y: 0.55), startRadius: 0, endRadius: 200
             )
             RadialGradient(
-                colors: [Theme.nebulaWispC.opacity(0.12), .clear],
-                center: UnitPoint(x: 0.1, y: 0.7), startRadius: 0, endRadius: 240
+                colors: [Theme.nebulaWispC.opacity(0.05), .clear],
+                center: UnitPoint(x: 0.1, y: 0.7), startRadius: 0, endRadius: 180
             )
         }
     }
@@ -200,7 +200,7 @@ struct MindMapHomeView: View {
     private var liveBadge: some View {
         HStack(spacing: 5) {
             Circle()
-                .fill(odysseus.isActive ? Color(hex: "FF6B6B") : Theme.terminalGreen)
+                .fill(odysseus.isActive ? Theme.negative : Theme.terminalGreen)
                 .frame(width: 5, height: 5)
             Text(odysseus.isActive ? "LISTENING" : "STANDBY")
                 .font(.system(size: 9, design: .monospaced).weight(.bold))

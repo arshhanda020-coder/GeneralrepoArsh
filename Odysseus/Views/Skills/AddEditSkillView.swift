@@ -19,7 +19,7 @@ struct AddEditSkillView: View {
     @State private var targetSessions = 10
 
     private let emojiOptions = ["✨", "📊", "🐍", "🎤", "📈", "⌨️", "🎨", "🎵", "🧠", "💡", "🏆", "🧩", "🗣️", "🛠️", "📚"]
-    private let colorOptions = ["5B8CFF", "FF6B6B", "FFB84D", "FF8FD1", "4ADE80", "A78BFA", "38BDF8", "F472B6"]
+    private let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
 
     var body: some View {
         NavigationStack {

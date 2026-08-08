@@ -51,7 +51,7 @@ struct QuizSessionView: View {
                         .disabled(isSubmitting || !allAnswered)
 
                         if let submitError {
-                            Text(submitError).font(.caption).foregroundStyle(Color(hex: "C0605C"))
+                            Text(submitError).font(.caption).foregroundStyle(Theme.negative)
                         }
                     }
                 }
@@ -100,7 +100,7 @@ struct QuizSessionView: View {
                 Spacer()
                 if session.isSubmitted, let isCorrect = question.isCorrect {
                     Image(systemName: isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                        .foregroundStyle(isCorrect ? Theme.terminalGreen : Color(hex: "C0605C"))
+                        .foregroundStyle(isCorrect ? Theme.terminalGreen : Theme.negative)
                 }
             }
 
@@ -162,7 +162,7 @@ struct QuizSessionView: View {
                         .foregroundStyle(Theme.terminalGreen)
                 }
             }
-            .foregroundStyle(isWrongSelected ? Color(hex: "C0605C") : (isCorrectChoice ? Theme.terminalGreen : Theme.primaryText))
+            .foregroundStyle(isWrongSelected ? Theme.negative : (isCorrectChoice ? Theme.terminalGreen : Theme.primaryText))
         }
         .buttonStyle(.plain)
         .disabled(isSubmitted)

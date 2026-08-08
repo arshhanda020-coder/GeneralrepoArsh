@@ -28,6 +28,10 @@ enum Theme {
 
     static var terminalGreen: Color { Color(hex: ThemeColorSettings.hex(for: .terminalGreen)) }
     static var terminalAmber: Color { Color(hex: ThemeColorSettings.hex(for: .terminalAmber)) }
+    /// The one error/alert/destructive red used everywhere — previously two
+    /// different hardcoded reds (FF6B6B and C0605C) were sprinkled across
+    /// ~30 files for the same meaning; this is the single source now.
+    static var negative: Color { Color(hex: ThemeColorSettings.hex(for: .negative)) }
 
     /// Nebula palette — the reactor visual (home screen centerpiece, Odysseus
     /// mode, mind-map connectors) and every "themed around it" accent.

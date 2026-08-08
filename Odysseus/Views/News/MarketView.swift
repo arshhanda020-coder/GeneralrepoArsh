@@ -91,7 +91,7 @@ struct MarketView: View {
                             Text(String(format: "%.2f%%", abs(quote.changePercent)))
                         }
                         .font(.caption2.monospacedDigit())
-                        .foregroundStyle(quote.isUp ? Theme.terminalGreen : Color(hex: "C0605C"))
+                        .foregroundStyle(quote.isUp ? Theme.terminalGreen : Theme.negative)
                     }
                 } else if isRefreshing {
                     ProgressView().tint(Theme.dimText)
