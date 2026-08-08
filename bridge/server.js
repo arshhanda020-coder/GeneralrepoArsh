@@ -127,6 +127,32 @@ function runCodex({ prompt, cwd, fullAuto }) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// Git status for a project's repoPath — lets the app show branch/dirty/
+// ahead-behind without shelling out to a full agent run just to check state.
+// ---------------------------------------------------------------------------
+
+function gitStatus(cwd) {
+    return runProcess('git', ['-C', cwd, 'status', '--porcelain=v2', '--branch'], cwd).then(({ stdout, code }) => {
+        if (code !== 0) return { isRepo: false };
+        let branch = null;
+        let ahead = 0;
+        let behind = 0;
+        let dirty = 0;
+        for (const line of stdout.split('\n')) {
+            if (line.startsWith('# branch.head ')) {
+                branch = line.slice('# branch.head '.length).trim();
+            } else if (line.startsWith('# branch.ab ')) {
+                const match = line.match(/\+(\d+) -(\d+)/);
+                if (match) { ahead = Number(match[1]); behind = Number(match[2]); }
+            } else if (line && !line.startsWith('#')) {
+                dirty += 1;
+            }
+        }
+        return { isRepo: true, branch, ahead, behind, dirty };
+    });
+}
+
 function runProcess(command, args, cwd) {
     return new Promise((resolve, reject) => {
         const child = spawn(command, args, { cwd, timeout: RUN_TIMEOUT_MS });
@@ -228,6 +254,24 @@ const server = http.createServer(async (req, res) => {
         try {
             const result = await runner({ prompt: prompt.trim(), cwd: resolvedCwd, fullAuto: !!fullAuto });
             send(res, 200, result);
+        } catch (err) {
+            send(res, 500, { ok: false, error: err.message });
+        }
+        return;
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/git-status')) {
+        if (!isAuthed(req)) { send(res, 401, { ok: false, error: 'Bad or missing token.' }); return; }
+        const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
+        const cwd = (searchParams.get('cwd') || '').trim();
+        if (!cwd) { send(res, 400, { ok: false, error: 'cwd query param is required.' }); return; }
+        if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+            send(res, 400, { ok: false, error: `cwd "${cwd}" doesn't exist on this Mac.` });
+            return;
+        }
+        try {
+            const status = await gitStatus(cwd);
+            send(res, 200, { ok: true, ...status });
         } catch (err) {
             send(res, 500, { ok: false, error: err.message });
         }
