@@ -109,8 +109,12 @@ actor AnthropicService: AIProviderService {
         throw ServiceError.requestFailed("Copilot took too many steps — try again.")
     }
 
-    /// One-shot vision-capable call — used for homework help (School) and food
-    /// macro estimation (Food). No tools, no history; image is optional.
+    /// One-shot vision-capable call — used for homework help (School), food
+    /// macro estimation (Food), and other photo-based lookups. No history;
+    /// image is optional. Web search is available for anything the model
+    /// shouldn't guess at from training data alone (e.g. "what's this event
+    /// in the news photo," a real nutrition fact, current info a homework
+    /// question hinges on).
     func askAboutImage(prompt: String, imageData: Data?, systemPrompt: String) async throws -> String {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
@@ -129,15 +133,12 @@ actor AnthropicService: AIProviderService {
         }
         content.append(["type": "text", "text": prompt])
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 1200,
-            "thinking": ["type": "adaptive"],
-            "system": systemPrompt,
-            "messages": [["role": "user", "content": content]],
-        ]
-
-        let (contentBlocks, _) = try await performRequest(body: body, apiKey: apiKey)
+        let contentBlocks = try await performRequestWithSearch(
+            maxTokens: 1200,
+            system: systemPrompt,
+            messages: [["role": "user", "content": content]],
+            apiKey: apiKey
+        )
         let text = contentBlocks
             .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
             .joined(separator: "\n")
@@ -146,11 +147,9 @@ actor AnthropicService: AIProviderService {
 
     /// Generates a mixed set of multiple-choice and short-answer questions for the Test Me feature.
     /// `material` (assignments/notes logged for the topic) and `difficulty` steer the AI without
-    /// changing the fixed output format, so parsing stays the same regardless. Web search is
-    /// available so questions on fast-moving subjects (current events, recent data) can be
-    /// accurate/current rather than relying only on training-data knowledge; the server-side tool
-    /// occasionally needs a follow-up turn to finish searching (stop_reason "pause_turn"), same as
-    /// Copilot's chat loop, so this resends the in-progress turn instead of a single one-shot call.
+    /// changing the fixed output format, so parsing stays the same regardless. Web search (via
+    /// performRequestWithSearch) is available so questions on fast-moving subjects (current
+    /// events, recent data) can be accurate/current rather than relying only on training-data knowledge.
     func generateQuiz(subject: String, count: Int, material: String? = nil, difficulty: String? = nil) async throws -> [QuizQuestionDraft] {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
@@ -165,57 +164,37 @@ actor AnthropicService: AIProviderService {
             userText += "\n\nThe student's own logged material for this topic — base questions on this directly rather than generic textbook knowledge wherever it applies:\n\(material)"
         }
 
-        var messages: [[String: Any]] = [["role": "user", "content": [["type": "text", "text": userText]]]]
-
-        for _ in 0..<4 {
-            let body: [String: Any] = [
-                "model": model,
-                "max_tokens": 2000,
-                "thinking": ["type": "adaptive"],
-                "system": Self.quizSystemPrompt,
-                "messages": messages,
-                "tools": [["type": "web_search_20260209", "name": "web_search"]],
-            ]
-
-            let (contentBlocks, stopReason) = try await performRequest(body: body, apiKey: apiKey)
-
-            if stopReason == "pause_turn" {
-                // Server-side web search hit its internal step limit — resume
-                // by re-sending the assistant turn as-is, no new user message.
-                messages.append(["role": "assistant", "content": contentBlocks])
-                continue
-            }
-
-            let text = contentBlocks
-                .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
-                .joined(separator: "\n")
-            return Self.parseQuizBatch(text)
-        }
-
-        throw ServiceError.requestFailed("Quiz generation took too many steps — try again.")
+        let contentBlocks = try await performRequestWithSearch(
+            maxTokens: 2000,
+            system: Self.quizSystemPrompt,
+            messages: [["role": "user", "content": [["type": "text", "text": userText]]]],
+            apiKey: apiKey
+        )
+        let text = contentBlocks
+            .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
+            .joined(separator: "\n")
+        return Self.parseQuizBatch(text)
     }
 
-    /// Grades a free-typed short answer against the reference answer.
+    /// Grades a free-typed short answer against the reference answer. Web search is available for
+    /// cases where the reference/student answer hinges on a fact worth double-checking.
     func gradeShortAnswer(question: String, correctAnswer: String, userAnswer: String) async throws -> ShortAnswerGrade {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 300,
-            "thinking": ["type": "adaptive"],
-            "system": """
+        let contentBlocks = try await performRequestWithSearch(
+            maxTokens: 300,
+            system: """
             You are grading a student's short-answer quiz response. Be reasonably lenient — give credit for \
-            answers that capture the key idea even if worded differently. Respond in EXACTLY this format, \
-            nothing else:
+            answers that capture the key idea even if worded differently. Use web search if you need to verify \
+            a fact to grade accurately. Respond in EXACTLY this format, nothing else:
             VERDICT: CORRECT or INCORRECT
             FEEDBACK: <one brief, encouraging sentence explaining why, or what was missing>
             """,
-            "messages": [["role": "user", "content": [["type": "text", "text": "Question: \(question)\nReference answer: \(correctAnswer)\nStudent's answer: \(userAnswer)"]]]],
-        ]
-
-        let (contentBlocks, _) = try await performRequest(body: body, apiKey: apiKey)
+            messages: [["role": "user", "content": [["type": "text", "text": "Question: \(question)\nReference answer: \(correctAnswer)\nStudent's answer: \(userAnswer)"]]]],
+            apiKey: apiKey
+        )
         let text = contentBlocks
             .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
             .joined(separator: "\n")
@@ -297,21 +276,22 @@ actor AnthropicService: AIProviderService {
         return ShortAnswerGrade(isCorrect: isCorrect, feedback: feedback)
     }
 
-    /// One-shot draft-writing call — used for email composition. No tools, no history.
+    /// One-shot draft-writing call — used for email composition and every other
+    /// "write this up for me" text draft across the app (project updates, ACT
+    /// essays, GitHub descriptions, extracurricular write-ups, health
+    /// summaries, daily quotes). No history. Web search is available so a
+    /// draft can pull in real facts/current info instead of inventing them.
     func draft(prompt: String) async throws -> String {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 800,
-            "thinking": ["type": "adaptive"],
-            "system": "You write clear, professional email drafts. Return only the email body text — no subject line, no preamble, no markdown." + WritingProfile.styleInstruction,
-            "messages": [["role": "user", "content": [["type": "text", "text": prompt]]]],
-        ]
-
-        let (contentBlocks, _) = try await performRequest(body: body, apiKey: apiKey)
+        let contentBlocks = try await performRequestWithSearch(
+            maxTokens: 800,
+            system: "You write clear, professional drafts. Use web search if the draft depends on a real fact, name, or current detail you should verify rather than guess. Return only the draft text — no subject line, no preamble, no markdown." + WritingProfile.styleInstruction,
+            messages: [["role": "user", "content": [["type": "text", "text": prompt]]]],
+            apiKey: apiKey
+        )
         let text = contentBlocks
             .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
             .joined(separator: "\n")
@@ -319,25 +299,60 @@ actor AnthropicService: AIProviderService {
     }
 
     /// One-shot, historyless call used for proactive suggestions — not part of the
-    /// chat transcript, no tools, just "given this status, what's one good next step."
+    /// chat transcript, just "given this status, what's one good next step." Web
+    /// search is available in case the best suggestion depends on something
+    /// current (e.g. weather, a deadline tied to a real-world date).
     func suggestion(for statusContext: String) async throws -> String {
         guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey
         }
 
-        let body: [String: Any] = [
-            "model": model,
-            "max_tokens": 300,
-            "thinking": ["type": "adaptive"],
-            "system": "You are a proactive assistant for Odysseus, a personal app covering today's checklist, skills, projects, food/macros, workouts, school assignments, and upcoming tests. Given the user's current status across all of that, suggest exactly ONE short, specific, encouraging next action — prioritize anything overdue or due today. One or two sentences, no preamble, no lists.",
-            "messages": [["role": "user", "content": [["type": "text", "text": statusContext]]]],
-        ]
-
-        let (contentBlocks, _) = try await performRequest(body: body, apiKey: apiKey)
+        let contentBlocks = try await performRequestWithSearch(
+            maxTokens: 300,
+            system: "You are a proactive assistant for Odysseus, a personal app covering today's checklist, skills, projects, food/macros, workouts, school assignments, and upcoming tests. Given the user's current status across all of that, suggest exactly ONE short, specific, encouraging next action — prioritize anything overdue or due today. Use web search only if it would meaningfully sharpen the suggestion (e.g. a real current-events or scheduling detail) — don't search for its own sake. One or two sentences, no preamble, no lists.",
+            messages: [["role": "user", "content": [["type": "text", "text": statusContext]]]],
+            apiKey: apiKey
+        )
         let text = contentBlocks
             .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
             .joined(separator: "\n")
         return text.isEmpty ? "Check in on today's checklist — you've got momentum to keep." : text
+    }
+
+    /// Every one-shot (non-streaming) call in this file — homework help, quiz
+    /// generation/grading, drafts, suggestions — runs through this instead of
+    /// calling performRequest directly, so every AI feature in the app has
+    /// live web search available rather than being limited to training-data
+    /// knowledge. The server-side search tool occasionally needs a follow-up
+    /// turn to finish searching (stop_reason "pause_turn"); this resends the
+    /// in-progress turn when that happens, same continuation Copilot's chat
+    /// loop already handles.
+    private func performRequestWithSearch(
+        maxTokens: Int,
+        system: String,
+        messages initialMessages: [[String: Any]],
+        apiKey: String
+    ) async throws -> [[String: Any]] {
+        var messages = initialMessages
+        for _ in 0..<4 {
+            let body: [String: Any] = [
+                "model": model,
+                "max_tokens": maxTokens,
+                "thinking": ["type": "adaptive"],
+                "system": system,
+                "messages": messages,
+                "tools": [["type": "web_search_20260209", "name": "web_search"]],
+            ]
+
+            let (contentBlocks, stopReason) = try await performRequest(body: body, apiKey: apiKey)
+
+            if stopReason == "pause_turn" {
+                messages.append(["role": "assistant", "content": contentBlocks])
+                continue
+            }
+            return contentBlocks
+        }
+        throw ServiceError.requestFailed("Took too many steps — try again.")
     }
 
     private func performRequest(
