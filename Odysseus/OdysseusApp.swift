@@ -19,7 +19,7 @@ struct OdysseusApp: App {
             AIToolItem.self, Exam.self, StudySession.self,
             Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
-            ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
+            ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
             MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, SavedGitHubLink.self, ResearchEntry.self, AgentDefinition.self, AgentRun.self,
             ObsidianNote.self, DocNote.self, Note.self,
         ])
