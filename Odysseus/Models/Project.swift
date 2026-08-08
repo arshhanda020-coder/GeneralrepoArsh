@@ -18,9 +18,20 @@ final class Project {
     /// A longer-form plan (written by the user or AI-generated) that tasks
     /// with due dates get broken out from.
     var planText: String?
+    /// GitHub repo linked to this project (e.g. "https://github.com/owner/repo").
+    var repoURLString: String?
+    /// Absolute path (on the Mac running bridge/server.js) to this project's
+    /// real repo, if any — what a bridge run's `cwd` is scoped to.
+    var repoPath: String?
 
     @Relationship(deleteRule: .cascade, inverse: \ProjectTask.project)
     var tasks: [ProjectTask] = []
+
+    /// Claude Code / Codex runs made against `repoPath` through the bridge,
+    /// logged here so the project keeps a real history instead of the
+    /// one-shot request/response DevAgentBridgeView shows.
+    @Relationship(deleteRule: .cascade, inverse: \AgentRun.project)
+    var agentRuns: [AgentRun] = []
 
     init(
         id: String = UUID().uuidString,
@@ -30,7 +41,9 @@ final class Project {
         projectDescription: String = "",
         status: ProjectStatus = .building,
         createdAt: Date = .now,
-        planText: String? = nil
+        planText: String? = nil,
+        repoURLString: String? = nil,
+        repoPath: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -40,6 +53,8 @@ final class Project {
         self.statusRaw = status.rawValue
         self.createdAt = createdAt
         self.planText = planText
+        self.repoURLString = repoURLString
+        self.repoPath = repoPath
     }
 
     var status: ProjectStatus {
@@ -50,5 +65,10 @@ final class Project {
     var progress: Double {
         guard !tasks.isEmpty else { return 0 }
         return Double(tasks.filter { $0.isDone }.count) / Double(tasks.count)
+    }
+
+    var repoURL: URL? {
+        guard let repoURLString, !repoURLString.isEmpty else { return nil }
+        return URL(string: repoURLString)
     }
 }

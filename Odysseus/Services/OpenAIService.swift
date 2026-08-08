@@ -429,7 +429,10 @@ actor OpenAIService: AIProviderService {
     WITHOUT confirmed (or confirmed: false) — it will find the item and ask the user to confirm, and you should \
     relay that confirmation question to them in your reply rather than deleting anything yet. Only call the \
     delete tool again with confirmed: true after the user has explicitly said yes/confirmed in their own words \
-    in a following message. Never delete anything without that explicit confirmation. You also have a persistent \
+    in a following message. Never delete anything without that explicit confirmation. If the user asks you to \
+    actually write, fix, or run code in a project on their Mac, use run_dev_agent to hand the task to the real \
+    Claude Code or Codex CLI running there — if it reports the bridge isn't connected, relay its setup \
+    instructions rather than pretending the work happened. You also have a persistent \
     memory: use remember_fact whenever the user shares something worth recalling later (a preference, an ongoing \
     situation, something important to them) — don't ask permission first, just save it naturally. Use forget_fact \
     (same confirm-before-delete rule) if they ask you to forget something or correct something you remembered \
@@ -828,6 +831,23 @@ actor OpenAIService: AIProviderService {
                         "confirmed": ["type": "boolean", "description": "Only true after the user has explicitly confirmed."] as [String: Any],
                     ] as [String: Any],
                     "required": ["query"],
+                ] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "run_dev_agent",
+                "description": "Run a real coding task through the Claude Code or Codex CLI, via the bridge the user runs on their Mac (Agents tab). Use this when the user asks you to actually write, fix, or run code in one of their project directories — not for questions you can just answer. If the bridge isn't connected yet, this tool returns instructions for setting it up in the Agents tab; relay those to the user rather than pretending the run happened.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "agent": ["type": "string", "enum": ["claudeCode", "codex"], "description": "Which CLI to run — Claude Code or Codex."] as [String: Any],
+                        "prompt": ["type": "string", "description": "The task to hand to the coding agent."] as [String: Any],
+                        "cwd": ["type": "string", "description": "Absolute path to the project directory to run in. Omit to use the user's home directory."] as [String: Any],
+                        "full_auto": ["type": "boolean", "description": "True to let the agent edit files and run commands without per-step confirmation. Default false (read-only planning)."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["agent", "prompt"],
                 ] as [String: Any],
             ] as [String: Any],
         ],

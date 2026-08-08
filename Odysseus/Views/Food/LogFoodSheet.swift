@@ -12,10 +12,14 @@ import PhotosUI
 
 struct LogFoodSheet: View {
     var entry: FoodEntry?
+    /// Which meal section this was opened from (or the time-of-day guess for
+    /// a generic add) — only used to seed a new entry, ignored when editing.
+    var defaultMealType: MealType = .forCurrentTime()
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var text: String = ""
+    @State private var mealType: MealType = .snack
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var imageData: Data?
 
@@ -35,6 +39,13 @@ struct LogFoodSheet: View {
                 Section("What did you have?") {
                     TextField("e.g. Oatmeal and eggs", text: $text, axis: .vertical)
                         .lineLimit(3...6)
+
+                    Picker("Meal", selection: $mealType) {
+                        ForEach(MealType.allCases) { meal in
+                            Label(meal.rawValue, systemImage: meal.symbolName).tag(meal)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Photo") {
@@ -138,6 +149,7 @@ struct LogFoodSheet: View {
             }
             .onAppear {
                 text = entry?.note ?? ""
+                mealType = entry?.mealType ?? defaultMealType
                 imageData = entry?.imageData
                 calories = entry?.calories.map(String.init) ?? ""
                 protein = entry?.proteinGrams.map { String(format: "%.0f", $0) } ?? ""
@@ -251,6 +263,7 @@ struct LogFoodSheet: View {
 
         if let entry {
             entry.note = text
+            entry.mealType = mealType
             entry.imageData = imageData
             entry.calories = caloriesValue
             entry.proteinGrams = proteinValue
@@ -263,7 +276,8 @@ struct LogFoodSheet: View {
                 calories: caloriesValue,
                 proteinGrams: proteinValue,
                 carbsGrams: carbsValue,
-                fatGrams: fatValue
+                fatGrams: fatValue,
+                mealType: mealType
             )
             modelContext.insert(newEntry)
         }

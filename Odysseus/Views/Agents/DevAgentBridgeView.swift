@@ -12,7 +12,7 @@
 
 import SwiftUI
 
-enum DevAgentKind {
+enum DevAgentKind: Hashable, CaseIterable {
     case claudeCode
     case codex
 

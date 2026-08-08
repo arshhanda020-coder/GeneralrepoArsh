@@ -47,7 +47,12 @@ struct HealthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 stepsCard
-                overviewCard
+                // Food tab shows its own richer calorie/macro ring dashboard
+                // (NutritionRingsView) — this simpler balance card would just
+                // duplicate it, so it's reserved for the other three tabs.
+                if tab != .food {
+                    overviewCard
+                }
 
                 Picker("Section", selection: $tab) {
                     ForEach(Tab.allCases) { tab in
