@@ -21,7 +21,7 @@ struct OdysseusApp: App {
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self,
             ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
             MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, SavedGitHubLink.self, ResearchEntry.self, AgentDefinition.self, AgentRun.self,
-            StudyMaterial.self, PacingItem.self,
+            StudyMaterial.self, PacingItem.self, TopicMaterial.self,
             ObsidianNote.self, DocNote.self, Note.self,
         ])
         container = Self.makeContainer(schema: schema)

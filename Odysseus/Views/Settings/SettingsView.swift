@@ -141,7 +141,7 @@ struct SettingsView: View {
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self,
             ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
             MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, SavedGitHubLink.self, ResearchEntry.self, AgentDefinition.self, AgentRun.self,
-            ObsidianNote.self, StudyMaterial.self, PacingItem.self,
+            ObsidianNote.self, StudyMaterial.self, PacingItem.self, TopicMaterial.self,
         ]
         for type in types {
             try? modelContext.delete(model: type)

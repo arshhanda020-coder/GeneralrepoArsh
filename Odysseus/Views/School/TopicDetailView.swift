@@ -9,12 +9,16 @@
 import SwiftUI
 import SwiftData
 import PhotosUI
+import QuickLook
+import UniformTypeIdentifiers
 
 struct TopicDetailView: View {
     @Bindable var topic: Topic
 
     @Environment(\.modelContext) private var modelContext
     @State private var newAssignmentTitle = ""
+    @State private var showingAddMaterial = false
+    @State private var previewingMaterialURL: URL?
     @State private var editingAssignment: Assignment?
     @State private var explainingAssignment: Assignment?
     @State private var isExplaining = false
@@ -31,7 +35,7 @@ struct TopicDetailView: View {
     /// projects, with notes and scores — so "Test me" quizzes on what's
     /// actually here instead of guessing from the topic name alone.
     private var loggedMaterialSummary: String {
-        topic.assignments.map { assignment -> String in
+        let assignmentLines = topic.assignments.map { assignment -> String in
             var line = "[\(assignment.type.displayName)] \(assignment.title)"
             line += assignment.isDone ? " (completed)" : " (pending)"
             if let percent = assignment.percentScore {
@@ -41,7 +45,11 @@ struct TopicDetailView: View {
                 line += " — notes: \(notes)"
             }
             return line
-        }.joined(separator: "\n")
+        }
+        let materialLines = topic.material.map { item -> String in
+            item.text?.isEmpty == false ? "[Material] \(item.text!)" : "[Material] \(item.fileName ?? "attached file")"
+        }
+        return (assignmentLines + materialLines).joined(separator: "\n")
     }
 
     var body: some View {
@@ -98,6 +106,8 @@ struct TopicDetailView: View {
                 }
 
                 NotesSectionView(context: .topic(topic.id), accentColor: MindMapSection.school.accentColor)
+
+                materialSection
             }
             .padding(12)
         }
@@ -107,6 +117,10 @@ struct TopicDetailView: View {
         .sheet(item: $editingAssignment) { assignment in
             AddEditAssignmentView(assignment: assignment)
         }
+        .sheet(isPresented: $showingAddMaterial) {
+            AddTopicMaterialView(topic: topic)
+        }
+        .quickLookPreview($previewingMaterialURL)
         .confirmationDialog(
             "Add a photo of this first?",
             isPresented: Binding(get: { promptingPhotoFor != nil }, set: { if !$0 { promptingPhotoFor = nil } }),
@@ -262,5 +276,159 @@ struct TopicDetailView: View {
             }
             isExplaining = false
         }
+    }
+
+    // MARK: - Material
+
+    private var materialSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("MATERIAL")
+                    .font(.system(.caption2, design: .monospaced).weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                Spacer()
+                Button {
+                    showingAddMaterial = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(MindMapSection.school.accentColor)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if topic.material.isEmpty {
+                Text("PDFs, slideshows, or anything else from class — import a file or paste text to keep it here.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.dimText)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(topic.material.sorted { $0.addedAt > $1.addedAt }.enumerated()), id: \.element.id) { index, item in
+                        if index > 0 { Divider().overlay(Theme.cardBorder) }
+                        materialRow(item)
+                    }
+                }
+                .glassPanel(cornerRadius: 10)
+            }
+        }
+    }
+
+    private func materialRow(_ item: TopicMaterial) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: item.fileData != nil ? "doc.fill" : "text.alignleft")
+                .foregroundStyle(MindMapSection.school.accentColor)
+                .frame(width: 20)
+            Text(item.fileName ?? (item.text?.isEmpty == false ? item.text! : "Untitled"))
+                .font(.caption)
+                .foregroundStyle(Theme.primaryText)
+                .lineLimit(2)
+            Spacer()
+            Button {
+                modelContext.delete(item)
+            } label: {
+                Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.dimText)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .contentShape(Rectangle())
+        .onTapGesture { openMaterial(item) }
+    }
+
+    /// QuickLook needs a real file on disk — writes imported bytes to a
+    /// scratch location keyed by the material's own id so repeat taps reuse it.
+    private func openMaterial(_ item: TopicMaterial) {
+        guard let data = item.fileData else { return }
+        let name = item.fileName ?? "\(item.id).pdf"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(item.id).appendingPathComponent(name)
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: url.path) {
+                try data.write(to: url)
+            }
+            previewingMaterialURL = url
+        } catch {
+            // Nothing to preview if the write fails — the entry itself is unaffected.
+        }
+    }
+}
+
+private struct AddTopicMaterialView: View {
+    let topic: Topic
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+    @State private var text = ""
+    @State private var showingFileImporter = false
+    @State private var importedFileName: String?
+    @State private var importedFileData: Data?
+    @State private var importError: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Type or paste text") {
+                    TextField("Paste slides content, notes from class, anything", text: $text, axis: .vertical)
+                        .lineLimit(4...10)
+                }
+                Section("Import a file") {
+                    if let importedFileName {
+                        HStack {
+                            Image(systemName: "doc.fill").foregroundStyle(MindMapSection.school.accentColor)
+                            Text(importedFileName).font(.caption)
+                            Spacer()
+                            Button("Remove", role: .destructive) { self.importedFileName = nil; importedFileData = nil }
+                        }
+                    }
+                    Button {
+                        showingFileImporter = true
+                    } label: {
+                        Label(importedFileName == nil ? "Import PDF, slideshow, or file" : "Replace file", systemImage: "square.and.arrow.down")
+                    }
+                    if let importError {
+                        Text(importError).font(.caption).foregroundStyle(Theme.negative)
+                    }
+                }
+            }
+            .navigationTitle("Add Material")
+            .inlineNavigationTitle()
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && importedFileData == nil)
+                }
+            }
+            .fileImporter(isPresented: $showingFileImporter, allowedContentTypes: [.pdf, .presentation, .item], allowsMultipleSelection: false) { result in
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    let accessed = url.startAccessingSecurityScopedResource()
+                    defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+                    do {
+                        importedFileData = try Data(contentsOf: url)
+                        importedFileName = url.lastPathComponent
+                        importError = nil
+                    } catch {
+                        importError = "Couldn't read that file: \(error.localizedDescription)"
+                    }
+                case .failure(let error):
+                    importError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func save() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        modelContext.insert(TopicMaterial(
+            topic: topic,
+            text: trimmed.isEmpty ? nil : trimmed,
+            fileData: importedFileData,
+            fileName: importedFileName
+        ))
+        dismiss()
     }
 }

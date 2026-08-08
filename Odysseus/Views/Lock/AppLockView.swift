@@ -90,7 +90,7 @@ struct AppLockView: View {
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self,
             ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
             MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self,
-            StudyMaterial.self, PacingItem.self,
+            StudyMaterial.self, PacingItem.self, TopicMaterial.self,
         ]
         for type in types {
             try? modelContext.delete(model: type)

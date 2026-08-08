@@ -21,6 +21,11 @@ final class Topic {
     @Relationship(deleteRule: .cascade, inverse: \Assignment.topic)
     var assignments: [Assignment] = []
 
+    /// Source material — imported PDFs/slideshows/files, or typed/pasted
+    /// text — kept separate from Notes (your own writing).
+    @Relationship(deleteRule: .cascade, inverse: \TopicMaterial.topic)
+    var material: [TopicMaterial] = []
+
     init(
         id: String = UUID().uuidString,
         name: String,
