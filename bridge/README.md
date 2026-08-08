@@ -47,7 +47,20 @@ To keep it running in the background instead of a terminal tab, see
   installed and their versions.
 - `POST /run` — (token required) runs `claude -p "<prompt>" --output-format
   json --add-dir <cwd>` (or the `codex` equivalent) with `cwd` as the
-  process's working directory, and returns the result as JSON.
+  process's working directory, **blocks until it finishes**, and returns the
+  result as JSON. Kept for backwards compatibility.
+- `POST /tasks` — (token required) same run, but fire-and-forget: returns
+  `{ id, status: "working", ... }` immediately (HTTP 202) while the CLI keeps
+  running in the background.
+- `GET /tasks` — (token required) the task list — `?agent=claudeCode` or
+  `?agent=codex` to filter — newest first, each with `status: "working" |
+  "completed" | "error"`. This is what the app polls to build its dashboard
+  (the "Working / Completed" feed under Subagents → Claude Code/Codex),
+  mirroring `claude`'s own background-task view in a terminal.
+- `GET /tasks/:id` — (token required) a single task's current state.
+
+Task history persists to `~/.odysseus-bridge/tasks.json` (mode 600, capped
+at the 200 most recent) so it survives a server restart.
 
 The prompt is passed as an argument to `spawn`, never through a shell
 string, so it can't be used to inject a second command.
