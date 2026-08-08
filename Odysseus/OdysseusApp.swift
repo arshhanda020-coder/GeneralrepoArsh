@@ -102,8 +102,10 @@ struct OdysseusApp: App {
         // File > New Window (⌘N) opens another independent RootView backed
         // by the same shared SwiftData container, exactly like Mail/Notes.
         WindowGroup {
+            // Follows the system's light/dark setting instead of forcing
+            // dark everywhere — every Theme color has both a light and a
+            // dark default (see ThemeColorSettings) so this adapts cleanly.
             RootView()
-                .preferredColorScheme(.dark)
         }
         .modelContainer(container)
 

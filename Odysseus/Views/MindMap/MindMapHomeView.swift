@@ -2,11 +2,11 @@
 //  MindMapHomeView.swift
 //  Odysseus
 //
-//  Home screen rebuilt as a unified HUD dashboard (not a ring of app icons)
-//  modeled directly on a reference screenshot the user provided: a live
-//  badge/header, the reactor as the dominant centerpiece, a notification
-//  panel on the left, and the app's sections as a tappable status-list panel
-//  on the right — everything centered around Odysseus rather than a grid.
+//  Home screen: a plain, content-first list — a big title header like
+//  Notes/Messages, a pinned "Today" summary card, and every section as a
+//  flat list row (colored icon badge, title, count, chevron) with hairline
+//  dividers, the way Notes/Reminders/Settings and iMessage's conversation
+//  list actually look. No centerpiece artwork, no HUD readouts.
 //
 
 import SwiftUI
@@ -33,9 +33,8 @@ struct MindMapHomeView: View {
     @State private var showingSearch = false
     @State private var showingSettings = false
     @State private var selectedSection: MindMapSection?
-    /// Drives the cinematic zoom transition — the tapped tile expands into
-    /// the destination screen instead of a flat push, like selecting a
-    /// module on a HUD instead of a plain iOS nav push.
+    /// Drives the cinematic zoom transition — the tapped row expands into
+    /// the destination screen instead of a flat push.
     @Namespace private var sectionTransition
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
@@ -85,40 +84,21 @@ struct MindMapHomeView: View {
     }
     private var innovationCount: Int { aiToolItems.filter { $0.category == .innovation }.count }
 
+    /// Every section except Today, which gets its own pinned summary card.
+    private var listedSections: [MindMapSection] { MindMapSection.allCases.filter { $0 != .today } }
+
     var body: some View {
-        VStack(spacing: 0) {
-            header
-
-            GeometryReader { geo in
-                let reactorSize = min(geo.size.width * 0.72, geo.size.height * 0.46, 320)
-
-                VStack(spacing: 0) {
-                    ArcReactorView(size: reactorSize, isActive: momentum >= 1)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 4)
-                        .contentShape(Rectangle())
-                        .onTapGesture { odysseus.activate() }
-                        .accessibilityLabel("Odysseus")
-
-                    HStack(spacing: 6) {
-                        ForEach(statusRows) { row in
-                            statusChip(row)
-                        }
-                    }
-                    .padding(.top, 14)
-
-                    ScrollView(showsIndicators: false) {
-                        sectionsGrid
-                            .padding(.top, 14)
-                            .padding(.bottom, 12)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                header
+                todayCard
+                sectionsList
             }
-            .padding(.top, 6)
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
         }
-        .background(ambientGlassBackdrop.ignoresSafeArea())
+        .background(Theme.background.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             NewsTickerView()
         }
@@ -136,153 +116,160 @@ struct MindMapHomeView: View {
         }
     }
 
-    // MARK: - Backdrop
-
-    /// Soft, colored ambient light behind the whole screen — without this,
-    /// the frosted glass panels have nothing but flat black to diffuse and
-    /// just look like tinted rectangles. Real glass reads as glass when
-    /// there's light bleeding through it.
-    private var ambientGlassBackdrop: some View {
-        ZStack {
-            Theme.background
-            RadialGradient(
-                colors: [Theme.reactorGlow.opacity(0.1), .clear],
-                center: UnitPoint(x: 0.5, y: 0.16), startRadius: 0, endRadius: 260
-            )
-            RadialGradient(
-                colors: [Theme.nebulaWispB.opacity(0.06), .clear],
-                center: UnitPoint(x: 0.85, y: 0.55), startRadius: 0, endRadius: 200
-            )
-            RadialGradient(
-                colors: [Theme.nebulaWispC.opacity(0.05), .clear],
-                center: UnitPoint(x: 0.1, y: 0.7), startRadius: 0, endRadius: 180
-            )
-        }
-    }
-
     // MARK: - Header
 
+    /// Big bold title like Notes' "Notes" / Messages' "Messages", with the
+    /// same settings/search icon cluster the HUD header had, just plain.
     private var header: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center) {
             Button {
-                showingSettings = true
+                odysseus.activate()
             } label: {
-                Image(systemName: "gearshape.fill")
-                    .font(.caption)
-                    .foregroundStyle(Theme.dimText)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Settings")
-
-            Text("O.D.Y.S.S.E.U.S")
-                .font(.system(size: 13, design: .monospaced).weight(.bold))
-                .tracking(2)
-                .foregroundStyle(Theme.reactorCore)
-
-            Spacer(minLength: 8)
-
-            liveBadge
-
-            Button {
-                showingSearch = true
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.caption)
-                    .foregroundStyle(Theme.dimText)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Search everything")
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 10)
-    }
-
-    private var liveBadge: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(odysseus.isActive ? Theme.negative : Theme.terminalGreen)
-                .frame(width: 5, height: 5)
-            Text(odysseus.isActive ? "LISTENING" : "STANDBY")
-                .font(.system(size: 9, design: .monospaced).weight(.bold))
-                .tracking(1)
-                .foregroundStyle(Theme.dimText)
-            Text("·")
-                .foregroundStyle(Theme.dimText)
-            Text(Self.timeFormatter.string(from: .now))
-                .font(.system(size: 9, design: .monospaced))
-                .foregroundStyle(Theme.dimText)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .glassCapsule(
-            tintOpacity: 0.5,
-            borderColor: Theme.reactorGlow,
-            borderOpacity: 0.4,
-            glow: Theme.reactorGlow,
-            glowRadius: 4
-        )
-    }
-
-    // MARK: - Status chips
-
-    private var statusRows: [HUDStatusRow] {
-        [
-            HUDStatusRow("TODAY", "\(Int(momentum * 100))%", isLive: momentum > 0),
-            HUDStatusRow("OVERDUE", "\(overdueCount)", isLive: overdueCount > 0),
-            HUDStatusRow("DUE 7D", "\(upcomingAgendaCount)", isLive: upcomingAgendaCount > 0),
-            HUDStatusRow("AI FINDS", "\(innovationCount)", isLive: innovationCount > 0),
-        ]
-    }
-
-    private func statusChip(_ row: HUDStatusRow) -> some View {
-        VStack(spacing: 3) {
-            Text(row.value)
-                .font(.system(size: 15, design: .monospaced).weight(.bold))
-                .foregroundStyle(row.isLive ? Theme.terminalGreen : Theme.dimText)
-            Text(row.label)
-                .font(.system(size: 8, design: .monospaced))
-                .tracking(0.5)
-                .foregroundStyle(Theme.dimText)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .glassPanel(cornerRadius: 6, tintOpacity: 0.55, borderColor: Theme.reactorGlow.opacity(0.3))
-    }
-
-    // MARK: - Sections grid
-
-    /// The app's actual navigation now — living in a dense instrumentation
-    /// grid below the reactor instead of a separate icon ring.
-    private var sectionsGrid: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-            ForEach(MindMapSection.allCases) { section in
-                Button {
-                    selectedSection = section
-                } label: {
-                    let value = badge(for: section)
-                    HStack(spacing: 5) {
+                HStack(spacing: 7) {
+                    Text("Odysseus")
+                        .font(.largeTitle.weight(.bold))
+                        .foregroundStyle(Theme.primaryText)
+                    if odysseus.isActive {
                         Circle()
-                            .fill(value != nil ? Theme.terminalGreen : Theme.dimText.opacity(0.4))
-                            .frame(width: 5, height: 5)
-                        Text(section.title.uppercased())
-                            .font(.system(size: 10, design: .monospaced).weight(.semibold))
-                            .foregroundStyle(value != nil ? Theme.terminalGreen : Theme.primaryText)
-                            .lineLimit(1)
-                        Spacer(minLength: 4)
-                        Text(value ?? "—")
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(value != nil ? Theme.terminalGreen : Theme.dimText.opacity(0.6))
-                            .lineLimit(1)
+                            .fill(Theme.negative)
+                            .frame(width: 7, height: 7)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 9)
-                    .frame(maxWidth: .infinity)
-                    .glassPanel(cornerRadius: 6, tintOpacity: 0.5, borderColor: Theme.reactorGlow.opacity(0.25))
                 }
-                .buttonStyle(.plain)
-                .matchedTransitionSource(id: section, in: sectionTransition)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(odysseus.isActive ? "Odysseus, listening" : "Odysseus")
+
+            Spacer()
+
+            HStack(spacing: 20) {
+                Button { showingSearch = true } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityLabel("Search everything")
+
+                Button { showingSettings = true } label: {
+                    Image(systemName: "gearshape")
+                }
+                .accessibilityLabel("Settings")
+            }
+            .font(.title3)
+            .foregroundStyle(Theme.accent)
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Today card
+
+    private var todaySubtitle: String {
+        let counts = todayChecklistCounts
+        if counts.total == 0 { return "Nothing due" }
+        return "\(counts.done) of \(counts.total) done"
+    }
+
+    /// Pinned summary card — the equivalent of Reminders' smart "Today" list
+    /// sitting above your own lists.
+    private var todayCard: some View {
+        Button {
+            selectedSection = .today
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .stroke(Theme.cardBorder, lineWidth: 3)
+                    Circle()
+                        .trim(from: 0, to: max(momentum, 0.001))
+                        .stroke(Theme.terminalGreen, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                }
+                .frame(width: 32, height: 32)
+                .opacity(todayChecklistCounts.total == 0 ? 0.35 : 1)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Today")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Theme.primaryText)
+                    Text(todaySubtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.dimText)
+                }
+
+                Spacer()
+
+                if overdueCount > 0 {
+                    Text("\(overdueCount)")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Theme.negative, in: Capsule())
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.dimText.opacity(0.5))
+            }
+            .padding(14)
+        }
+        .buttonStyle(.plain)
+        .glassPanel(cornerRadius: 14)
+        .matchedTransitionSource(id: MindMapSection.today, in: sectionTransition)
+    }
+
+    // MARK: - Sections list
+
+    /// The app's navigation — a plain grouped list, like Settings/Notes
+    /// folders, instead of a dense instrumentation grid.
+    private var sectionsList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(listedSections.enumerated()), id: \.element.id) { index, section in
+                if index > 0 {
+                    Divider()
+                        .overlay(Theme.cardBorder)
+                        .padding(.leading, 56)
+                }
+                sectionRow(section)
             }
         }
+        .glassPanel(cornerRadius: 14)
+    }
+
+    private func sectionRow(_ section: MindMapSection) -> some View {
+        Button {
+            selectedSection = section
+        } label: {
+            HStack(spacing: 12) {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(section.accentColor)
+                    .frame(width: 30, height: 30)
+                    .overlay(
+                        Image(systemName: section.symbolName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                    )
+
+                Text(section.title)
+                    .font(.body)
+                    .foregroundStyle(Theme.primaryText)
+                    .lineLimit(1)
+
+                Spacer()
+
+                if let value = badge(for: section) {
+                    Text(value)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.dimText)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.dimText.opacity(0.5))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .matchedTransitionSource(id: section, in: sectionTransition)
     }
 
     @ViewBuilder
@@ -354,12 +341,6 @@ struct MindMapHomeView: View {
             return docNotes.isEmpty ? nil : "\(docNotes.count)"
         }
     }
-
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
 }
 
 #Preview {

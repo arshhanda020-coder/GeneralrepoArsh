@@ -86,6 +86,38 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// A small set of flat iOS system colors, one per section's row icon
+    /// badge — the same idea as the colored row icons in Settings/Reminders,
+    /// which is what actually keeps a 20-row flat list scannable (a single
+    /// accent everywhere works for buttons/links, but not for that many
+    /// identical rows in a row).
+    var builtInAccentHex: String {
+        switch self {
+        case .today: return "34C759" // green
+        case .skills: return "00C7BE" // mint
+        case .projects: return "FF9500" // orange
+        case .news: return "FF3B30" // red
+        case .copilot: return "5856D6" // indigo
+        case .stats: return "007AFF" // blue
+        case .emails: return "32ADE6" // cyan
+        case .aiIntegration: return "AF52DE" // purple
+        case .github: return "8E8E93" // gray
+        case .school: return "A2845E" // brown
+        case .health: return "FF2D55" // pink
+        case .calendar: return "FF3B30" // red
+        case .extracurriculars: return "FFCC00" // yellow
+        case .memory: return "AF52DE" // purple
+        case .research: return "30B0C7" // teal
+        case .agents: return "5856D6" // indigo
+        case .claudeCode: return "FF9500" // orange
+        case .codex: return "5856D6" // indigo
+        case .obsidian: return "AF52DE" // purple
+        case .notes: return "FFCC00" // yellow
+        }
+    }
+
+    var accentColor: Color { Color(hex: builtInAccentHex) }
+
     /// SF Symbols only — no emoji. Keeps the home screen looking like
     /// instrumentation, not a sticker sheet.
     var symbolName: String {
@@ -112,37 +144,4 @@ enum MindMapSection: String, CaseIterable, Identifiable, Hashable {
         case .notes: return "note.text"
         }
     }
-
-    /// A restrained, closely-related family of muted tones — one design, not
-    /// a different saturated color per tab. Copilot/AI Tools share the app's
-    /// signature brass accent; everything else sits in quiet steel-blue or
-    /// warm taupe, varying just enough to still tell sections apart at a glance.
-    var builtInAccentHex: String {
-        switch self {
-        case .today: return "5C7A99"
-        case .skills: return "6C8AA6"
-        case .projects: return "748CA3"
-        case .news: return "8A8368"
-        case .copilot: return "C9A227"
-        case .stats: return "5F6672"
-        case .emails: return "6B7280"
-        case .aiIntegration: return "B8935B"
-        case .github: return "747C87"
-        case .school: return "7D8570"
-        case .health: return "9C8F6E"
-        case .calendar: return "6C8AA6"
-        case .extracurriculars: return "A08A5E"
-        case .memory: return "8C7BA6"
-        case .research: return "6E8C7D"
-        case .agents: return "5E8AA6"
-        case .claudeCode: return "B8935B"
-        case .codex: return "5FA88C"
-        case .obsidian: return "8C7BA6"
-        case .notes: return "7A9488"
-        }
-    }
-
-    /// Reads Settings > Appearance's override when set, otherwise the built-in default.
-    var accentHex: String { ThemeColorSettings.sectionHex(for: self) }
-    var accentColor: Color { Color(hex: accentHex) }
 }
