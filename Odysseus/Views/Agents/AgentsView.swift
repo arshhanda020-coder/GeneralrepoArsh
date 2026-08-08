@@ -190,6 +190,8 @@ private struct AgentDetailView: View {
                     }
                     .glassPanel(cornerRadius: 8)
                 }
+
+                NotesSectionView(context: .agentDefinition(agent.id), accentColor: MindMapSection.agents.accentColor)
             }
             .padding(12)
         }

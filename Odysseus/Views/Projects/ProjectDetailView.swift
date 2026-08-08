@@ -64,6 +64,14 @@ struct ProjectDetailView: View {
                 }
             }
             .listRowBackground(Theme.card)
+
+            Section("NOTES") {
+                NotesSectionView(context: .project(project.id), accentColor: accentColor)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .padding(8)
+            }
+            .listRowBackground(Theme.card)
         }
         #if os(iOS)
         .listStyle(.insetGrouped)

@@ -36,6 +36,11 @@ final class DocNote {
     var sourceIdentifier: String
     var modifiedAt: Date
     var importedAt: Date
+    /// Like `Note`, an imported doc can be attached somewhere else in the
+    /// app (a Project, a School topic, pinned to Today, …) instead of only
+    /// living in the Notes hub.
+    var contextTypeRaw: String?
+    var contextID: String?
 
     var source: DocNoteSource {
         get { DocNoteSource(rawValue: sourceRaw) ?? .notability }
@@ -50,7 +55,8 @@ final class DocNote {
         source: DocNoteSource,
         sourceIdentifier: String,
         modifiedAt: Date,
-        importedAt: Date = .now
+        importedAt: Date = .now,
+        context: NoteContext? = nil
     ) {
         self.id = id
         self.title = title
@@ -60,5 +66,9 @@ final class DocNote {
         self.sourceIdentifier = sourceIdentifier
         self.modifiedAt = modifiedAt
         self.importedAt = importedAt
+        self.contextTypeRaw = context?.typeRaw
+        self.contextID = context?.recordID
     }
 }
+
+extension DocNote: NoteContextLinkable {}

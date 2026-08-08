@@ -99,6 +99,8 @@ struct TodayView: View {
                     }
                     .glassPanel(cornerRadius: 10)
                 }
+
+                NotesSectionView(context: .today, accentColor: MindMapSection.today.accentColor)
             }
             .padding(12)
         }
