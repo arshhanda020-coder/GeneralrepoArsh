@@ -201,5 +201,8 @@ struct LogWorkoutSheet: View {
             let newEntry = WorkoutEntry(note: text, imageData: imageData, durationMinutes: totalMinutes, caloriesBurned: Int(caloriesText))
             modelContext.insert(newEntry)
         }
+        // A fresh entry just landed, so the "haven't logged a workout in a
+        // while" nudge (if one was pending) is no longer accurate.
+        NotificationManager.shared.cancelOneOff(identifier: "workout-nudge")
     }
 }

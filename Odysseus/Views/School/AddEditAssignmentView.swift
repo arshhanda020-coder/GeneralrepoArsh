@@ -99,7 +99,7 @@ struct AddEditAssignmentView: View {
 
     private func deleteAssignment() {
         if let assignment {
-            NotificationManager.shared.cancelOneOff(identifier: "assignment-\(assignment.id)")
+            NotificationManager.shared.cancelReminders(assignmentID: assignment.id)
             modelContext.delete(assignment)
         }
         dismiss()

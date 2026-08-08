@@ -67,7 +67,7 @@ struct AddEditProjectTaskView: View {
     }
 
     private func deleteTask() {
-        NotificationManager.shared.cancelOneOff(identifier: "project-task-\(task.id)")
+        NotificationManager.shared.cancelReminders(projectTaskID: task.id)
         modelContext.delete(task)
         dismiss()
     }

@@ -229,7 +229,7 @@ struct ProjectDetailView: View {
     private func deleteTasks(at offsets: IndexSet) {
         let items = sortedTasks
         for index in offsets {
-            NotificationManager.shared.cancelOneOff(identifier: "project-task-\(items[index].id)")
+            NotificationManager.shared.cancelReminders(projectTaskID: items[index].id)
             modelContext.delete(items[index])
         }
     }

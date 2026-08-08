@@ -76,6 +76,12 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Notifications") {
+                    NavigationLink(destination: NotificationSettingsView()) {
+                        Label("Reminders & alerts", systemImage: "bell.badge")
+                    }
+                }
+
                 Section("Security") {
                     Button {
                         showingChangePIN = true

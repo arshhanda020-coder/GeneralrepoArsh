@@ -267,5 +267,8 @@ struct LogFoodSheet: View {
             )
             modelContext.insert(newEntry)
         }
+        // A same-day entry just landed, so the "you forgot to log food"
+        // nudge (if one was pending) is no longer accurate.
+        NotificationManager.shared.cancelOneOff(identifier: "food-nudge")
     }
 }
