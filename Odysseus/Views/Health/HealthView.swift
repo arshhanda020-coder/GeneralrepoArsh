@@ -66,7 +66,6 @@ struct HealthView: View {
                 switch tab {
                 case .food: FoodContentView()
                 case .workouts: WorkoutContentView()
-                case .activity: ActivityView()
                 case .progress: BodyProgressView()
                 }
             }
@@ -152,7 +151,7 @@ struct HealthView: View {
         HealthView()
     }
     .modelContainer(
-        for: [FoodEntry.self, WorkoutEntry.self, ActivitySession.self, ProgressEntry.self, MonthlyReport.self],
+        for: [FoodEntry.self, WorkoutEntry.self, ProgressEntry.self, MonthlyReport.self],
         inMemory: true
     )
 }

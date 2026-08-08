@@ -44,6 +44,18 @@ nonisolated enum NutritionGoals {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: modeKey) }
     }
 
+    /// Current cut: fixed 1800 cal/day, at least 160g protein — set directly
+    /// rather than derived from the TDEE ± offset formula, since that's the
+    /// literal number being tracked against right now, not a formula output.
+    /// Runs once (no-op after the first call, or once the user's edited goals
+    /// themselves via NutritionGoalsSheet) so it never stomps a later choice.
+    static func seedCutDefaultsIfNeeded() {
+        guard manualCalories == nil, manualProteinGrams == nil else { return }
+        mode = .lose
+        manualCalories = 1800
+        manualProteinGrams = 160
+    }
+
     /// Effective daily calorie goal — manual override, else maintenance ± the
     /// goalMode's offset, else a generic 2000 fallback when there's no
     /// profile data yet at all (so the ring never has nothing to show).

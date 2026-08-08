@@ -16,6 +16,7 @@ struct FoodContentView: View {
     @Query(sort: \FoodEntry.date, order: .reverse) private var allEntries: [FoodEntry]
     @Query(sort: \ProgressEntry.date, order: .reverse) private var progressEntries: [ProgressEntry]
     @Query(sort: \WorkoutEntry.date, order: .reverse) private var workoutEntries: [WorkoutEntry]
+    @ObservedObject private var healthKit = HealthKitManager.shared
 
     @State private var showingLog = false
     @State private var showingGoals = false
@@ -37,12 +38,19 @@ struct FoodContentView: View {
         return (cals, protein, carbs, fat)
     }
 
-    private var todaysExerciseCalories: Int {
-        workoutEntries
-            .filter { Calendar.current.isDate($0.date, inSameDayAs: today) }
-            .compactMap(\.caloriesBurned)
-            .reduce(0, +)
+    private var todaysWorkoutCalories: Int {
+        todaysWorkoutEntries.compactMap(\.caloriesBurned).reduce(0, +)
     }
+
+    /// Today's steps converted to a calorie burn, MFP's "synced with Apple
+    /// Health" behavior — counted alongside logged workouts, not instead of.
+    private var todaysStepCalories: Int {
+        guard let steps = healthKit.todaysSteps else { return 0 }
+        let weight = progressEntries.first(where: { $0.weight != nil })?.weight
+        return StepCalorieEstimator.calories(steps: steps, weightLbs: weight)
+    }
+
+    private var todaysExerciseCalories: Int { todaysWorkoutCalories + todaysStepCalories }
 
     private var maintenanceCalories: Int? {
         let weight = progressEntries.first(where: { $0.weight != nil })?.weight
@@ -109,6 +117,9 @@ struct FoodContentView: View {
         }
         .sheet(item: $editingWorkout) { entry in
             LogWorkoutSheet(entry: entry)
+        }
+        .onAppear {
+            NutritionGoals.seedCutDefaultsIfNeeded()
         }
     }
 
@@ -209,12 +220,18 @@ struct FoodContentView: View {
                 .buttonStyle(.plain)
             }
             VStack(spacing: 0) {
-                if todaysWorkoutEntries.isEmpty {
+                if todaysStepCalories == 0 && todaysWorkoutEntries.isEmpty {
                     Text("No exercise logged yet.")
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
                         .padding(10)
                 } else {
+                    if todaysStepCalories > 0 {
+                        stepsRow
+                        if !todaysWorkoutEntries.isEmpty {
+                            Divider().overlay(Theme.cardBorder)
+                        }
+                    }
                     ForEach(Array(todaysWorkoutEntries.enumerated()), id: \.element.id) { index, entry in
                         if index > 0 {
                             Divider().overlay(Theme.cardBorder)
@@ -225,6 +242,33 @@ struct FoodContentView: View {
             }
             .glassPanel(cornerRadius: 10)
         }
+    }
+
+    /// A synthetic, non-tappable row for step-based burn — not a WorkoutEntry,
+    /// just Apple Health's step count converted to calories, MFP's "synced
+    /// with Apple Health" line.
+    private var stepsRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "figure.walk")
+                .font(.caption)
+                .foregroundStyle(MindMapSection.health.accentColor)
+                .frame(width: 40, height: 40)
+                .background(Theme.card.opacity(0.4))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Steps")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primaryText)
+                Text("\(healthKit.todaysSteps ?? 0) steps")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
+            Spacer()
+            Text("-\(todaysStepCalories) cal")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(Theme.terminalAmber)
+        }
+        .padding(10)
     }
 
     private var historySection: some View {
