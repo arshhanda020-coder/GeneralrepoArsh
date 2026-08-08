@@ -46,13 +46,18 @@ final class NotificationManager {
     // Shared by project task milestones, assignment due dates, and anything
     // else that just needs "remind me once, at this date/time."
 
-    /// Fires at 9am on the given date. Silently does nothing if the date has
-    /// already passed (no point scheduling a reminder for the past).
+    /// Fires at the given date's own time of day, or 9am if it's just a bare
+    /// day (midnight — the case for anything scheduled through the date-only
+    /// picker UI, or a Copilot call that didn't specify a time). Silently
+    /// does nothing if the date has already passed (no point scheduling a
+    /// reminder for the past).
     func scheduleOneOff(identifier: String, title: String, body: String, date: Date) {
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
-        var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        comps.hour = 9
-        comps.minute = 0
+        var comps = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        if comps.hour == 0 && comps.minute == 0 {
+            comps.hour = 9
+            comps.minute = 0
+        }
         guard let fireDate = Calendar.current.date(from: comps), fireDate > .now else { return }
 
         let content = UNMutableNotificationContent()

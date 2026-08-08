@@ -407,7 +407,7 @@ actor OpenAIService: AIProviderService {
     nonisolated private static var dateContext: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        return "\n\nToday's date is \(formatter.string(from: .now)). Use this to resolve relative dates the user says (\"Friday\", \"next week\", \"in 3 days\") into exact yyyy-MM-dd dates for any due_date/exam_date field — never leave a date tool call without resolving it to a real date."
+        return "\n\nToday's date is \(formatter.string(from: .now)). Use this to resolve relative dates the user says (\"Friday\", \"next week\", \"in 3 days\") into exact yyyy-MM-dd dates for any due_date/exam_date field — never leave a date tool call without resolving it to a real date. If they also give a time (\"at 5pm\", \"by noon\"), resolve it into 24-hour HH:mm for due_time/new_due_time — don't drop it."
     }
 
     nonisolated private static var systemPrompt: String {
@@ -415,8 +415,9 @@ actor OpenAIService: AIProviderService {
     You are Odysseus, the in-app copilot for Odysseus — a personal app for today's checklist, skills, projects, news, food/macros, \
     workouts, school, and coding projects. You can both answer questions and take actions using your tools: check \
     today's status, log skill practice sessions, add/edit/delete tasks on projects, add/edit/delete extracurricular \
-    activities, add/edit/delete skills, add/edit/delete assignments and exams (Calendar/School), edit/delete logged \
-    food and workout entries (Health), fetch cached news \
+    activities, add/edit/delete skills, add/edit/delete assignments and exams (Calendar/School) — including at a \
+    specific time of day, not just a date, when the user gives one — pull up notes and imported docs saved under \
+    a School subject or topic, edit/delete logged food and workout entries (Health), fetch cached news \
     headlines by topic (finance, accounting, economics, ai, or all), recall the user's GitHub repositories, and \
     draft outreach emails that get saved for the user \
     to review and send themselves (you never send email directly). When the user mentions wanting to work on or \
@@ -572,6 +573,7 @@ actor OpenAIService: AIProviderService {
                     "properties": [
                         "title": ["type": "string", "description": "The assignment's title."] as [String: Any],
                         "due_date": ["type": "string", "description": "Exact due date in yyyy-MM-dd format."] as [String: Any],
+                        "due_time": ["type": "string", "description": "Optional exact time of day in 24-hour HH:mm format (e.g. \"14:30\" for 2:30pm), if the user gave a specific time. Omit for an all-day due date — the reminder then defaults to 9am."] as [String: Any],
                         "notes": ["type": "string", "description": "Optional extra notes."] as [String: Any],
                     ] as [String: Any],
                     "required": ["title"],
@@ -582,16 +584,32 @@ actor OpenAIService: AIProviderService {
             "type": "function",
             "function": [
                 "name": "edit_assignment",
-                "description": "Edit an existing assignment's title, due date, or done state.",
+                "description": "Edit an existing assignment's title, due date/time, or done state.",
                 "parameters": [
                     "type": "object",
                     "properties": [
                         "query": ["type": "string", "description": "A distinctive substring of the existing assignment's title."] as [String: Any],
                         "new_title": ["type": "string", "description": "New title, if renaming."] as [String: Any],
                         "new_due_date": ["type": "string", "description": "New due date, exact yyyy-MM-dd format."] as [String: Any],
+                        "new_due_time": ["type": "string", "description": "New exact time of day in 24-hour HH:mm format. Can be set alone (e.g. \"move it to 5pm\") without repeating new_due_date — it re-anchors on the existing due day."] as [String: Any],
                         "mark_done": ["type": "boolean", "description": "Set true/false to mark done or not done."] as [String: Any],
                     ] as [String: Any],
                     "required": ["query"],
+                ] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "get_school_material",
+                "description": "Pull up whatever's been saved under a School subject — freeform notes, imported Google Docs/Notability material, and assignments attached to a class or a specific topic within it. Use this whenever the user asks to see, pull up, or recall material for a subject/topic.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "subject": ["type": "string", "description": "A class name (e.g. \"AP Chemistry\") or a specific topic name within a class (e.g. \"Recursion\"), or a distinctive substring of either."] as [String: Any],
+                        "query": ["type": "string", "description": "Optional extra filter — only return material whose title or content contains this."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["subject"],
                 ] as [String: Any],
             ] as [String: Any],
         ],
