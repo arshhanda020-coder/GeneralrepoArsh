@@ -2,9 +2,12 @@
 //  HealthView.swift
 //  Odysseus
 //
-//  Food + Workouts + Activity (calorie-burn timer) + Progress (physique/weight
+//  Food + Workouts (log + calorie-burn calc) + Progress (physique/weight
 //  journal), all under one Health tab, plus today's step count from Apple
-//  Health up top.
+//  Health up top. Activity used to be its own stopwatch-based tab with a
+//  separate model (ActivitySession) that never fed into the calorie math —
+//  merged into Workouts so every logged session (typed activity + intensity
+//  + duration, no stopwatch required) counts toward today's burn.
 //
 
 import SwiftUI
@@ -12,7 +15,7 @@ import SwiftData
 
 struct HealthView: View {
     enum Tab: String, CaseIterable, Identifiable {
-        case food, workouts, activity, progress
+        case food, workouts, progress
 
         var id: String { rawValue }
 
@@ -20,7 +23,6 @@ struct HealthView: View {
             switch self {
             case .food: return "Food"
             case .workouts: return "Workouts"
-            case .activity: return "Activity"
             case .progress: return "Progress"
             }
         }
