@@ -241,15 +241,16 @@ struct LogFoodSheet: View {
         guard hasPhoto || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isEstimating = true
         estimateError = nil
+        let restaurantNote = "If this names or clearly implies a specific restaurant/chain (e.g. Chipotle, Starbucks, Subway, McDonald's, Panera) and its menu items/ingredients (e.g. \"double chicken\", \"brown rice\", \"black beans\", \"queso\"), use your knowledge of that chain's actual published nutrition info per item/portion and add them up precisely — don't fall back to a generic guess when you know the real numbers. Otherwise, estimate as accurately as you reasonably can."
         let prompt = hasPhoto
-            ? "Look closely at this meal photo. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is — name the dish/ingredients you can identify, not generic filler>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>"
-            : "Estimate nutrition for this meal from its description. Respond in EXACTLY this format, nothing else:\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\nMeal: \(text)"
+            ? "Look closely at this meal photo. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is — name the dish/ingredients you can identify, not generic filler>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\n\(restaurantNote)"
+            : "Estimate nutrition for this meal from its description. Respond in EXACTLY this format, nothing else:\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\nMeal: \(text)\n\n\(restaurantNote)"
         Task {
             do {
                 let response = try await AISettings.currentService.askAboutImage(
                     prompt: prompt,
                     imageData: imageData,
-                    systemPrompt: "You are a nutrition estimator with sharp food-recognition skills. Actually identify what's in the photo or description — specific dishes/ingredients, not vague guesses — then give your best reasonable nutrition estimate. Approximate numbers are fine, but always provide them."
+                    systemPrompt: "You are a nutrition estimator with sharp food-recognition skills and deep knowledge of chain-restaurant published nutrition data. Actually identify what's in the photo or description — specific dishes/ingredients, not vague guesses — then give your best, most accurate nutrition estimate. Approximate numbers are fine when you truly don't know, but always provide them."
                 )
                 applyEstimate(response)
             } catch {

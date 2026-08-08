@@ -52,6 +52,39 @@ struct FoodContentView: View {
 
     private var todaysExerciseCalories: Int { todaysWorkoutCalories + todaysStepCalories }
 
+    /// Trailing 7 days (oldest to newest, including today) of consumed vs.
+    /// burned — burned includes that day's logged workouts plus its Apple
+    /// Health step count (from HealthKitManager's weekly bucket query, not
+    /// just today's).
+    private var weeklyBreakdown: [DayCalorieSummary] {
+        let weight = progressEntries.first(where: { $0.weight != nil })?.weight
+        return (0..<7).compactMap { offset -> DayCalorieSummary? in
+            guard let day = Calendar.current.date(byAdding: .day, value: -6 + offset, to: today) else { return nil }
+            let consumed = allEntries
+                .filter { Calendar.current.isDate($0.date, inSameDayAs: day) }
+                .compactMap(\.calories)
+                .reduce(0, +)
+            let workoutBurn = workoutEntries
+                .filter { Calendar.current.isDate($0.date, inSameDayAs: day) }
+                .compactMap(\.caloriesBurned)
+                .reduce(0, +)
+            let stepBurn = StepCalorieEstimator.calories(steps: healthKit.weeklySteps[day] ?? 0, weightLbs: weight)
+            return DayCalorieSummary(date: day, consumed: consumed, burned: workoutBurn + stepBurn)
+        }
+    }
+
+    /// Most recent weigh-in minus the most recent weigh-in at or before 7
+    /// days ago — nil (not zero) when there isn't enough data either side,
+    /// so the UI can say "no data" instead of implying no change.
+    private var weeklyWeightChange: Double? {
+        guard let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: today) else { return nil }
+        let sorted = progressEntries.filter { $0.weight != nil }.sorted { $0.date < $1.date }
+        guard sorted.count >= 2, let latest = sorted.last?.weight else { return nil }
+        let baseline = sorted.last(where: { $0.date <= weekStart })?.weight ?? sorted.first?.weight
+        guard let baseline else { return nil }
+        return latest - baseline
+    }
+
     private var maintenanceCalories: Int? {
         let weight = progressEntries.first(where: { $0.weight != nil })?.weight
         return CalorieMath.todaysOverview(weight: weight, foodCalories: 0, exerciseCalories: 0)?.maintenanceCalories
@@ -99,9 +132,14 @@ struct FoodContentView: View {
 
             exerciseSection
 
+            WeeklySummaryView(days: weeklyBreakdown, weightChangeLbs: weeklyWeightChange)
+
             if !historyEntries.isEmpty {
                 historySection
             }
+        }
+        .task {
+            await healthKit.refreshWeeklySteps()
         }
         .sheet(isPresented: $showingLog) {
             LogFoodSheet(entry: nil, defaultMealType: logMealType)
