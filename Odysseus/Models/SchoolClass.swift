@@ -90,9 +90,13 @@ final class SchoolClass {
     }
 
     /// Totals graded work into a percentage. `includeMock` folds in what-if
-    /// entries too, for the GPA Calculator's Projected column.
-    func gradeSummary(includeMock: Bool) -> GradeSummary {
-        let items = directAssignments.filter { $0.isGraded && (includeMock || !$0.isMock) }
+    /// entries too, for the GPA Calculator's Projected column. Summer Work
+    /// is always excluded — it's never graded, by design. `term` scopes to
+    /// Fall/Spring (or everything, for .fullYear).
+    func gradeSummary(includeMock: Bool, term: SchoolTerm = .fullYear) -> GradeSummary {
+        let items = directAssignments.filter {
+            $0.isGraded && (includeMock || !$0.isMock) && $0.topic?.isSummerWork != true && term.matches($0.dueDate ?? $0.createdAt)
+        }
         guard !items.isEmpty else {
             if let manualPercentOverride {
                 return GradeSummary(pointsEarned: manualPercentOverride, pointsPossible: 100, isManual: true)

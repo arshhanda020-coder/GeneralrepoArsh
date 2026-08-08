@@ -24,6 +24,7 @@ struct GPACalculatorView: View {
     @State private var apBonus: Double = GPASettings.apBonus
     @State private var showingAddMock = false
     @State private var editingClass: SchoolClass?
+    @State private var term: SchoolTerm = SchoolTermSettings.selected
 
     private var enrolledClasses: [SchoolClass] { allClasses.filter { $0.isEnrolled } }
 
@@ -34,7 +35,7 @@ struct GPACalculatorView: View {
     }
 
     private func classGrade(_ schoolClass: SchoolClass, includeMock: Bool) -> ClassGrade {
-        let summary = schoolClass.gradeSummary(includeMock: includeMock)
+        let summary = schoolClass.gradeSummary(includeMock: includeMock, term: term)
         let scaleRow = summary.percent.flatMap { GPASettings.scaleEntry(forPercent: $0, in: scaleEntries) }
         return ClassGrade(schoolClass: schoolClass, summary: summary, scaleRow: scaleRow)
     }
@@ -63,6 +64,7 @@ struct GPACalculatorView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                SemesterPicker(selection: $term)
                 gpaSummary
                 classesSection
                 scaleSection
@@ -91,6 +93,7 @@ struct GPACalculatorView: View {
                 apBonus = GPASettings.apBonus
             }
         }
+        .onChange(of: term) { _, newValue in SchoolTermSettings.selected = newValue }
     }
 
     private var gpaSummary: some View {

@@ -23,6 +23,7 @@ struct SchoolView: View {
     @State private var homeworkAnswer: String?
     @State private var isAsking = false
     @State private var askError: String?
+    @State private var term: SchoolTerm = SchoolTermSettings.selected
 
     private var enrolledClasses: [SchoolClass] { allClasses.filter { $0.isEnrolled } }
     private var droppedClasses: [SchoolClass] { allClasses.filter { !$0.isEnrolled } }
@@ -30,6 +31,7 @@ struct SchoolView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                SemesterPicker(selection: $term)
                 classesSection
                 examsSection
                 homeworkHelperSection
@@ -53,6 +55,7 @@ struct SchoolView: View {
         .sheet(isPresented: $showingManageClasses) {
             ManageClassesView()
         }
+        .onChange(of: term) { _, newValue in SchoolTermSettings.selected = newValue }
     }
 
     private func navLinkRow<Destination: View>(destination: Destination, icon: String, title: String) -> some View {
@@ -121,7 +124,9 @@ struct SchoolView: View {
                     Text(schoolClass.name)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.primaryText)
-                    let pendingCount = schoolClass.topics.flatMap(\.assignments).filter { !$0.isDone }.count
+                    // Summer Work is excluded (never part of a semester); scoped to the selected term otherwise.
+                    let scoped = schoolClass.topics.filter { !$0.isSummerWork }.flatMap(\.assignments).filter { term.matches($0.dueDate ?? $0.createdAt) }
+                    let pendingCount = scoped.filter { !$0.isDone }.count
                     Text(schoolClass.topics.isEmpty ? "No topics yet" : (pendingCount == 0 ? "All caught up" : "\(pendingCount) pending"))
                         .font(.caption2)
                         .foregroundStyle(Theme.dimText)

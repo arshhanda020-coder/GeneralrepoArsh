@@ -27,15 +27,23 @@ struct TopicDetailView: View {
     /// once per tap rather than silently skipping straight to a blind answer.
     @State private var promptingPhotoFor: Assignment?
     @State private var helpPhotoItem: PhotosPickerItem?
+    @State private var term: SchoolTerm = SchoolTermSettings.selected
 
-    private var pendingAssignments: [Assignment] { topic.assignments.filter { !$0.isDone } }
-    private var doneAssignments: [Assignment] { topic.assignments.filter { $0.isDone } }
+    /// Summer Work is never scoped to a semester — everything else respects the shared Fall/Spring/Full Year filter.
+    private var scopedAssignments: [Assignment] {
+        topic.isSummerWork ? topic.assignments : topic.assignments.filter { term.matches($0.dueDate ?? $0.createdAt) }
+    }
+    private var scopedMaterial: [TopicMaterial] {
+        topic.isSummerWork ? topic.material : topic.material.filter { term.matches($0.addedAt) }
+    }
+    private var pendingAssignments: [Assignment] { scopedAssignments.filter { !$0.isDone } }
+    private var doneAssignments: [Assignment] { scopedAssignments.filter { $0.isDone } }
 
     /// Everything logged under this topic — assignments, quizzes, tests,
     /// projects, with notes and scores — so "Test me" quizzes on what's
     /// actually here instead of guessing from the topic name alone.
     private var loggedMaterialSummary: String {
-        let assignmentLines = topic.assignments.map { assignment -> String in
+        let assignmentLines = scopedAssignments.map { assignment -> String in
             var line = "[\(assignment.type.displayName)] \(assignment.title)"
             line += assignment.isDone ? " (completed)" : " (pending)"
             if let percent = assignment.percentScore {
@@ -46,7 +54,7 @@ struct TopicDetailView: View {
             }
             return line
         }
-        let materialLines = topic.material.map { item -> String in
+        let materialLines = scopedMaterial.map { item -> String in
             item.text?.isEmpty == false ? "[Material] \(item.text!)" : "[Material] \(item.fileName ?? "attached file")"
         }
         return (assignmentLines + materialLines).joined(separator: "\n")
@@ -55,6 +63,9 @@ struct TopicDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                if !topic.isSummerWork {
+                    SemesterPicker(selection: $term)
+                }
                 NavigationLink(destination: TestMeView(presetSubject: topic.name, contextMaterial: loggedMaterialSummary)) {
                     HStack {
                         Image(systemName: "questionmark.circle.fill")
@@ -88,8 +99,8 @@ struct TopicDetailView: View {
                         .disabled(newAssignmentTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
 
-                    if topic.assignments.isEmpty {
-                        Text("Nothing added yet — log homework, projects, or readings for this topic here.")
+                    if scopedAssignments.isEmpty {
+                        Text(topic.assignments.isEmpty ? "Nothing added yet — log homework, projects, or readings for this topic here." : "Nothing this semester.")
                             .font(.caption)
                             .foregroundStyle(Theme.dimText)
                     } else {
@@ -148,6 +159,7 @@ struct TopicDetailView: View {
                 helpUnderstand(assignment)
             }
         }
+        .onChange(of: term) { _, newValue in SchoolTermSettings.selected = newValue }
     }
 
     private func requestHelp(_ assignment: Assignment) {
@@ -297,13 +309,13 @@ struct TopicDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            if topic.material.isEmpty {
-                Text("PDFs, slideshows, or anything else from class — import a file or paste text to keep it here.")
+            if scopedMaterial.isEmpty {
+                Text(topic.material.isEmpty ? "PDFs, slideshows, or anything else from class — import a file or paste text to keep it here." : "Nothing this semester.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(topic.material.sorted { $0.addedAt > $1.addedAt }.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(scopedMaterial.sorted { $0.addedAt > $1.addedAt }.enumerated()), id: \.element.id) { index, item in
                         if index > 0 { Divider().overlay(Theme.cardBorder) }
                         materialRow(item)
                     }

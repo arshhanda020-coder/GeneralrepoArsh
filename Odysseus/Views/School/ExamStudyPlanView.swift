@@ -320,10 +320,12 @@ struct ExamStudyPlanView: View {
 
     // MARK: - AI
 
-    /// One line per topic: class > topic — pending assignment titles, done count. March Exams only.
+    /// One line per topic: class > topic — pending assignment titles, done
+    /// count. March Exams only. Summer Work is deliberately excluded — it's
+    /// separate from the regular curriculum this is testing on.
     private var loggedMaterial: [String] {
         enrolledClasses.flatMap { schoolClass -> [String] in
-            schoolClass.topics.sorted { $0.sortIndex < $1.sortIndex }.map { topic in
+            schoolClass.topics.filter { !$0.isSummerWork }.sorted { $0.sortIndex < $1.sortIndex }.map { topic in
                 let pending = topic.assignments.filter { !$0.isDone }.map(\.title)
                 let doneCount = topic.assignments.filter(\.isDone).count
                 var line = "\(schoolClass.name) > \(topic.name)"

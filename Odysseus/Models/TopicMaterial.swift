@@ -38,4 +38,7 @@ final class TopicMaterial {
         self.fileName = fileName
         self.addedAt = addedAt
     }
+
+    /// Fall/Spring, derived from when it was added.
+    var term: SchoolTerm { SchoolTerm.term(for: addedAt) }
 }

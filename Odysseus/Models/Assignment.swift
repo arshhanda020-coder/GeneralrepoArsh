@@ -105,4 +105,7 @@ final class Assignment {
         guard isGraded, let pointsEarned, let pointsPossible else { return nil }
         return pointsEarned / pointsPossible * 100
     }
+
+    /// Fall/Spring, derived from the due date (or when it was logged, if no due date was set).
+    var term: SchoolTerm { SchoolTerm.term(for: dueDate ?? createdAt) }
 }
