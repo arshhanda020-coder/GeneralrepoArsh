@@ -129,6 +129,33 @@ nonisolated final class KeychainService {
     func saveBridgeToken(_ token: String, kind: String) { saveString(token, account: "bridge-token-\(kind)") }
     func deleteBridgeToken(kind: String) { delete(account: "bridge-token-\(kind)") }
 
+    // MARK: - Google Docs (shares the Gmail OAuth client ID app-wide — same
+    // Google Cloud project, just a wider scope grant — but keeps its own
+    // token pair since it's a separate consent/connection from Gmail).
+
+    func loadGoogleDocsRefreshToken() -> String? { loadString(account: "googledocs-refresh-token") }
+    func saveGoogleDocsRefreshToken(_ token: String) { saveString(token, account: "googledocs-refresh-token") }
+    func deleteGoogleDocsRefreshToken() {
+        delete(account: "googledocs-refresh-token")
+        delete(account: "googledocs-access-token")
+    }
+
+    func saveGoogleDocsAccessToken(_ token: String, expiresIn: Int) {
+        let expiresAt = Date().addingTimeInterval(TimeInterval(expiresIn - 60))
+        let payload: [String: Any] = ["token": token, "expiresAt": expiresAt.timeIntervalSince1970]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        save(data, account: "googledocs-access-token")
+    }
+
+    func loadGoogleDocsAccessTokenIfValid() -> String? {
+        guard let data = load(account: "googledocs-access-token"),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let token = json["token"] as? String,
+              let expiresAt = json["expiresAt"] as? Double,
+              Date().timeIntervalSince1970 < expiresAt else { return nil }
+        return token
+    }
+
     // MARK: - App lock
 
     func loadPIN() -> String? { loadString(account: "app-pin") }

@@ -74,6 +74,8 @@ struct TopicDetailView: View {
                         .glassPanel(cornerRadius: 10)
                     }
                 }
+
+                NotesSectionView(context: .topic(topic.id), accentColor: MindMapSection.school.accentColor)
             }
             .padding(12)
         }
