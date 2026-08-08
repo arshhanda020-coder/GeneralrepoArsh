@@ -35,6 +35,13 @@ struct ProjectDetailView: View {
                 }
                 ProgressView(value: project.progress)
                     .tint(accentColor)
+                if let repoURL = project.repoURL {
+                    Link(destination: repoURL) {
+                        Label(project.repoURLString ?? repoURL.absoluteString, systemImage: "link")
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                }
             }
             .listRowBackground(Theme.card)
 

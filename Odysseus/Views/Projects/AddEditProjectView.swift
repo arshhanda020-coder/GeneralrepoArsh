@@ -17,6 +17,11 @@ struct AddEditProjectView: View {
     @State private var colorHex = "5B8CFF"
     @State private var description = ""
     @State private var status: ProjectStatus = .building
+    @State private var repoURLString = ""
+
+    /// Hardcoded for now — the GitHub repo the user has saved for quick linking.
+    /// TODO: replace with a real "pick a repo" flow (search/list the user's GitHub repos).
+    private static let savedRepoURL = "https://github.com/ruvnet/ruflo"
 
     private let emojiOptions = ["🛠️", "🚀", "💻", "📱", "🧾", "💰", "🚛", "🤖", "🧠", "📊", "🗂️", "⚙️"]
     private let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
@@ -47,6 +52,21 @@ struct AddEditProjectView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section("Repo") {
+                    TextField("https://github.com/owner/repo", text: $repoURLString)
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .autocorrectionDisabled()
+                    if repoURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button("Use saved repo") {
+                            repoURLString = Self.savedRepoURL
+                        }
+                        .font(.caption.weight(.semibold))
+                    }
                 }
 
                 if project != nil {
@@ -95,22 +115,26 @@ struct AddEditProjectView: View {
         colorHex = project.colorHex
         description = project.projectDescription
         status = project.status
+        repoURLString = project.repoURLString ?? ""
     }
 
     private func save() {
+        let trimmedRepoURL = repoURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         if let project {
             project.name = name
             project.emoji = emoji
             project.colorHex = colorHex
             project.projectDescription = description
             project.status = status
+            project.repoURLString = trimmedRepoURL.isEmpty ? nil : trimmedRepoURL
         } else {
             let newProject = Project(
                 name: name,
                 emoji: emoji,
                 colorHex: colorHex,
                 projectDescription: description,
-                status: status
+                status: status,
+                repoURLString: trimmedRepoURL.isEmpty ? nil : trimmedRepoURL
             )
             modelContext.insert(newProject)
         }

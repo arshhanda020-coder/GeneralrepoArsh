@@ -18,6 +18,8 @@ final class Project {
     /// A longer-form plan (written by the user or AI-generated) that tasks
     /// with due dates get broken out from.
     var planText: String?
+    /// GitHub repo linked to this project (e.g. "https://github.com/owner/repo").
+    var repoURLString: String?
 
     @Relationship(deleteRule: .cascade, inverse: \ProjectTask.project)
     var tasks: [ProjectTask] = []
@@ -30,7 +32,8 @@ final class Project {
         projectDescription: String = "",
         status: ProjectStatus = .building,
         createdAt: Date = .now,
-        planText: String? = nil
+        planText: String? = nil,
+        repoURLString: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -40,6 +43,7 @@ final class Project {
         self.statusRaw = status.rawValue
         self.createdAt = createdAt
         self.planText = planText
+        self.repoURLString = repoURLString
     }
 
     var status: ProjectStatus {
@@ -50,5 +54,10 @@ final class Project {
     var progress: Double {
         guard !tasks.isEmpty else { return 0 }
         return Double(tasks.filter { $0.isDone }.count) / Double(tasks.count)
+    }
+
+    var repoURL: URL? {
+        guard let repoURLString, !repoURLString.isEmpty else { return nil }
+        return URL(string: repoURLString)
     }
 }
