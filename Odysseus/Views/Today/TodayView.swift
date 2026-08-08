@@ -26,8 +26,14 @@ private struct ChecklistItem: Identifiable {
 
     func toggle() {
         switch kind {
-        case .assignment(let assignment): assignment.isDone.toggle()
-        case .projectTask(let task): task.isDone.toggle()
+        case .assignment(let assignment):
+            assignment.isDone.toggle()
+            NotificationManager.shared.sync(assignment: assignment)
+            if assignment.isDone { NotificationManager.shared.notifyTaskCompleted(title: assignment.title) }
+        case .projectTask(let task):
+            task.isDone.toggle()
+            NotificationManager.shared.sync(projectTask: task)
+            if task.isDone { NotificationManager.shared.notifyTaskCompleted(title: task.title) }
         }
     }
 }

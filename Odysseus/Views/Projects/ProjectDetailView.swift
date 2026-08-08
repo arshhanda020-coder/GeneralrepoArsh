@@ -181,6 +181,7 @@ struct ProjectDetailView: View {
                     task.isDone.toggle()
                 }
                 NotificationManager.shared.sync(projectTask: task)
+                if task.isDone { NotificationManager.shared.notifyTaskCompleted(title: task.title) }
             } label: {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(task.isDone ? accentColor : Theme.dimText)

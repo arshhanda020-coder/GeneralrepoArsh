@@ -94,6 +94,9 @@ struct AddEditAssignmentView: View {
             targetAssignment = newAssignment
         }
         NotificationManager.shared.sync(assignment: targetAssignment)
+        if hasDueDate, remindersOn {
+            NotificationManager.shared.notifyReminderSet(title: title, date: dueDate)
+        }
         dismiss()
     }
 

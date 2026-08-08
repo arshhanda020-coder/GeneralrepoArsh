@@ -63,6 +63,9 @@ struct AddEditProjectTaskView: View {
         task.dueDate = hasDueDate ? dueDate : nil
         task.remindersOn = hasDueDate && remindersOn
         NotificationManager.shared.sync(projectTask: task)
+        if hasDueDate, remindersOn {
+            NotificationManager.shared.notifyReminderSet(title: title, date: dueDate)
+        }
         dismiss()
     }
 

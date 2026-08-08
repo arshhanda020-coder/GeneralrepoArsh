@@ -35,13 +35,13 @@ struct NotificationSettingsView: View {
             Section("What you'll be notified about") {
                 Toggle("Due dates", isOn: $dueDatesEnabled)
                     .disabled(!masterEnabled)
-                Text("Assignments, project tasks, and exams — reminders for the date/time you set.")
+                Text("Assignments, project tasks, and exams — reminders for the date/time you set, plus a confirmation the moment a reminder is set. These are marked Time Sensitive and buzz in a short burst (not just once) so a due date is hard to miss.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
 
                 Toggle("Stay-on-track nudges", isOn: $stayOnTrackEnabled)
                     .disabled(!masterEnabled)
-                Text("Forgot to log food or a workout, a test score that's still missing, or a due date that's passed with the item still not done.")
+                Text("Forgot to log food or a workout (a plain evening reminder), or a test score/due date that's now overdue — those get the same Time Sensitive, multi-buzz treatment as due dates.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
 
@@ -53,7 +53,7 @@ struct NotificationSettingsView: View {
 
                 Toggle("Updates & summaries", isOn: $updatesEnabled)
                     .disabled(!masterEnabled)
-                Text("The daily Copilot suggestion, a progress report finishing, or an export becoming ready.")
+                Text("Quick confirmations for things you just did — logged food or a workout, checked off a task, added a score or class material, generated a practice test — plus the daily Copilot suggestion, a progress report finishing, or an export becoming ready.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
             }

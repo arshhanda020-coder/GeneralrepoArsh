@@ -127,6 +127,9 @@ struct AddEditExamView: View {
             targetExam = newExam
         }
         NotificationManager.shared.sync(exam: targetExam)
+        if remindersOn {
+            NotificationManager.shared.notifyReminderSet(title: name, date: examDate)
+        }
         dismiss()
     }
 

@@ -85,6 +85,7 @@ struct SchoolClassDetailView: View {
         guard !trimmed.isEmpty else { return }
         let nextIndex = (topics.map(\.sortIndex).max() ?? -1) + 1
         modelContext.insert(Topic(name: trimmed, sortIndex: nextIndex, schoolClass: schoolClass))
+        NotificationManager.shared.notifyMaterialAdded(className: schoolClass.name, materialName: trimmed)
         newTopicName = ""
     }
 }

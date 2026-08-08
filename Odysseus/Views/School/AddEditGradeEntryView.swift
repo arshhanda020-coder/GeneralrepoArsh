@@ -97,6 +97,7 @@ struct AddEditGradeEntryView: View {
                 term: trimmedTerm.isEmpty ? nil : trimmedTerm
             )
             modelContext.insert(newEntry)
+            NotificationManager.shared.notifyGradeAdded(course: courseName, gradeLabel: gradeLabel)
         }
         dismiss()
     }

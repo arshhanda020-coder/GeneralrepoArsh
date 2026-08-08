@@ -266,6 +266,7 @@ struct LogFoodSheet: View {
                 fatGrams: fatValue
             )
             modelContext.insert(newEntry)
+            NotificationManager.shared.notifyFoodLogged(note: text)
         }
         // A same-day entry just landed, so the "you forgot to log food"
         // nudge (if one was pending) is no longer accurate.

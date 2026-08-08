@@ -94,6 +94,8 @@ struct TopicDetailView: View {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         assignment.isDone.toggle()
                     }
+                    NotificationManager.shared.sync(assignment: assignment)
+                    if assignment.isDone { NotificationManager.shared.notifyTaskCompleted(title: assignment.title) }
                 } label: {
                     Image(systemName: assignment.isDone ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(assignment.isDone ? MindMapSection.school.accentColor : Theme.dimText)

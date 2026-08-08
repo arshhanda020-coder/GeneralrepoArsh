@@ -36,7 +36,9 @@ final class NotificationManager {
     func requestAuthorizationIfNeeded() async {
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .notDetermined else { return }
-        _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
+        // .timeSensitive lets due-date/study reminders break through Focus
+        // modes — see scheduleUrgentOneOff/scheduleUrgentNudge below.
+        _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge, .timeSensitive])
     }
 
     func authorizationStatus() async -> UNAuthorizationStatus {
@@ -78,32 +80,7 @@ final class NotificationManager {
         }
     }
 
-    // MARK: - Generic one-off due-date reminders
-    // Shared by project task milestones, assignment due dates, and anything
-    // else that just needs "remind me once, at this date/time."
-
-    /// Fires at `hour:minute` (9am by default) on the given date. Silently
-    /// does nothing if that moment has already passed — no point scheduling
-    /// a reminder for the past.
-    func scheduleOneOff(identifier: String, title: String, body: String, date: Date, hour: Int = 9, minute: Int = 0) {
-        center.removePendingNotificationRequests(withIdentifiers: [identifier])
-        var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        comps.hour = hour
-        comps.minute = minute
-        guard let fireDate = Calendar.current.date(from: comps), fireDate > .now else { return }
-
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
-        let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-
-        Task {
-            await requestAuthorizationIfNeeded()
-            try? await center.add(request)
-        }
-    }
+    // MARK: - Generic one-off reminders
 
     func cancelOneOff(identifier: String) {
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
@@ -113,26 +90,26 @@ final class NotificationManager {
     /// due-date reminder and whatever follow-up nudge it owns, so callers
     /// don't need to know the identifier scheme.
     func cancelReminders(assignmentID id: String) {
-        cancelOneOff(identifier: "assignment-due-\(id)")
-        cancelOneOff(identifier: "assignment-overdue-\(id)")
+        cancelUrgentOneOff(identifier: "assignment-due-\(id)")
+        cancelUrgentOneOff(identifier: "assignment-overdue-\(id)")
     }
 
     func cancelReminders(projectTaskID id: String) {
-        cancelOneOff(identifier: "project-task-due-\(id)")
-        cancelOneOff(identifier: "project-task-overdue-\(id)")
+        cancelUrgentOneOff(identifier: "project-task-due-\(id)")
+        cancelUrgentOneOff(identifier: "project-task-overdue-\(id)")
     }
 
     func cancelReminders(examID id: String) {
-        cancelOneOff(identifier: "exam-due-\(id)")
-        cancelOneOff(identifier: "exam-score-\(id)")
+        cancelUrgentOneOff(identifier: "exam-due-\(id)")
+        cancelUrgentOneOff(identifier: "exam-score-\(id)")
     }
 
     /// Schedules a one-off "you forgot to..." nudge for the next occurrence
     /// of `hour:minute` — today if that time hasn't passed yet, tomorrow
-    /// otherwise. Unlike `scheduleOneOff`, this never silently no-ops: it's
-    /// meant to be re-called every time the app opens and the underlying
-    /// condition is still true, which keeps rolling the nudge forward one
-    /// day at a time until whatever was missing gets logged/done.
+    /// otherwise. Unlike a plain calendar-date reminder, this never silently
+    /// no-ops: it's meant to be re-called every time the app opens and the
+    /// underlying condition is still true, which keeps rolling the nudge
+    /// forward one day at a time until whatever was missing gets logged/done.
     private func scheduleNudge(identifier: String, title: String, body: String, hour: Int = 20, minute: Int = 0) {
         center.removePendingNotificationRequests(withIdentifiers: [identifier])
         let calendar = Calendar.current
@@ -163,6 +140,75 @@ final class NotificationManager {
         date.formatted(.dateTime.month(.abbreviated).day())
     }
 
+    // MARK: - Urgent (due-date / study) reminders
+    //
+    // iOS doesn't let a single local notification define its own vibration
+    // pattern — the OS controls that. "Make it buzz a lot" is approximated
+    // two ways instead: mark it Time Sensitive (so it breaks through Focus
+    // modes and gets the more insistent system treatment) and fire it as a
+    // short burst of 3 notifications a few minutes apart instead of one,
+    // so a due date/exam actually pulses your phone a few times instead of
+    // a single easy-to-miss buzz.
+
+    private static let urgentBurstOffsetsMinutes = [0, 4, 9]
+
+    private func scheduleUrgentBurst(baseIdentifier: String, title: String, body: String, firstFireDate: Date) {
+        let calendar = Calendar.current
+        for (index, offsetMinutes) in Self.urgentBurstOffsetsMinutes.enumerated() {
+            guard let fireDate = calendar.date(byAdding: .minute, value: offsetMinutes, to: firstFireDate), fireDate > .now else { continue }
+            let id = index == 0 ? baseIdentifier : "\(baseIdentifier)-echo\(index)"
+            let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            content.interruptionLevel = .timeSensitive
+            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+            let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
+
+            Task {
+                await requestAuthorizationIfNeeded()
+                try? await center.add(request)
+            }
+        }
+    }
+
+    /// Schedules a due-date reminder — fires at `hour:minute` on the given
+    /// date, or does nothing if that moment's already passed.
+    private func scheduleUrgentOneOff(identifier: String, title: String, body: String, date: Date, hour: Int = 9, minute: Int = 0) {
+        cancelUrgentOneOff(identifier: identifier)
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        comps.hour = hour
+        comps.minute = minute
+        guard let fireDate = Calendar.current.date(from: comps), fireDate > .now else { return }
+        scheduleUrgentBurst(baseIdentifier: identifier, title: title, body: body, firstFireDate: fireDate)
+    }
+
+    /// Same as `scheduleNudge`, but for the overdue/missing-score follow-ups
+    /// on due-date items — still "something's due," so it gets the same
+    /// urgent treatment.
+    private func scheduleUrgentNudge(identifier: String, title: String, body: String, hour: Int = 9, minute: Int = 0) {
+        cancelUrgentOneOff(identifier: identifier)
+        let calendar = Calendar.current
+        let now = Date.now
+        var comps = calendar.dateComponents([.year, .month, .day], from: now)
+        comps.hour = hour
+        comps.minute = minute
+        guard var fireDate = calendar.date(from: comps) else { return }
+        if fireDate <= now {
+            fireDate = calendar.date(byAdding: .day, value: 1, to: fireDate) ?? fireDate
+        }
+        scheduleUrgentBurst(baseIdentifier: identifier, title: title, body: body, firstFireDate: fireDate)
+    }
+
+    /// Cancels an urgent reminder and its echo(es) — the burst's follow-up
+    /// notifications share the base identifier plus a suffix.
+    private func cancelUrgentOneOff(identifier: String) {
+        let ids = [identifier] + (1..<Self.urgentBurstOffsetsMinutes.count).map { "\(identifier)-echo\($0)" }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
     // MARK: - Due-date reminders (also own the matching overdue nudge)
 
     func sync(assignment: Assignment) {
@@ -171,21 +217,21 @@ final class NotificationManager {
 
         guard assignment.remindersOn, let dueDate = assignment.dueDate, !assignment.isDone,
               NotificationSettings.masterEnabled, NotificationSettings.dueDatesEnabled else {
-            cancelOneOff(identifier: dueID)
-            cancelOneOff(identifier: overdueID)
+            cancelUrgentOneOff(identifier: dueID)
+            cancelUrgentOneOff(identifier: overdueID)
             return
         }
 
         if Calendar.current.startOfDay(for: dueDate) < Calendar.current.startOfDay(for: .now) {
-            cancelOneOff(identifier: dueID)
+            cancelUrgentOneOff(identifier: dueID)
             guard NotificationSettings.stayOnTrackEnabled else {
-                cancelOneOff(identifier: overdueID)
+                cancelUrgentOneOff(identifier: overdueID)
                 return
             }
-            scheduleNudge(identifier: overdueID, title: "Still due", body: "\(assignment.title) was due \(Self.shortDate(dueDate)) and isn't marked done yet.", hour: 9)
+            scheduleUrgentNudge(identifier: overdueID, title: "Still due", body: "\(assignment.title) was due \(Self.shortDate(dueDate)) and isn't marked done yet.", hour: 9)
         } else {
-            cancelOneOff(identifier: overdueID)
-            scheduleOneOff(identifier: dueID, title: "Assignment due", body: assignment.title, date: dueDate)
+            cancelUrgentOneOff(identifier: overdueID)
+            scheduleUrgentOneOff(identifier: dueID, title: "Assignment due", body: assignment.title, date: dueDate)
         }
     }
 
@@ -195,22 +241,22 @@ final class NotificationManager {
 
         guard task.remindersOn, let dueDate = task.dueDate, !task.isDone,
               NotificationSettings.masterEnabled, NotificationSettings.dueDatesEnabled else {
-            cancelOneOff(identifier: dueID)
-            cancelOneOff(identifier: overdueID)
+            cancelUrgentOneOff(identifier: dueID)
+            cancelUrgentOneOff(identifier: overdueID)
             return
         }
 
         let projectName = task.project?.name ?? "Project"
         if Calendar.current.startOfDay(for: dueDate) < Calendar.current.startOfDay(for: .now) {
-            cancelOneOff(identifier: dueID)
+            cancelUrgentOneOff(identifier: dueID)
             guard NotificationSettings.stayOnTrackEnabled else {
-                cancelOneOff(identifier: overdueID)
+                cancelUrgentOneOff(identifier: overdueID)
                 return
             }
-            scheduleNudge(identifier: overdueID, title: projectName, body: "\(task.title) was due \(Self.shortDate(dueDate)) and isn't done yet.", hour: 9)
+            scheduleUrgentNudge(identifier: overdueID, title: projectName, body: "\(task.title) was due \(Self.shortDate(dueDate)) and isn't done yet.", hour: 9)
         } else {
-            cancelOneOff(identifier: overdueID)
-            scheduleOneOff(identifier: dueID, title: projectName, body: "\(task.title) is due today.", date: dueDate)
+            cancelUrgentOneOff(identifier: overdueID)
+            scheduleUrgentOneOff(identifier: dueID, title: projectName, body: "\(task.title) is due today.", date: dueDate)
         }
     }
 
@@ -223,15 +269,15 @@ final class NotificationManager {
         let scoreID = "exam-score-\(exam.id)"
 
         if exam.remindersOn, !exam.isPast, NotificationSettings.masterEnabled, NotificationSettings.dueDatesEnabled {
-            scheduleOneOff(identifier: dueID, title: exam.category.displayName, body: "\(exam.name) is today.", date: exam.examDate)
+            scheduleUrgentOneOff(identifier: dueID, title: exam.category.displayName, body: "\(exam.name) is today.", date: exam.examDate)
         } else {
-            cancelOneOff(identifier: dueID)
+            cancelUrgentOneOff(identifier: dueID)
         }
 
         if exam.isPast, !exam.hasScore, NotificationSettings.masterEnabled, NotificationSettings.stayOnTrackEnabled {
-            scheduleNudge(identifier: scoreID, title: "Log your score", body: "Did \(exam.name) come back yet? Log it to keep your score history current.", hour: 9)
+            scheduleUrgentNudge(identifier: scoreID, title: "Log your score", body: "Did \(exam.name) come back yet? Log it to keep your score history current.", hour: 9)
         } else {
-            cancelOneOff(identifier: scoreID)
+            cancelUrgentOneOff(identifier: scoreID)
         }
     }
 
@@ -289,44 +335,34 @@ final class NotificationManager {
         syncMissedLogging(modelContext: modelContext)
     }
 
-    // MARK: - New-content pings (fire immediately, not scheduled)
+    // MARK: - Fire-and-forget pings (fire immediately, not scheduled)
 
-    /// Fires immediately whenever a refresh turns up Innovation items the
-    /// user hasn't seen before.
-    func notifyNewInnovation(count: Int, firstTitle: String) {
-        guard NotificationSettings.masterEnabled, NotificationSettings.newsAndInnovationEnabled else { return }
+    private func fireImmediate(identifier: String, title: String, body: String) {
         let content = UNMutableNotificationContent()
-        content.title = "New in AI Tools"
-        content.body = count == 1 ? firstTitle : "\(count) new finds, including: \(firstTitle)"
+        content.title = title
+        content.body = body
         content.sound = .default
-        let request = UNNotificationRequest(
-            identifier: "ai-tools-innovation-\(UUID().uuidString)",
-            content: content,
-            trigger: nil
-        )
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
         Task {
             await requestAuthorizationIfNeeded()
             try? await center.add(request)
         }
     }
 
+    /// Fires immediately whenever a refresh turns up Innovation items the
+    /// user hasn't seen before.
+    func notifyNewInnovation(count: Int, firstTitle: String) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.newsAndInnovationEnabled else { return }
+        let body = count == 1 ? firstTitle : "\(count) new finds, including: \(firstTitle)"
+        fireImmediate(identifier: "ai-tools-innovation-\(UUID().uuidString)", title: "New in AI Tools", body: body)
+    }
+
     /// Fires immediately whenever a News tab refresh turns up headlines the
     /// user hasn't seen before, for a given topic.
     func notifyNewHeadlines(topic: String, count: Int, firstTitle: String) {
         guard NotificationSettings.masterEnabled, NotificationSettings.newsAndInnovationEnabled else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "New in \(topic)"
-        content.body = count == 1 ? firstTitle : "\(count) new headlines, including: \(firstTitle)"
-        content.sound = .default
-        let request = UNNotificationRequest(
-            identifier: "news-new-\(UUID().uuidString)",
-            content: content,
-            trigger: nil
-        )
-        Task {
-            await requestAuthorizationIfNeeded()
-            try? await center.add(request)
-        }
+        let body = count == 1 ? firstTitle : "\(count) new headlines, including: \(firstTitle)"
+        fireImmediate(identifier: "news-new-\(UUID().uuidString)", title: "New in \(topic)", body: body)
     }
 
     /// Fires immediately once a progress report finishes generating — it's
@@ -334,37 +370,69 @@ final class NotificationManager {
     /// have already navigated away.
     func notifyReportReady(periodLabel: String) {
         guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Progress report ready"
-        content.body = "Your \(periodLabel) summary is ready to read."
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: "report-ready-\(UUID().uuidString)", content: content, trigger: nil)
-        Task {
-            await requestAuthorizationIfNeeded()
-            try? await center.add(request)
-        }
+        fireImmediate(identifier: "report-ready-\(UUID().uuidString)", title: "Progress report ready", body: "Your \(periodLabel) summary is ready to read.")
     }
 
     /// Fires immediately once an export (resume PDF, etc.) is ready.
     func notifyExportComplete(name: String) {
         guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "Export ready"
-        content.body = "\(name) is ready to share."
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: "export-complete-\(UUID().uuidString)", content: content, trigger: nil)
-        Task {
-            await requestAuthorizationIfNeeded()
-            try? await center.add(request)
-        }
+        fireImmediate(identifier: "export-complete-\(UUID().uuidString)", title: "Export ready", body: "\(name) is ready to share.")
+    }
+
+    /// Fires immediately when an assignment or project task gets checked off.
+    func notifyTaskCompleted(title: String) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
+        fireImmediate(identifier: "task-done-\(UUID().uuidString)", title: "Nice work", body: "\(title) — done.")
+    }
+
+    /// Fires immediately once a practice test/quiz has been generated and is
+    /// ready to take.
+    func notifyPracticeTestCreated(topic: String, questionCount: Int) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
+        let body = "\(topic) — \(questionCount) question\(questionCount == 1 ? "" : "s") ready."
+        fireImmediate(identifier: "quiz-created-\(UUID().uuidString)", title: "Practice test ready", body: body)
+    }
+
+    /// Fires immediately after a new food entry is logged.
+    func notifyFoodLogged(note: String) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
+        fireImmediate(identifier: "food-logged-\(UUID().uuidString)", title: "Food logged", body: note)
+    }
+
+    /// Fires immediately after a new workout entry is logged.
+    func notifyWorkoutLogged(note: String) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
+        fireImmediate(identifier: "workout-logged-\(UUID().uuidString)", title: "Workout logged", body: note)
+    }
+
+    /// Fires immediately after a new grade/score is added.
+    func notifyGradeAdded(course: String, gradeLabel: String) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
+        fireImmediate(identifier: "grade-added-\(UUID().uuidString)", title: "Score logged", body: "\(course): \(gradeLabel)")
+    }
+
+    /// Fires immediately after new class material (a topic/unit) is added.
+    func notifyMaterialAdded(className: String, materialName: String) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.updatesAndSummariesEnabled else { return }
+        fireImmediate(identifier: "material-added-\(UUID().uuidString)", title: "Added to \(className)", body: materialName)
+    }
+
+    /// Fires immediately after a due date + reminder gets set on an
+    /// assignment, task, or exam — confirms the reminder actually took.
+    func notifyReminderSet(title: String, date: Date) {
+        guard NotificationSettings.masterEnabled, NotificationSettings.dueDatesEnabled else { return }
+        fireImmediate(identifier: "reminder-set-\(UUID().uuidString)", title: "Reminder set", body: "\(title) — \(Self.shortDate(date)).")
     }
 
     // MARK: - Settings sweep
 
-    private static let dueDatePrefixes = ["assignment-due-", "project-task-due-", "exam-due-"]
+    private static let dueDatePrefixes = ["assignment-due-", "project-task-due-", "exam-due-", "reminder-set-"]
     private static let stayOnTrackPrefixes = ["assignment-overdue-", "project-task-overdue-", "exam-score-", "food-nudge", "workout-nudge"]
     private static let newsPrefixes = ["ai-tools-innovation-", "news-new-"]
-    private static let updatesPrefixes = ["copilot-daily-suggestion", "report-ready-", "export-complete-"]
+    private static let updatesPrefixes = [
+        "copilot-daily-suggestion", "report-ready-", "export-complete-",
+        "task-done-", "quiz-created-", "food-logged-", "workout-logged-", "grade-added-", "material-added-",
+    ]
 
     /// Call after any NotificationSettings toggle changes — clears out
     /// anything already scheduled for a category that just got turned off,
