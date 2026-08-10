@@ -22,7 +22,12 @@ struct AddEditProjectView: View {
     @State private var status: ProjectStatus = .building
     @State private var hasTargetDate = false
     @State private var targetDate = Date()
+    @State private var repoURLString = ""
     @State private var repoPath = ""
+
+    /// Hardcoded for now — the GitHub repo the user has saved for quick linking.
+    /// TODO: replace with a real "pick a repo" flow (search/list the user's GitHub repos).
+    private static let savedRepoURL = "https://github.com/ruvnet/ruflo"
 
     private let emojiOptions = ["🛠️", "🚀", "💻", "📱", "🧾", "💰", "🚛", "🤖", "🧠", "📊", "🗂️", "⚙️"]
     private let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
@@ -66,6 +71,21 @@ struct AddEditProjectView: View {
                     }
                 }
 
+                Section("Repo") {
+                    TextField("https://github.com/owner/repo", text: $repoURLString)
+                        #if os(iOS)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                        .autocorrectionDisabled()
+                    if repoURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Button("Use saved repo") {
+                            repoURLString = Self.savedRepoURL
+                        }
+                        .font(.caption.weight(.semibold))
+                    }
+                }
+
                 Section {
                     TextField("/path/to/repo", text: $repoPath)
                         .font(.system(.body, design: .monospaced))
@@ -75,7 +95,7 @@ struct AddEditProjectView: View {
                     Button("Choose Folder…") { chooseRepoFolder() }
                     #endif
                 } header: {
-                    Text("Repo")
+                    Text("Local repo path")
                 } footer: {
                     Text("Points a bridge run (Claude Code / Codex) at this project's real repo, on the Mac running bridge/server.js.")
                 }
@@ -132,10 +152,12 @@ struct AddEditProjectView: View {
         } else {
             hasTargetDate = false
         }
+        repoURLString = project.repoURLString ?? ""
         repoPath = project.repoPath ?? ""
     }
 
     private func save() {
+        let trimmedRepoURL = repoURLString.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedRepoPath = repoPath.trimmingCharacters(in: .whitespacesAndNewlines)
         if let project {
             project.name = name
@@ -144,6 +166,7 @@ struct AddEditProjectView: View {
             project.projectDescription = description
             project.status = status
             project.targetDate = hasTargetDate ? targetDate : nil
+            project.repoURLString = trimmedRepoURL.isEmpty ? nil : trimmedRepoURL
             project.repoPath = trimmedRepoPath.isEmpty ? nil : trimmedRepoPath
         } else {
             let newProject = Project(
@@ -153,6 +176,7 @@ struct AddEditProjectView: View {
                 projectDescription: description,
                 status: status,
                 targetDate: hasTargetDate ? targetDate : nil,
+                repoURLString: trimmedRepoURL.isEmpty ? nil : trimmedRepoURL,
                 repoPath: trimmedRepoPath.isEmpty ? nil : trimmedRepoPath
             )
             modelContext.insert(newProject)

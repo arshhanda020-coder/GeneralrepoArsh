@@ -24,6 +24,11 @@ final class Note {
     /// Only meaningful when pinned to Today: lets a quick reminder note be
     /// checked off (like a task) without deleting it.
     var isDone: Bool
+    /// PencilKit drawing (`PKDrawing.dataRepresentation()`), for the
+    /// Notability-style handwriting canvas — nil until the note has been
+    /// drawn on at least once. Kept separate from `content` so a note can
+    /// carry typed text, a drawing, or both.
+    var drawingData: Data?
 
     init(
         id: String = UUID().uuidString,
@@ -32,7 +37,8 @@ final class Note {
         createdAt: Date = .now,
         updatedAt: Date = .now,
         context: NoteContext? = nil,
-        isDone: Bool = false
+        isDone: Bool = false,
+        drawingData: Data? = nil
     ) {
         self.id = id
         self.title = title
@@ -42,6 +48,7 @@ final class Note {
         self.contextTypeRaw = context?.typeRaw
         self.contextID = context?.recordID
         self.isDone = isDone
+        self.drawingData = drawingData
     }
 }
 

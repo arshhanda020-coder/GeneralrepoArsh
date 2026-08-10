@@ -55,6 +55,13 @@ struct ProjectDetailView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.dimText)
                 }
+                if let repoURL = project.repoURL {
+                    Link(destination: repoURL) {
+                        Label(project.repoURLString ?? repoURL.absoluteString, systemImage: "link")
+                            .font(.caption)
+                            .lineLimit(1)
+                    }
+                }
             }
             .listRowBackground(Theme.card)
 

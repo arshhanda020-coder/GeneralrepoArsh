@@ -62,13 +62,10 @@ struct NewsTickerView: View {
             }
         }
         .padding(.top, 10)
-        .background(
-            LinearGradient(colors: [Theme.card, Theme.background], startPoint: .top, endPoint: .bottom)
-        )
+        .background(Theme.card)
         .overlay(alignment: .top) {
-            Rectangle().fill(Theme.accent.opacity(0.35)).frame(height: 1.2)
+            Rectangle().fill(Theme.cardBorder).frame(height: 1)
         }
-        .shadow(color: Theme.accent.opacity(0.18), radius: 10, y: -2)
         .navigationDestination(item: $selectedItem) { item in
             NewsItemDetailView(item: item)
         }

@@ -22,6 +22,8 @@ final class Project {
     /// done — optional, separate from any task due dates. Set, this is what
     /// makes the project itself show up on the Calendar.
     var targetDate: Date?
+    /// GitHub repo linked to this project (e.g. "https://github.com/owner/repo").
+    var repoURLString: String?
     /// Absolute path (on the Mac running bridge/server.js) to this project's
     /// real repo, if any — what a bridge run's `cwd` is scoped to.
     var repoPath: String?
@@ -45,6 +47,7 @@ final class Project {
         createdAt: Date = .now,
         planText: String? = nil,
         targetDate: Date? = nil,
+        repoURLString: String? = nil,
         repoPath: String? = nil
     ) {
         self.id = id
@@ -56,6 +59,7 @@ final class Project {
         self.createdAt = createdAt
         self.planText = planText
         self.targetDate = targetDate
+        self.repoURLString = repoURLString
         self.repoPath = repoPath
     }
 
@@ -67,5 +71,10 @@ final class Project {
     var progress: Double {
         guard !tasks.isEmpty else { return 0 }
         return Double(tasks.filter { $0.isDone }.count) / Double(tasks.count)
+    }
+
+    var repoURL: URL? {
+        guard let repoURLString, !repoURLString.isEmpty else { return nil }
+        return URL(string: repoURLString)
     }
 }
