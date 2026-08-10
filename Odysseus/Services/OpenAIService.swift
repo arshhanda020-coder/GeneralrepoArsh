@@ -84,6 +84,28 @@ actor OpenAIService: AIProviderService {
         throw ServiceError.requestFailed("Copilot took too many steps — try again.")
     }
 
+    /// Multi-turn, tool-free chat for a section assistant — mirrors
+    /// AnthropicService's version: caller-supplied system prompt, no
+    /// `tools` array, single streaming request.
+    func sendSectionChat(
+        history: [ChatMessage],
+        systemPrompt: String,
+        onTextDelta: ((String) -> Void)? = nil
+    ) async throws -> String {
+        guard let apiKey = KeychainService.shared.loadOpenAIKey(), !apiKey.isEmpty else {
+            throw ServiceError.missingAPIKey
+        }
+
+        var messages: [[String: Any]] = [["role": "system", "content": systemPrompt]]
+        messages += history.map { ["role": $0.role, "content": $0.content] }
+
+        let body: [String: Any] = ["model": model, "messages": messages]
+
+        let (message, _) = try await performRequestStreaming(body: body, apiKey: apiKey, onTextDelta: onTextDelta)
+        let text = (message["content"] as? String) ?? ""
+        return text.isEmpty ? "(no response)" : text
+    }
+
     func askAboutImage(prompt: String, imageData: Data?, systemPrompt: String) async throws -> String {
         guard let apiKey = KeychainService.shared.loadOpenAIKey(), !apiKey.isEmpty else {
             throw ServiceError.missingAPIKey

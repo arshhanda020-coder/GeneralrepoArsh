@@ -26,6 +26,7 @@ struct ProjectsView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Projects")
+        .sectionAssistantButton(.projects)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

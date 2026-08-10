@@ -45,6 +45,13 @@ enum DevAgentKind: Hashable, CaseIterable {
         case .codex: return "codex"
         }
     }
+
+    var mindMapSection: MindMapSection {
+        switch self {
+        case .claudeCode: return .claudeCode
+        case .codex: return .codex
+        }
+    }
 }
 
 private struct OptionalKeyboardType: ViewModifier {
@@ -96,6 +103,7 @@ struct DevAgentBridgeView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle(kind.displayName)
         .inlineNavigationTitle()
+        .sectionAssistantButton(kind.mindMapSection)
         .onAppear {
             bridgeURL = UserDefaults.standard.string(forKey: kind.bridgeURLKey) ?? bridgeURL
             token = KeychainService.shared.loadBridgeToken(kind: kind.agentKey) ?? ""

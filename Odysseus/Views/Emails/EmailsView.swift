@@ -121,6 +121,7 @@ struct EmailsView: View {
         .scrollContentBackground(.hidden)
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Emails")
+        .sectionAssistantButton(.emails)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

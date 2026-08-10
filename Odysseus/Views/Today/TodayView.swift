@@ -107,6 +107,7 @@ struct TodayView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Today")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.today)
     }
 
     private func row(_ item: ChecklistItem) -> some View {

@@ -67,6 +67,7 @@ struct GitHubView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("GitHub")
+        .sectionAssistantButton(.github)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

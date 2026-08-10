@@ -77,6 +77,7 @@ struct NewsView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("News")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.news)
         .task {
             await refresh()
         }

@@ -107,6 +107,38 @@ actor AnthropicService: AIProviderService {
         throw ServiceError.requestFailed("Copilot took too many steps — try again.")
     }
 
+    /// Multi-turn, tool-free chat for a section assistant — same streaming
+    /// request shape as `send` but with a caller-supplied system prompt and
+    /// no `tools` array, so a single request always suffices (no tool_use
+    /// loop to run).
+    func sendSectionChat(
+        history: [ChatMessage],
+        systemPrompt: String,
+        onTextDelta: ((String) -> Void)? = nil
+    ) async throws -> String {
+        guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
+            throw ServiceError.missingAPIKey
+        }
+
+        let messages: [[String: Any]] = history.map { message in
+            ["role": message.role, "content": [["type": "text", "text": message.content]]]
+        }
+
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 2048,
+            "thinking": ["type": "adaptive"],
+            "system": systemPrompt,
+            "messages": messages,
+        ]
+
+        let (contentBlocks, _) = try await performRequestStreaming(body: body, apiKey: apiKey, onTextDelta: onTextDelta)
+        let text = contentBlocks
+            .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
+            .joined(separator: "\n")
+        return text.isEmpty ? "(no response)" : text
+    }
+
     /// One-shot vision-capable call — used for homework help (School) and food
     /// macro estimation (Food). No tools, no history; image is optional.
     func askAboutImage(prompt: String, imageData: Data?, systemPrompt: String) async throws -> String {

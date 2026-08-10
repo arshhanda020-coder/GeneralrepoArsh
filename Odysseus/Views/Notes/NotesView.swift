@@ -60,6 +60,7 @@ struct NotesView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Notes")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.notes)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingSettings = true } label: {
