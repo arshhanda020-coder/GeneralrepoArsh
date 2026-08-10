@@ -5,6 +5,9 @@
 
 import SwiftUI
 import SwiftData
+#if os(macOS)
+import AppKit
+#endif
 
 struct AddEditProjectView: View {
     let project: Project?
@@ -19,6 +22,7 @@ struct AddEditProjectView: View {
     @State private var status: ProjectStatus = .building
     @State private var hasTargetDate = false
     @State private var targetDate = Date()
+    @State private var repoPath = ""
 
     private let emojiOptions = ["🛠️", "🚀", "💻", "📱", "🧾", "💰", "🚛", "🤖", "🧠", "📊", "🗂️", "⚙️"]
     private let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
@@ -60,6 +64,20 @@ struct AddEditProjectView: View {
                             .font(.caption)
                             .foregroundStyle(Theme.dimText)
                     }
+                }
+
+                Section {
+                    TextField("/path/to/repo", text: $repoPath)
+                        .font(.system(.body, design: .monospaced))
+                        .platformAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    #if os(macOS)
+                    Button("Choose Folder…") { chooseRepoFolder() }
+                    #endif
+                } header: {
+                    Text("Repo")
+                } footer: {
+                    Text("Points a bridge run (Claude Code / Codex) at this project's real repo, on the Mac running bridge/server.js.")
                 }
 
                 if project != nil {
@@ -114,9 +132,11 @@ struct AddEditProjectView: View {
         } else {
             hasTargetDate = false
         }
+        repoPath = project.repoPath ?? ""
     }
 
     private func save() {
+        let trimmedRepoPath = repoPath.trimmingCharacters(in: .whitespacesAndNewlines)
         if let project {
             project.name = name
             project.emoji = emoji
@@ -124,6 +144,7 @@ struct AddEditProjectView: View {
             project.projectDescription = description
             project.status = status
             project.targetDate = hasTargetDate ? targetDate : nil
+            project.repoPath = trimmedRepoPath.isEmpty ? nil : trimmedRepoPath
         } else {
             let newProject = Project(
                 name: name,
@@ -131,12 +152,29 @@ struct AddEditProjectView: View {
                 colorHex: colorHex,
                 projectDescription: description,
                 status: status,
-                targetDate: hasTargetDate ? targetDate : nil
+                targetDate: hasTargetDate ? targetDate : nil,
+                repoPath: trimmedRepoPath.isEmpty ? nil : trimmedRepoPath
             )
             modelContext.insert(newProject)
         }
         dismiss()
     }
+
+    #if os(macOS)
+    private func chooseRepoFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        if !repoPath.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: repoPath)
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            repoPath = url.path
+        }
+    }
+    #endif
 
     private func deleteProject() {
         if let project {

@@ -48,6 +48,10 @@ To keep it running in the background instead of a terminal tab, see
 - `POST /run` — (token required) runs `claude -p "<prompt>" --output-format
   json --add-dir <cwd>` (or the `codex` equivalent) with `cwd` as the
   process's working directory, and returns the result as JSON.
+- `GET /git-status?cwd=<path>` — (token required) runs `git status
+  --porcelain=v2 --branch` against `cwd` and returns `{ isRepo, branch,
+  ahead, behind, dirty }`. Used by a Project's linked repo to show live
+  branch/dirty state without spending an agent run just to check it.
 
 The prompt is passed as an argument to `spawn`, never through a shell
 string, so it can't be used to inject a second command.

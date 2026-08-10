@@ -18,10 +18,22 @@ struct ProjectDetailView: View {
     @State private var isGeneratingBreakdown = false
     @State private var breakdownError: String?
 
+    @State private var gitStatus: BridgeGitStatus?
+    @State private var gitStatusError: String?
+    @State private var isCheckingGitStatus = false
+    @State private var showingRunSheet = false
+
     private var accentColor: Color { Color(hex: project.colorHex) }
 
     private var sortedTasks: [ProjectTask] {
         project.tasks.sorted { $0.sortIndex < $1.sortIndex }
+    }
+
+    /// Bridge runs made against this project's repo, most recent first —
+    /// distinct from any legacy chat-completion AgentRuns (none exist for
+    /// projects, but the filter keeps that boundary explicit).
+    private var sortedAgentRuns: [AgentRun] {
+        project.agentRuns.filter { $0.bridgeAgentKind != nil }.sorted { $0.createdAt > $1.createdAt }
     }
 
     var body: some View {
@@ -43,6 +55,11 @@ struct ProjectDetailView: View {
                     .font(.caption2)
                     .foregroundStyle(Theme.dimText)
                 }
+            }
+            .listRowBackground(Theme.card)
+
+            Section("REPO") {
+                repoSection
             }
             .listRowBackground(Theme.card)
 
@@ -80,6 +97,15 @@ struct ProjectDetailView: View {
                     .padding(8)
             }
             .listRowBackground(Theme.card)
+
+            if !sortedAgentRuns.isEmpty {
+                Section("AGENT RUNS") {
+                    ForEach(sortedAgentRuns) { run in
+                        agentRunRow(run)
+                    }
+                }
+                .listRowBackground(Theme.card)
+            }
         }
         #if os(iOS)
         .listStyle(.insetGrouped)
@@ -110,6 +136,12 @@ struct ProjectDetailView: View {
         .sheet(item: $editingTask) { task in
             AddEditProjectTaskView(task: task)
         }
+        .sheet(isPresented: $showingRunSheet) {
+            ProjectAgentRunSheet(project: project)
+        }
+        .onAppear {
+            if project.repoPath != nil, gitStatus == nil { checkGitStatus() }
+        }
     }
 
     private var header: some View {
@@ -136,6 +168,125 @@ struct ProjectDetailView: View {
             .background(project.status.color.opacity(0.18))
             .foregroundStyle(project.status.color)
             .clipShape(Capsule())
+    }
+
+    // MARK: - Repo
+
+    private var repoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let repoPath = project.repoPath, !repoPath.isEmpty {
+                Text(repoPath)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Theme.primaryText)
+                    .textSelection(.enabled)
+
+                gitStatusRow
+
+                HStack(spacing: 12) {
+                    Button("Check Status") { checkGitStatus() }
+                        .disabled(isCheckingGitStatus)
+                    Button("Run Agent") { showingRunSheet = true }
+                        .foregroundStyle(accentColor)
+                }
+                .font(.caption.weight(.semibold))
+            } else {
+                Text("No repo linked. Add a path from the ⋯ menu (Edit) to run Claude Code / Codex against this project's real codebase.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.dimText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var gitStatusRow: some View {
+        if isCheckingGitStatus {
+            HStack(spacing: 6) {
+                ProgressView().scaleEffect(0.6)
+                Text("Checking…").font(.caption2).foregroundStyle(Theme.dimText)
+            }
+        } else if let gitStatusError {
+            Text(gitStatusError).font(.caption2).foregroundStyle(Theme.negative)
+        } else if let gitStatus {
+            if gitStatus.isRepo {
+                HStack(spacing: 8) {
+                    Label(gitStatus.branch ?? "detached", systemImage: "arrow.triangle.branch")
+                    if gitStatus.dirty > 0 {
+                        Label("\(gitStatus.dirty)", systemImage: "circle.fill")
+                    }
+                    if gitStatus.ahead > 0 {
+                        Label("\(gitStatus.ahead)", systemImage: "arrow.up")
+                    }
+                    if gitStatus.behind > 0 {
+                        Label("\(gitStatus.behind)", systemImage: "arrow.down")
+                    }
+                }
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(gitStatus.dirty > 0 ? Theme.terminalAmber : Theme.terminalGreen)
+            } else {
+                Text("Not a git repo (or bridge unreachable).")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
+        }
+    }
+
+    private func checkGitStatus() {
+        guard let repoPath = project.repoPath, !repoPath.isEmpty else { return }
+        let bridgeURL = UserDefaults.standard.string(forKey: DevAgentKind.claudeCode.bridgeURLKey) ?? ""
+        let token = KeychainService.shared.loadBridgeToken(kind: DevAgentKind.claudeCode.agentKey) ?? ""
+        guard !bridgeURL.isEmpty, !token.isEmpty else {
+            gitStatusError = "Set up the bridge under Subagents → Claude Code to see repo status."
+            return
+        }
+        isCheckingGitStatus = true
+        gitStatusError = nil
+        Task {
+            do {
+                gitStatus = try await DevAgentBridgeClient.gitStatus(baseURL: bridgeURL, token: token, cwd: repoPath)
+            } catch {
+                gitStatusError = error.localizedDescription
+            }
+            isCheckingGitStatus = false
+        }
+    }
+
+    // MARK: - Agent runs
+
+    private func agentRunRow(_ run: AgentRun) -> some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 6) {
+                if let prompt = run.prompt, !prompt.isEmpty {
+                    Text(prompt)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundStyle(Theme.primaryText)
+                }
+                Text(run.ok ? run.output : (run.errorMessage ?? "Unknown error."))
+                    .font(.system(.caption2, design: .monospaced))
+                    .foregroundStyle(run.ok ? Theme.dimText : Theme.negative)
+                    .textSelection(.enabled)
+            }
+            .padding(.top, 4)
+        } label: {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(run.ok ? Theme.terminalGreen : Theme.negative)
+                    .frame(width: 6, height: 6)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(run.bridgeAgentKind == DevAgentKind.codex.agentKey ? "Codex" : "Claude Code")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.primaryText)
+                    Text(run.createdAt.formatted(.dateTime.month(.abbreviated).day().hour().minute()))
+                        .font(.caption2)
+                        .foregroundStyle(Theme.dimText)
+                }
+                Spacer()
+                if let costUSD = run.costUSD {
+                    Text(String(format: "$%.3f", costUSD))
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.dimText)
+                }
+            }
+        }
     }
 
     // MARK: - Plan

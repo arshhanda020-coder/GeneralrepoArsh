@@ -33,6 +33,10 @@ final class AgentDefinition {
     }
 }
 
+/// A run's output, whether it came from the original chat-completion
+/// AgentRunner (agent-defined runs) or from the Claude Code/Codex bridge
+/// (project-scoped runs) — the bridge fields below are nil/default for the
+/// former.
 @Model
 final class AgentRun {
     var id: String
@@ -40,15 +44,42 @@ final class AgentRun {
     var createdAt: Date
     var agent: AgentDefinition?
 
+    /// Set only for bridge runs: which CLI ran ("claudeCode"/"codex", see
+    /// DevAgentKind.agentKey), the prompt that was sent, and how it went.
+    var bridgeAgentKind: String?
+    var prompt: String?
+    var ok: Bool
+    var errorMessage: String?
+    var sessionId: String?
+    var costUSD: Double?
+    var fullAuto: Bool
+    var project: Project?
+
     init(
         id: String = UUID().uuidString,
         output: String,
         createdAt: Date = .now,
-        agent: AgentDefinition? = nil
+        agent: AgentDefinition? = nil,
+        bridgeAgentKind: String? = nil,
+        prompt: String? = nil,
+        ok: Bool = true,
+        errorMessage: String? = nil,
+        sessionId: String? = nil,
+        costUSD: Double? = nil,
+        fullAuto: Bool = false,
+        project: Project? = nil
     ) {
         self.id = id
         self.output = output
         self.createdAt = createdAt
         self.agent = agent
+        self.bridgeAgentKind = bridgeAgentKind
+        self.prompt = prompt
+        self.ok = ok
+        self.errorMessage = errorMessage
+        self.sessionId = sessionId
+        self.costUSD = costUSD
+        self.fullAuto = fullAuto
+        self.project = project
     }
 }
