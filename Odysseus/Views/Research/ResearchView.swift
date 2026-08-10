@@ -45,6 +45,7 @@ struct ResearchView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Research")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.research)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

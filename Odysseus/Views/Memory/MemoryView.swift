@@ -51,6 +51,7 @@ struct MemoryView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Memory")
+        .sectionAssistantButton(.memory)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAdd = true } label: { Image(systemName: "plus") }

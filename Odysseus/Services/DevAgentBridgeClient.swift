@@ -55,6 +55,26 @@ struct BridgeGitStatus {
     let dirty: Int
 }
 
+enum BridgeTaskStatus: String {
+    case working, completed, error
+}
+
+/// One entry in the bridge's task list — mirrors what `claude`'s own
+/// background-task dashboard shows in a terminal, just polled over HTTP
+/// instead of watched live in a TTY.
+struct BridgeTask: Identifiable {
+    let id: String
+    let agent: String
+    let prompt: String
+    let status: BridgeTaskStatus
+    let output: String
+    let sessionId: String?
+    let costUSD: Double?
+    let error: String?
+    let startedAt: Date
+    let finishedAt: Date?
+}
+
 enum DevAgentBridgeClient {
     /// Cheap, unauthenticated reachability check — GET / just confirms
     /// *something* answering as odysseus-bridge is listening at this URL.
@@ -144,7 +164,73 @@ enum DevAgentBridgeClient {
         )
     }
 
+    /// Starts a run in the background and returns immediately — the bridge
+    /// keeps working the task after this call returns. Poll `listTasks` (or
+    /// `task(id:)`) to watch it move from `.working` to `.completed`/`.error`.
+    static func startTask(
+        baseURL: String,
+        token: String,
+        agent: String,
+        prompt: String,
+        cwd: String,
+        fullAuto: Bool
+    ) async throws -> BridgeTask {
+        guard let url = normalizedURL(baseURL, path: "/tasks") else { throw BridgeError.noURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15 // this call itself just enqueues — it shouldn't block on the run
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "agent": agent, "prompt": prompt, "cwd": cwd, "fullAuto": fullAuto,
+        ])
+
+        let (data, response) = try await send(request)
+        guard let http = response as? HTTPURLResponse else { throw BridgeError.unreachable }
+        guard http.statusCode != 401 else { throw BridgeError.unauthorized }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw BridgeError.malformedResponse
+        }
+        if http.statusCode >= 400, let error = json["error"] as? String { throw BridgeError.server(error) }
+        guard let task = decodeTask(json) else { throw BridgeError.malformedResponse }
+        return task
+    }
+
+    /// Full task list for one agent, newest first — this is the dashboard feed.
+    static func listTasks(baseURL: String, token: String, agent: String) async throws -> [BridgeTask] {
+        let json = try await get(baseURL: baseURL, path: "/tasks?agent=\(agent)", token: token)
+        guard let raw = json["tasks"] as? [[String: Any]] else { throw BridgeError.malformedResponse }
+        return raw.compactMap(decodeTask)
+    }
+
     // MARK: - Helpers
+
+    private static func decodeTask(_ json: [String: Any]) -> BridgeTask? {
+        guard let id = json["id"] as? String,
+              let agent = json["agent"] as? String,
+              let prompt = json["prompt"] as? String,
+              let statusRaw = json["status"] as? String,
+              let status = BridgeTaskStatus(rawValue: statusRaw),
+              let startedAt = isoDate(json["startedAt"])
+        else { return nil }
+        return BridgeTask(
+            id: id,
+            agent: agent,
+            prompt: prompt,
+            status: status,
+            output: json["output"] as? String ?? "",
+            sessionId: json["sessionId"] as? String,
+            costUSD: json["costUSD"] as? Double,
+            error: json["error"] as? String,
+            startedAt: startedAt,
+            finishedAt: isoDate(json["finishedAt"])
+        )
+    }
+
+    private static func isoDate(_ raw: Any?) -> Date? {
+        guard let string = raw as? String else { return nil }
+        return ISO8601DateFormatter().date(from: string)
+    }
 
     private static func get(baseURL: String, path: String, token: String) async throws -> [String: Any] {
         guard let url = normalizedURL(baseURL, path: path) else { throw BridgeError.noURL }

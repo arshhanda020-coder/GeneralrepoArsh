@@ -75,6 +75,7 @@ struct StatsView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Stats")
+        .sectionAssistantButton(.stats)
     }
 
     @ViewBuilder

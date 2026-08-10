@@ -89,6 +89,7 @@ struct AIIntegrationView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("AI Tools")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.aiIntegration)
         .refreshable { await refresh() }
         .task {
             if allItems.isEmpty { await refresh() }

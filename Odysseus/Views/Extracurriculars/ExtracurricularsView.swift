@@ -51,6 +51,7 @@ struct ExtracurricularsView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Extracurriculars")
+        .sectionAssistantButton(.extracurriculars)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAdd = true } label: { Image(systemName: "plus") }
@@ -174,6 +175,7 @@ struct ExtracurricularsView: View {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Extracurriculars.pdf")
         try? data.write(to: url)
         shareURL = url
+        NotificationManager.shared.notifyExportComplete(name: "Your extracurriculars resume")
     }
 }
 

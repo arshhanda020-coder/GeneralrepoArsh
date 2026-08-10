@@ -45,6 +45,7 @@ struct AgentsView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Agentic Workflows")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.agents)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

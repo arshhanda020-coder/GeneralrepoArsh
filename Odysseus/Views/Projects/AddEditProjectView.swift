@@ -20,6 +20,8 @@ struct AddEditProjectView: View {
     @State private var colorHex = "5B8CFF"
     @State private var description = ""
     @State private var status: ProjectStatus = .building
+    @State private var hasTargetDate = false
+    @State private var targetDate = Date()
     @State private var repoURLString = ""
     @State private var repoPath = ""
 
@@ -56,6 +58,17 @@ struct AddEditProjectView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section("Target Completion") {
+                    Toggle("Set a target date", isOn: $hasTargetDate)
+                    if hasTargetDate {
+                        DatePicker("Done by", selection: $targetDate, displayedComponents: .date)
+                    } else {
+                        Text("Set this so the project shows up on the Calendar.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
+                    }
                 }
 
                 Section("Repo") {
@@ -133,6 +146,12 @@ struct AddEditProjectView: View {
         colorHex = project.colorHex
         description = project.projectDescription
         status = project.status
+        if let target = project.targetDate {
+            hasTargetDate = true
+            targetDate = target
+        } else {
+            hasTargetDate = false
+        }
         repoURLString = project.repoURLString ?? ""
         repoPath = project.repoPath ?? ""
     }
@@ -146,6 +165,7 @@ struct AddEditProjectView: View {
             project.colorHex = colorHex
             project.projectDescription = description
             project.status = status
+            project.targetDate = hasTargetDate ? targetDate : nil
             project.repoURLString = trimmedRepoURL.isEmpty ? nil : trimmedRepoURL
             project.repoPath = trimmedRepoPath.isEmpty ? nil : trimmedRepoPath
         } else {
@@ -155,6 +175,7 @@ struct AddEditProjectView: View {
                 colorHex: colorHex,
                 projectDescription: description,
                 status: status,
+                targetDate: hasTargetDate ? targetDate : nil,
                 repoURLString: trimmedRepoURL.isEmpty ? nil : trimmedRepoURL,
                 repoPath: trimmedRepoPath.isEmpty ? nil : trimmedRepoPath
             )

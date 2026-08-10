@@ -18,6 +18,10 @@ final class Project {
     /// A longer-form plan (written by the user or AI-generated) that tasks
     /// with due dates get broken out from.
     var planText: String?
+    /// When the whole project (not just an individual task) is meant to be
+    /// done — optional, separate from any task due dates. Set, this is what
+    /// makes the project itself show up on the Calendar.
+    var targetDate: Date?
     /// GitHub repo linked to this project (e.g. "https://github.com/owner/repo").
     var repoURLString: String?
     /// Absolute path (on the Mac running bridge/server.js) to this project's
@@ -42,6 +46,7 @@ final class Project {
         status: ProjectStatus = .building,
         createdAt: Date = .now,
         planText: String? = nil,
+        targetDate: Date? = nil,
         repoURLString: String? = nil,
         repoPath: String? = nil
     ) {
@@ -53,6 +58,7 @@ final class Project {
         self.statusRaw = status.rawValue
         self.createdAt = createdAt
         self.planText = planText
+        self.targetDate = targetDate
         self.repoURLString = repoURLString
         self.repoPath = repoPath
     }
