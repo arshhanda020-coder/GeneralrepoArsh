@@ -4,5 +4,9 @@
 <dict>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
+	<!-- Lets due-date/study reminders use UNNotificationInterruptionLevel.timeSensitive
+	     so they break through Focus modes instead of being silently downgraded to .active. -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
 </dict>
 </plist>

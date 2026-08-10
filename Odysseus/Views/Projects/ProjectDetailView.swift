@@ -347,6 +347,7 @@ struct ProjectDetailView: View {
                     task.isDone.toggle()
                 }
                 NotificationManager.shared.sync(projectTask: task)
+                if task.isDone { NotificationManager.shared.notifyTaskCompleted(title: task.title) }
             } label: {
                 Image(systemName: task.isDone ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(task.isDone ? accentColor : Theme.dimText)
@@ -395,7 +396,7 @@ struct ProjectDetailView: View {
     private func deleteTasks(at offsets: IndexSet) {
         let items = sortedTasks
         for index in offsets {
-            NotificationManager.shared.cancelOneOff(identifier: "project-task-\(items[index].id)")
+            NotificationManager.shared.cancelReminders(projectTaskID: items[index].id)
             modelContext.delete(items[index])
         }
     }

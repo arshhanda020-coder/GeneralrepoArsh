@@ -175,6 +175,7 @@ struct ExtracurricularsView: View {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("Extracurriculars.pdf")
         try? data.write(to: url)
         shareURL = url
+        NotificationManager.shared.notifyExportComplete(name: "Your extracurriculars resume")
     }
 }
 

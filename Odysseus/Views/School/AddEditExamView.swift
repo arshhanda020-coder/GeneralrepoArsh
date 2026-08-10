@@ -24,6 +24,7 @@ struct AddEditExamView: View {
     @State private var category: ExamCategory = .marchExams
     @State private var actualScore = ""
     @State private var linkedClass: SchoolClass?
+    @State private var remindersOn = true
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,7 @@ struct AddEditExamView: View {
                             Text(schoolClass.name).tag(schoolClass as SchoolClass?)
                         }
                     }
+                    Toggle("Remind me on the day", isOn: $remindersOn)
                 }
                 Section("Goal") {
                     TextField("Target score (optional)", text: $targetScore)
@@ -50,6 +52,10 @@ struct AddEditExamView: View {
                     TextField("Actual score, once you have it", text: $actualScore)
                     if !actualScore.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         Text("Logging a score marks this test as scored — it'll show up in your GPA/score history.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
+                    } else {
+                        Text("No score yet — once the exam date passes, you'll get a nudge to come back and log it.")
                             .font(.caption)
                             .foregroundStyle(Theme.dimText)
                     }
@@ -98,12 +104,14 @@ struct AddEditExamView: View {
         category = exam.category
         actualScore = exam.actualScore ?? ""
         linkedClass = exam.schoolClass
+        remindersOn = exam.remindersOn
     }
 
     private func save() {
         let trimmedTarget = targetScore.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedScore = actualScore.trimmingCharacters(in: .whitespacesAndNewlines)
+        let targetExam: Exam
         if let exam {
             let hadScore = exam.hasScore
             exam.name = name
@@ -113,11 +121,13 @@ struct AddEditExamView: View {
             exam.category = category
             exam.schoolClass = linkedClass
             exam.actualScore = trimmedScore.isEmpty ? nil : trimmedScore
+            exam.remindersOn = remindersOn
             if !hadScore, !trimmedScore.isEmpty {
                 exam.scoreLoggedAt = .now
             } else if trimmedScore.isEmpty {
                 exam.scoreLoggedAt = nil
             }
+            targetExam = exam
         } else {
             let newExam = Exam(
                 name: name,
@@ -127,15 +137,22 @@ struct AddEditExamView: View {
                 schoolClass: linkedClass,
                 category: category,
                 actualScore: trimmedScore.isEmpty ? nil : trimmedScore,
-                scoreLoggedAt: trimmedScore.isEmpty ? nil : .now
+                scoreLoggedAt: trimmedScore.isEmpty ? nil : .now,
+                remindersOn: remindersOn
             )
             modelContext.insert(newExam)
+            targetExam = newExam
+        }
+        NotificationManager.shared.sync(exam: targetExam)
+        if remindersOn {
+            NotificationManager.shared.notifyReminderSet(title: name, date: examDate)
         }
         dismiss()
     }
 
     private func deleteExam() {
         if let exam {
+            NotificationManager.shared.cancelReminders(examID: exam.id)
             modelContext.delete(exam)
         }
         dismiss()

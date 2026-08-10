@@ -323,6 +323,15 @@ final class OdysseusController: NSObject, ObservableObject {
         }
     }
 
+    /// Re-evaluates every reminder/nudge against current data — due dates
+    /// that are now overdue, food/workouts that still haven't been logged,
+    /// exam scores still missing. Cheap, so it's safe to call every time the
+    /// app comes to the foreground (RootView does exactly that).
+    func runNotificationChecks() {
+        guard let modelContext else { return }
+        NotificationManager.shared.resyncAllReminders(modelContext: modelContext)
+    }
+
     private func buildStatusContext(modelContext: ModelContext) -> String {
         var lines: [String] = []
         lines.append(todaySummary(context: modelContext))
@@ -1010,7 +1019,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return "Found \"\(assignment.title)\" — confirm you want it deleted before I remove it."
         }
         let title = assignment.title
-        NotificationManager.shared.cancelOneOff(identifier: "assignment-\(assignment.id)")
+        NotificationManager.shared.cancelReminders(assignmentID: assignment.id)
         context.delete(assignment)
         return "Deleted \"\(title)\"."
     }
@@ -1030,7 +1039,9 @@ final class OdysseusController: NSObject, ObservableObject {
         // Linking to a class is what makes this exam also show up on that
         // class's own page — not just Calendar/School exams.
         let matchedClass = className.flatMap { findSchoolClass(matching: $0, context: context) }
-        context.insert(Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory))
+        let exam = Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory)
+        context.insert(exam)
+        NotificationManager.shared.sync(exam: exam)
         let classNote = matchedClass.map { " under \($0.name)" } ?? ""
         return "Added exam \"\(trimmedName)\"\(classNote) on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
     }
@@ -1051,6 +1062,7 @@ final class OdysseusController: NSObject, ObservableObject {
             let trimmed = newClassName.trimmingCharacters(in: .whitespacesAndNewlines)
             exam.schoolClass = trimmed.isEmpty ? nil : findSchoolClass(matching: trimmed, context: context)
         }
+        NotificationManager.shared.sync(exam: exam)
         return "Updated \"\(exam.name)\"."
     }
 
@@ -1064,6 +1076,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return "Found \"\(exam.name)\" — confirm you want it deleted before I remove it."
         }
         let name = exam.name
+        NotificationManager.shared.cancelReminders(examID: exam.id)
         context.delete(exam)
         return "Deleted \"\(name)\"."
     }

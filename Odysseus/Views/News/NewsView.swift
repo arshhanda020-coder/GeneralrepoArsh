@@ -172,7 +172,10 @@ struct NewsView: View {
             let result = await NewsService.shared.fetchAll(topic: topic)
             if !result.items.isEmpty {
                 anySucceeded = true
-                merge(result.items, topic: topic)
+                let newTitles = merge(result.items, topic: topic)
+                if !newTitles.isEmpty {
+                    NotificationManager.shared.notifyNewHeadlines(topic: topic.displayName, count: newTitles.count, firstTitle: newTitles[0])
+                }
             }
             if result.hadFailures {
                 anyFailure = true
@@ -188,7 +191,11 @@ struct NewsView: View {
         }
     }
 
-    private func merge(_ fetched: [FetchedNewsItem], topic: NewsTopic) {
+    /// Returns titles of genuinely new items (not previously seen) so the
+    /// caller can decide whether to notify.
+    @discardableResult
+    private func merge(_ fetched: [FetchedNewsItem], topic: NewsTopic) -> [String] {
+        var newTitles: [String] = []
         for entry in fetched {
             let key = "\(topic.rawValue)::\(entry.dedupeKey)"
             if let existing = allItems.first(where: { $0.id == key }) {
@@ -208,6 +215,7 @@ struct NewsView: View {
                     topic: topic
                 )
                 modelContext.insert(newItem)
+                newTitles.append(entry.title)
             }
         }
 
@@ -215,6 +223,7 @@ struct NewsView: View {
         for stale in topicItems.dropFirst(80) {
             modelContext.delete(stale)
         }
+        return newTitles
     }
 }
 

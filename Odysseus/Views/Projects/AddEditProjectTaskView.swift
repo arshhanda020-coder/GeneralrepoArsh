@@ -66,11 +66,14 @@ struct AddEditProjectTaskView: View {
         task.dueDate = hasDueDate ? Calendar.current.startOfDay(for: dueDate) : nil
         task.remindersOn = hasDueDate && remindersOn
         NotificationManager.shared.sync(projectTask: task)
+        if hasDueDate, remindersOn {
+            NotificationManager.shared.notifyReminderSet(title: title, date: dueDate)
+        }
         dismiss()
     }
 
     private func deleteTask() {
-        NotificationManager.shared.cancelOneOff(identifier: "project-task-\(task.id)")
+        NotificationManager.shared.cancelReminders(projectTaskID: task.id)
         modelContext.delete(task)
         dismiss()
     }
