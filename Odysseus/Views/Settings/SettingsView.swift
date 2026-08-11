@@ -23,6 +23,8 @@ struct SettingsView: View {
     @State private var showingChangePIN = false
     @State private var showingDeleteConfirmation = false
     @State private var didDeleteAll = false
+    @State private var biometricKind = BiometricAuthService.shared.availableKind
+    @State private var biometricUnlockEnabled = BiometricLockSettings.isEnabled
 
     var body: some View {
         NavigationStack {
@@ -82,11 +84,25 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Security") {
+                Section {
                     Button {
                         showingChangePIN = true
                     } label: {
                         Label("Change PIN", systemImage: "lock")
+                    }
+                    if let biometricKind {
+                        Toggle(isOn: $biometricUnlockEnabled) {
+                            Label("Unlock with \(biometricKind.label)", systemImage: biometricKind.systemImage)
+                        }
+                        .onChange(of: biometricUnlockEnabled) { _, newValue in
+                            BiometricLockSettings.isEnabled = newValue
+                        }
+                    }
+                } header: {
+                    Text("Security")
+                } footer: {
+                    if let biometricKind {
+                        Text("Your PIN still works either way — this just offers \(biometricKind.label) first on the lock screen.")
                     }
                 }
 

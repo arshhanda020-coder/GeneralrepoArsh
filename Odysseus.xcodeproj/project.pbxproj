@@ -354,6 +354,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used to scan food barcodes and log meal photos.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Used to unlock Odysseus instead of typing your PIN.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Used to read your step count for the Health tab.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Not used to write data — only requested by the HealthKit framework.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used for Copilot voice mode so you can talk to it hands-free.";
@@ -392,6 +393,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used to scan food barcodes and log meal photos.";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Used to unlock Odysseus instead of typing your PIN.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Used to read your step count for the Health tab.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Not used to write data — only requested by the HealthKit framework.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used for Copilot voice mode so you can talk to it hands-free.";
