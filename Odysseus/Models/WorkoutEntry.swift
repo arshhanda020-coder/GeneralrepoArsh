@@ -20,7 +20,7 @@ final class WorkoutEntry {
     var intensityRaw: Int?
     /// True when caloriesBurned came from the local MET fallback (AI call failed/unavailable)
     /// rather than an AI estimate — surfaced in the UI as a rougher number.
-    var isEstimateFallback: Bool
+    var isEstimateFallback: Bool = false
 
     init(
         id: String = UUID().uuidString,

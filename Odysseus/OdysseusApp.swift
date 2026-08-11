@@ -27,7 +27,7 @@ struct OdysseusApp: App {
         container = Self.makeContainer(schema: schema)
         Self.seedClassesIfNeeded(container: container)
         Self.migrateOrphanedChatMessagesIfNeeded(container: container)
-        KeychainService.shared.migrateFixedSecretsToSynchronizableIfNeeded()
+        Self.seedDefaultGitHubLinkIfNeeded(container: container)
     }
 
     /// ChatMessage gained a `session` relationship when multi-thread chat
@@ -77,6 +77,20 @@ struct OdysseusApp: App {
         try? context.save()
     }
 
+    /// The user's go-to repo for quick reference — used to live as a hardcoded
+    /// "Use saved repo" button inside Projects' repo field; moved here so it
+    /// just shows up in Saved GitHub Repos on first launch instead, and
+    /// Projects no longer has any GitHub-specific hardcoding of its own.
+    private static func seedDefaultGitHubLinkIfNeeded(container: ModelContainer) {
+        let key = "seeded_default_github_link_v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        let context = ModelContext(container)
+        context.insert(SavedGitHubLink(urlString: "https://github.com/ruvnet/ruflo", repoName: "ruvnet/ruflo"))
+        try? context.save()
+    }
+
     /// The on-disk store can fall out of sync with the model schema whenever a
     /// @Model type gains/loses a property between installs — SwiftData throws
     /// rather than migrating automatically, and that used to take the whole
@@ -87,9 +101,13 @@ struct OdysseusApp: App {
     private static func makeContainer(schema: Schema) -> ModelContainer {
         // CloudKit-backed: every model syncs to the user's private iCloud
         // database, so assignments/projects/notes/etc. survive a lost or
-        // replaced device and stay in sync between iPhone and Mac. Requires
-        // the matching iCloud.com.traderforge.Odysseus container to be
-        // enabled in Signing & Capabilities (see Odysseus*.entitlements).
+        // replaced device and stay in sync between iPhone and Mac. This
+        // requires every non-optional stored property across the schema to
+        // carry an inline default (not just an initializer default) so
+        // CloudKit can synthesize partial records — every @Model file in
+        // this project now satisfies that. Requires the matching
+        // iCloud.com.traderforge.Odysseus container to be enabled in Signing
+        // & Capabilities (see Odysseus.entitlements / Odysseus-macOS.entitlements).
         let configuration = ModelConfiguration(
             schema: schema,
             cloudKitDatabase: .private("iCloud.com.traderforge.Odysseus")

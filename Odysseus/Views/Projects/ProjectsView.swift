@@ -17,9 +17,13 @@ struct ProjectsView: View {
                 groupedList
 
                 if projects.isEmpty {
-                    Text("No projects yet. Tap + to add one.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.dimText)
+                    EmptyStateView(
+                        icon: MindMapSection.projects.symbolName,
+                        title: "No projects yet",
+                        message: "Tap + to add one.",
+                        tint: MindMapSection.projects.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
                 }
             }
             .padding(12)

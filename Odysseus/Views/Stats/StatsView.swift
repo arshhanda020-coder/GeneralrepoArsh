@@ -22,10 +22,14 @@ struct StatsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if skills.isEmpty && projects.isEmpty && submittedQuizzes.isEmpty {
-                    Text("Nothing to show yet. Progress on Skills, Projects, and Test Me quizzes will appear here.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.dimText)
-                        .padding(.top, 20)
+                    EmptyStateView(
+                        icon: MindMapSection.stats.symbolName,
+                        title: "Nothing to show yet",
+                        message: "Progress on Skills, Projects, and Test Me quizzes will appear here.",
+                        tint: MindMapSection.stats.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
+                    .padding(.top, 20)
                 }
 
                 if !skills.isEmpty {

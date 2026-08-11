@@ -25,10 +25,6 @@ struct AddEditProjectView: View {
     @State private var repoURLString = ""
     @State private var repoPath = ""
 
-    /// Hardcoded for now — the GitHub repo the user has saved for quick linking.
-    /// TODO: replace with a real "pick a repo" flow (search/list the user's GitHub repos).
-    private static let savedRepoURL = "https://github.com/ruvnet/ruflo"
-
     private let emojiOptions = ["🛠️", "🚀", "💻", "📱", "🧾", "💰", "🚛", "🤖", "🧠", "📊", "🗂️", "⚙️"]
     private let colorOptions = ["5FB8A8", "D9695F", "D9A857", "5FCB8C", "4F8FA8", "8A7CA8", "6B8F5A", "C77DAE"]
 
@@ -78,12 +74,6 @@ struct AddEditProjectView: View {
                         .textInputAutocapitalization(.never)
                         #endif
                         .autocorrectionDisabled()
-                    if repoURLString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Button("Use saved repo") {
-                            repoURLString = Self.savedRepoURL
-                        }
-                        .font(.caption.weight(.semibold))
-                    }
                 }
 
                 Section {

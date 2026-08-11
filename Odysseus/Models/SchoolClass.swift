@@ -45,6 +45,12 @@ final class SchoolClass {
     var sortIndex: Int = 0
     var createdAt: Date = Date.now
 
+    /// Index into `ClassBannerColor.allCases`, or -1 for "not chosen yet" —
+    /// falls back to a stable auto-assigned color (see `bannerColor` below)
+    /// so every class still gets a distinct Classroom-style banner color
+    /// without the user having to pick one.
+    var colorIndex: Int = -1
+
     /// The student's current letter grade in this class — the one thing the
     /// app can't fill in on its own, since that lives in Rutgers Prep's own
     /// gradebook and isn't something this app has access to.
@@ -69,6 +75,7 @@ final class SchoolClass {
         isEnrolled: Bool = true,
         sortIndex: Int = 0,
         createdAt: Date = .now,
+        colorIndex: Int = -1,
         gradeLabel: String? = nil,
         courseLevelOverrideRaw: String? = nil
     ) {
@@ -77,7 +84,20 @@ final class SchoolClass {
         self.isEnrolled = isEnrolled
         self.sortIndex = sortIndex
         self.createdAt = createdAt
+        self.colorIndex = colorIndex
         self.gradeLabel = gradeLabel
         self.courseLevelOverrideRaw = courseLevelOverrideRaw
+    }
+}
+
+extension SchoolClass {
+    /// The class's banner color — whatever was explicitly picked, or a
+    /// stable auto-assignment hashed from the class's id so it stays put
+    /// across relaunches until the user chooses one themselves.
+    var bannerColor: ClassBannerColor {
+        if colorIndex >= 0, let picked = ClassBannerColor(rawValue: colorIndex) {
+            return picked
+        }
+        return .auto(for: id)
     }
 }
