@@ -91,6 +91,7 @@ struct MindMapHomeView: View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 20) {
                 header
+                reactorHero
                 todayCard
                 sectionsList
             }
@@ -156,6 +157,37 @@ struct MindMapHomeView: View {
             .foregroundStyle(Theme.accent)
             .buttonStyle(.plain)
         }
+    }
+
+    // MARK: - Reactor hero
+
+    private var reactorStatusText: String {
+        switch odysseus.status {
+        case .idle: return "Tap to talk to Odysseus"
+        case .listening: return odysseus.statusMessage ?? "Listening…"
+        case .thinking: return odysseus.statusMessage ?? "Thinking…"
+        case .speaking: return odysseus.statusMessage ?? "Speaking…"
+        }
+    }
+
+    /// The centerpiece the plain content-first redesign dropped — a big
+    /// reactor front and center on the home screen instead of tucked into a
+    /// small header icon, same tap-to-activate as before.
+    private var reactorHero: some View {
+        Button {
+            odysseus.activate()
+        } label: {
+            VStack(spacing: 10) {
+                ArcReactorView(size: 200, isActive: odysseus.status != .idle, isSpeaking: odysseus.status == .speaking)
+                Text(reactorStatusText)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.dimText)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(odysseus.isActive ? "Odysseus, listening" : "Odysseus")
     }
 
     // MARK: - Today card
