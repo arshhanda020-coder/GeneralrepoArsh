@@ -17,8 +17,8 @@ final class Note {
     var id: String = UUID().uuidString
     var title: String = ""
     var content: String = ""
-    var createdAt: Date = .now
-    var updatedAt: Date = .now
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var contextTypeRaw: String?
     var contextID: String?
     /// Only meaningful when pinned to Today: lets a quick reminder note be

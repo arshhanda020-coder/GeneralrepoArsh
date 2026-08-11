@@ -5,7 +5,6 @@
 
 import SwiftUI
 import SwiftData
-import PhotosUI
 
 struct SchoolView: View {
     @Environment(\.modelContext) private var modelContext
@@ -17,13 +16,6 @@ struct SchoolView: View {
     @State private var editingExam: Exam?
     @State private var loggingExam: Exam?
 
-    @State private var homeworkQuestion = ""
-    @State private var homeworkPhoto: PhotosPickerItem?
-    @State private var homeworkImageData: Data?
-    @State private var homeworkAnswer: String?
-    @State private var isAsking = false
-    @State private var askError: String?
-
     private var enrolledClasses: [SchoolClass] { allClasses.filter { $0.isEnrolled } }
     private var droppedClasses: [SchoolClass] { allClasses.filter { !$0.isEnrolled } }
 
@@ -32,10 +24,8 @@ struct SchoolView: View {
             VStack(alignment: .leading, spacing: 18) {
                 classesSection
                 examsSection
-                homeworkHelperSection
 
                 navLinkRow(destination: GPACalculatorView(), icon: "chart.pie.fill", title: "GPA Calculator")
-                navLinkRow(destination: TestMeView(), icon: "questionmark.circle.fill", title: "Test Me")
             }
             .padding(12)
         }
@@ -253,100 +243,11 @@ struct SchoolView: View {
         .padding(12)
         .glassPanel(cornerRadius: 10)
     }
-
-    // MARK: - AI homework helper
-
-    private var homeworkHelperSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ASK AI FOR HELP")
-                .font(.system(.caption2, design: .monospaced).weight(.bold))
-                .tracking(0.5)
-                .foregroundStyle(Theme.dimText)
-
-            VStack(alignment: .leading, spacing: 10) {
-                if let homeworkImageData, let uiImage = PlatformImage(data: homeworkImageData) {
-                    Image(platformImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxHeight: 160)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-
-                HStack(spacing: 8) {
-                    PhotosPicker(selection: $homeworkPhoto, matching: .images) {
-                        Image(systemName: "camera")
-                            .foregroundStyle(Theme.dimText)
-                    }
-                    .buttonStyle(.plain)
-
-                    TextField("What do you need help with?", text: $homeworkQuestion, axis: .vertical)
-                        .lineLimit(1...4)
-                        .onSubmit {
-                            guard !isAsking, !(homeworkQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && homeworkImageData == nil) else { return }
-                            askForHelp()
-                        }
-                }
-
-                Button {
-                    askForHelp()
-                } label: {
-                    Label(isAsking ? "Thinking…" : "Ask", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(MindMapSection.school.accentColor)
-                .disabled(isAsking || (homeworkQuestion.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && homeworkImageData == nil))
-
-                if let askError {
-                    Text(askError).font(.caption).foregroundStyle(Theme.negative)
-                }
-
-                if let homeworkAnswer {
-                    Divider().overlay(Theme.cardBorder)
-                    Text(homeworkAnswer)
-                        .font(.caption)
-                        .foregroundStyle(Theme.primaryText)
-                }
-            }
-            .padding(12)
-            .glassPanel(cornerRadius: 10)
-        }
-        .onChange(of: homeworkPhoto) { _, newItem in
-            Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                    homeworkImageData = PlatformImage(data: data)?.jpegData(compressionQuality: 0.6) ?? data
-                }
-            }
-        }
-    }
-
-    private func askForHelp() {
-        isAsking = true
-        askError = nil
-        homeworkAnswer = nil
-        let question = homeworkQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prompt = question.isEmpty ? "Explain what's shown in this photo and walk me through how to solve it, step by step." : question
-        let image = homeworkImageData
-
-        Task {
-            do {
-                let answer = try await AISettings.currentService.askAboutImage(
-                    prompt: prompt,
-                    imageData: image,
-                    systemPrompt: "You are a patient, encouraging tutor. Explain concepts step by step so the student actually understands the reasoning, not just the answer. Keep it focused and not overly long."
-                )
-                homeworkAnswer = answer
-            } catch {
-                askError = error.localizedDescription
-            }
-            isAsking = false
-        }
-    }
 }
 
 #Preview {
     NavigationStack {
         SchoolView()
     }
-    .modelContainer(for: [SchoolClass.self, Topic.self, Assignment.self, Exam.self, StudySession.self, QuizSession.self, QuizQuestion.self], inMemory: true)
+    .modelContainer(for: [SchoolClass.self, Topic.self, Lesson.self, LessonMaterial.self, Assignment.self, Exam.self, StudySession.self, QuizSession.self, QuizQuestion.self], inMemory: true)
 }

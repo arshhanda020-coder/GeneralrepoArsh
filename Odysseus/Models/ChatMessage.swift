@@ -12,7 +12,7 @@ final class ChatMessage {
     /// "user" or "assistant"
     var role: String = "user"
     var content: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     /// Optional image attached by the user (JPEG), sent to Claude as vision input.
     var imageData: Data?
     var session: ChatSession?

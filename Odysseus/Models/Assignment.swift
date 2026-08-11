@@ -13,8 +13,11 @@ final class Assignment {
     var dueDate: Date?
     var isDone: Bool = false
     var notes: String?
-    var createdAt: Date = .now
-    var topic: Topic?
+    var createdAt: Date = Date.now
+    var lesson: Lesson?
+    /// Distinguishes a test/quiz from regular homework within a lesson —
+    /// same model, just a different badge and a different "Add" entry point.
+    var isQuiz: Bool = false
     /// nil = not marked yet, true = "I understand", false = "Help me understand" was used.
     var understood: Bool?
     /// The AI's explanation from the last "Help me understand" tap.
@@ -28,7 +31,8 @@ final class Assignment {
         isDone: Bool = false,
         notes: String? = nil,
         createdAt: Date = .now,
-        topic: Topic? = nil,
+        lesson: Lesson? = nil,
+        isQuiz: Bool = false,
         understood: Bool? = nil,
         helpExplanation: String? = nil,
         remindersOn: Bool = false
@@ -39,7 +43,8 @@ final class Assignment {
         self.isDone = isDone
         self.notes = notes
         self.createdAt = createdAt
-        self.topic = topic
+        self.lesson = lesson
+        self.isQuiz = isQuiz
         self.understood = understood
         self.helpExplanation = helpExplanation
         self.remindersOn = remindersOn

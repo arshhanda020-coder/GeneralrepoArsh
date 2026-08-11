@@ -15,7 +15,7 @@ final class MemoryEntry {
     var id: String = UUID().uuidString
     var content: String = ""
     var isAISaved: Bool = false
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,

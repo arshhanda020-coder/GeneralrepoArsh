@@ -53,7 +53,7 @@ struct TodayView: View {
             return ChecklistItem(
                 id: "assignment-\(assignment.id)",
                 title: assignment.title,
-                subtitle: assignment.topic?.schoolClass?.name ?? assignment.topic?.name,
+                subtitle: assignment.lesson?.topic?.schoolClass?.name ?? assignment.lesson?.topic?.name ?? assignment.lesson?.title,
                 dueDate: due,
                 isDone: assignment.isDone,
                 kind: .assignment(assignment)

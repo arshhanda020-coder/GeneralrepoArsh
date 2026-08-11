@@ -52,8 +52,8 @@ struct SearchView: View {
                         NavigationLink(schoolClass.name) { SchoolClassDetailView(schoolClass: schoolClass) }
                     }
                     resultSection("Assignments", matchedAssignments) { assignment in
-                        if let topic = assignment.topic {
-                            NavigationLink(assignment.title) { TopicDetailView(topic: topic) }
+                        if let lesson = assignment.lesson {
+                            NavigationLink(assignment.title) { LessonDetailView(lesson: lesson) }
                         } else {
                             NavigationLink(assignment.title) { SchoolView() }
                         }

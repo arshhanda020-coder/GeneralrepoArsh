@@ -9,7 +9,7 @@ import SwiftData
 @Model
 final class StudySession {
     var id: String = UUID().uuidString
-    var date: Date = .now
+    var date: Date = Date.now
     var note: String?
     /// Free-form; ACT logging uses "English"/"Math"/"Reading"/"Science"/"General".
     var subjectArea: String?

@@ -15,6 +15,7 @@ enum NoteContext: Equatable, Hashable {
     case today
     case project(String)
     case topic(String)
+    case lesson(String)
     case agentDefinition(String)
 
     var typeRaw: String {
@@ -22,6 +23,7 @@ enum NoteContext: Equatable, Hashable {
         case .today: return "today"
         case .project: return "project"
         case .topic: return "topic"
+        case .lesson: return "lesson"
         case .agentDefinition: return "agentDefinition"
         }
     }
@@ -30,7 +32,7 @@ enum NoteContext: Equatable, Hashable {
     var recordID: String? {
         switch self {
         case .today: return nil
-        case .project(let id), .topic(let id), .agentDefinition(let id):
+        case .project(let id), .topic(let id), .lesson(let id), .agentDefinition(let id):
             return id
         }
     }
@@ -40,6 +42,7 @@ enum NoteContext: Equatable, Hashable {
         case "today": return .today
         case "project": return id.map(NoteContext.project)
         case "topic": return id.map(NoteContext.topic)
+        case "lesson": return id.map(NoteContext.lesson)
         case "agentDefinition": return id.map(NoteContext.agentDefinition)
         default: return nil
         }
@@ -50,6 +53,7 @@ enum NoteContext: Equatable, Hashable {
         case .today: return "Today"
         case .project: return "Project"
         case .topic: return "School"
+        case .lesson: return "School"
         case .agentDefinition: return "Workflow"
         }
     }
@@ -59,6 +63,7 @@ enum NoteContext: Equatable, Hashable {
         case .today: return "checkmark.seal"
         case .project: return "hammer"
         case .topic: return "graduationcap.fill"
+        case .lesson: return "graduationcap.fill"
         case .agentDefinition: return "cpu"
         }
     }
@@ -74,6 +79,8 @@ enum NoteContext: Equatable, Hashable {
             return (try? modelContext.fetch(FetchDescriptor<Project>(predicate: #Predicate { $0.id == id })))?.first?.name
         case .topic(let id):
             return (try? modelContext.fetch(FetchDescriptor<Topic>(predicate: #Predicate { $0.id == id })))?.first?.name
+        case .lesson(let id):
+            return (try? modelContext.fetch(FetchDescriptor<Lesson>(predicate: #Predicate { $0.id == id })))?.first?.title
         case .agentDefinition(let id):
             return (try? modelContext.fetch(FetchDescriptor<AgentDefinition>(predicate: #Predicate { $0.id == id })))?.first?.name
         }

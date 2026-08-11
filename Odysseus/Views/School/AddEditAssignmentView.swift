@@ -8,8 +8,10 @@ import SwiftData
 
 struct AddEditAssignmentView: View {
     let assignment: Assignment?
-    /// Only used when creating a new assignment — it's added under this topic.
-    var presetTopic: Topic?
+    /// Only used when creating a new assignment — it's added under this lesson.
+    var presetLesson: Lesson?
+    /// Only used when creating: true for a test/quiz, false for regular homework.
+    var presetIsQuiz: Bool = false
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -25,7 +27,7 @@ struct AddEditAssignmentView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Assignment") {
+                Section((assignment?.isQuiz ?? presetIsQuiz) ? "Test/Quiz" : "Assignment") {
                     TextField("Title", text: $title)
                     Toggle("Has a due date", isOn: $hasDueDate)
                     if hasDueDate {
@@ -53,7 +55,7 @@ struct AddEditAssignmentView: View {
                     }
                 }
             }
-            .navigationTitle(assignment == nil ? "New Assignment" : "Edit Assignment")
+            .navigationTitle(navigationTitle)
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -70,6 +72,12 @@ struct AddEditAssignmentView: View {
                 save()
             }
         }
+    }
+
+    private var navigationTitle: String {
+        let isQuiz = assignment?.isQuiz ?? presetIsQuiz
+        if assignment == nil { return isQuiz ? "New Test/Quiz" : "New Assignment" }
+        return isQuiz ? "Edit Test/Quiz" : "Edit Assignment"
     }
 
     private func populateIfEditing() {
@@ -120,7 +128,8 @@ struct AddEditAssignmentView: View {
                 title: title,
                 dueDate: resolvedDate,
                 notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-                topic: presetTopic,
+                lesson: presetLesson,
+                isQuiz: presetIsQuiz,
                 remindersOn: hasDueDate && remindersOn
             )
             modelContext.insert(newAssignment)

@@ -254,9 +254,9 @@ enum SectionAssistantPrompt {
             }.joined(separator: "\n"))
         }
 
-        let grades = (try? modelContext.fetch(FetchDescriptor<GradeEntry>())) ?? []
-        if !grades.isEmpty {
-            sections.append("Logged grades:\n" + grades.map { "- \($0.courseName): \($0.gradeLabel)\($0.isWeighted ? " (weighted)" : "")" }.joined(separator: "\n"))
+        let gradedClasses = classes.filter { $0.gradeLabel != nil }
+        if !gradedClasses.isEmpty {
+            sections.append("Logged grades:\n" + gradedClasses.map { "- \($0.name): \($0.gradeLabel ?? "")\($0.courseLevel == .regular ? "" : " (\($0.courseLevel.displayName))")" }.joined(separator: "\n"))
         }
 
         let actScores = (try? modelContext.fetch(FetchDescriptor<ACTSectionScore>())) ?? []

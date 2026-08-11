@@ -12,7 +12,7 @@ final class ACTPrepPlan {
     var exam: Exam?
     var planText: String = ""
     var strengthsWeaknessesText: String?
-    var generatedAt: Date = .now
+    var generatedAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,

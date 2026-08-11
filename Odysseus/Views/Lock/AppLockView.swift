@@ -87,7 +87,8 @@ struct AppLockView: View {
             NewsItem.self, ChatMessage.self, ChatSession.self,
             AIToolItem.self, Exam.self, StudySession.self,
             Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
-            Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
+            Lesson.self, LessonMaterial.self,
+            Extracurricular.self, EmailDraft.self,
             ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
             MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self,
         ]

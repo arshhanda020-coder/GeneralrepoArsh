@@ -19,7 +19,7 @@ final class Extracurricular {
     var proofData: Data?
     /// True when Odysseus/Copilot created this from a chat request rather than the user typing it in directly.
     var isAISuggested: Bool = false
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,
