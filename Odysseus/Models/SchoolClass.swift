@@ -69,6 +69,18 @@ final class SchoolClass {
     @Relationship(deleteRule: .cascade, inverse: \Topic.schoolClass)
     var topics: [Topic] = []
 
+    @Relationship(inverse: \Exam.schoolClass)
+    var exams: [Exam] = []
+
+    /// How much this class's March Exam counts toward the overall grade,
+    /// once it's been logged — Rutgers Prep finals are typically ~10%.
+    var examWeightPercent: Double = 10
+
+    /// Cached AI weakness analysis from My Tests > March Exams, so it
+    /// doesn't have to be regenerated on every visit — refreshed on demand.
+    var lastReviewSummary: String?
+    var lastReviewSummaryAt: Date?
+
     init(
         id: String = UUID().uuidString,
         name: String,
@@ -77,7 +89,10 @@ final class SchoolClass {
         createdAt: Date = .now,
         colorIndex: Int = -1,
         gradeLabel: String? = nil,
-        courseLevelOverrideRaw: String? = nil
+        courseLevelOverrideRaw: String? = nil,
+        examWeightPercent: Double = 10,
+        lastReviewSummary: String? = nil,
+        lastReviewSummaryAt: Date? = nil
     ) {
         self.id = id
         self.name = name
@@ -87,6 +102,9 @@ final class SchoolClass {
         self.colorIndex = colorIndex
         self.gradeLabel = gradeLabel
         self.courseLevelOverrideRaw = courseLevelOverrideRaw
+        self.examWeightPercent = examWeightPercent
+        self.lastReviewSummary = lastReviewSummary
+        self.lastReviewSummaryAt = lastReviewSummaryAt
     }
 }
 
@@ -117,11 +135,28 @@ extension SchoolClass {
         return (earned, possible)
     }
 
-    /// The class's overall percentage, calculated automatically from every
-    /// graded assignment and test/quiz logged so far.
+    /// This class's March Exam (finals) record, if one's been added.
+    var marchExam: Exam? {
+        exams.first { $0.category == .marchExams }
+    }
+
+    /// The class's overall percentage — coursework (every graded assignment
+    /// and test/quiz) blended with the March Exam score at `examWeightPercent`
+    /// once that's logged too, the way finals actually factor into a grade.
     var calculatedPercent: Double? {
-        guard let points = gradedPoints else { return nil }
-        return (points.earned / points.possible) * 100
+        let courseworkPercent = gradedPoints.map { ($0.earned / $0.possible) * 100 }
+        let examPercent = marchExam?.calculatedPercent
+        switch (courseworkPercent, examPercent) {
+        case let (course?, exam?):
+            let examWeight = max(0, min(examWeightPercent, 100)) / 100
+            return course * (1 - examWeight) + exam * examWeight
+        case let (course?, nil):
+            return course
+        case let (nil, exam?):
+            return exam
+        case (nil, nil):
+            return nil
+        }
     }
 
     /// The letter grade Rutgers Prep's table maps `calculatedPercent` to.

@@ -25,6 +25,8 @@ struct AddEditExamView: View {
     @State private var actualScore = ""
     @State private var linkedClass: SchoolClass?
     @State private var remindersOn = true
+    @State private var pointsEarnedText = ""
+    @State private var pointsPossibleText = ""
 
     var body: some View {
         NavigationStack {
@@ -56,6 +58,18 @@ struct AddEditExamView: View {
                             .foregroundStyle(Theme.dimText)
                     } else {
                         Text("No score yet — once the exam date passes, you'll get a nudge to come back and log it.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
+                    }
+                    if category == .marchExams {
+                        HStack {
+                            TextField("Points earned", text: $pointsEarnedText)
+                                .platformKeyboardType(.decimalPad)
+                            Text("/").foregroundStyle(Theme.dimText)
+                            TextField("Possible", text: $pointsPossibleText)
+                                .platformKeyboardType(.decimalPad)
+                        }
+                        Text("For a class exam, points feed automatically into that class's overall grade at its exam weight (default 10%) — see My Tests > March Exams.")
                             .font(.caption)
                             .foregroundStyle(Theme.dimText)
                     }
@@ -105,12 +119,16 @@ struct AddEditExamView: View {
         actualScore = exam.actualScore ?? ""
         linkedClass = exam.schoolClass
         remindersOn = exam.remindersOn
+        pointsEarnedText = exam.pointsEarned.map { String($0) } ?? ""
+        pointsPossibleText = exam.pointsPossible.map { String($0) } ?? ""
     }
 
     private func save() {
         let trimmedTarget = targetScore.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedScore = actualScore.trimmingCharacters(in: .whitespacesAndNewlines)
+        let earned = Double(pointsEarnedText)
+        let possible = Double(pointsPossibleText)
         let targetExam: Exam
         if let exam {
             let hadScore = exam.hasScore
@@ -122,6 +140,8 @@ struct AddEditExamView: View {
             exam.schoolClass = linkedClass
             exam.actualScore = trimmedScore.isEmpty ? nil : trimmedScore
             exam.remindersOn = remindersOn
+            exam.pointsEarned = earned
+            exam.pointsPossible = possible
             if !hadScore, !trimmedScore.isEmpty {
                 exam.scoreLoggedAt = .now
             } else if trimmedScore.isEmpty {
@@ -138,7 +158,9 @@ struct AddEditExamView: View {
                 category: category,
                 actualScore: trimmedScore.isEmpty ? nil : trimmedScore,
                 scoreLoggedAt: trimmedScore.isEmpty ? nil : .now,
-                remindersOn: remindersOn
+                remindersOn: remindersOn,
+                pointsEarned: earned,
+                pointsPossible: possible
             )
             modelContext.insert(newExam)
             targetExam = newExam

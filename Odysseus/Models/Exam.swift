@@ -40,6 +40,12 @@ final class Exam {
     /// Defaults on (unlike assignments/tasks) — a test date is high-stakes
     /// enough that most people want the reminder without having to opt in.
     var remindersOn: Bool = true
+    /// Points-based score for a class's March Exam — feeds into that class's
+    /// overall calculated grade (see `SchoolClass.calculatedPercent`) at its
+    /// configured exam weight. Not used for ACT/AP, which have their own
+    /// native scales (`actualScore` free text, or `ACTSectionScore`).
+    var pointsEarned: Double?
+    var pointsPossible: Double?
 
     @Relationship(deleteRule: .cascade, inverse: \StudySession.exam)
     var studySessions: [StudySession] = []
@@ -55,7 +61,9 @@ final class Exam {
         category: ExamCategory = .marchExams,
         actualScore: String? = nil,
         scoreLoggedAt: Date? = nil,
-        remindersOn: Bool = true
+        remindersOn: Bool = true,
+        pointsEarned: Double? = nil,
+        pointsPossible: Double? = nil
     ) {
         self.id = id
         self.name = name
@@ -68,6 +76,8 @@ final class Exam {
         self.actualScore = actualScore
         self.scoreLoggedAt = scoreLoggedAt
         self.remindersOn = remindersOn
+        self.pointsEarned = pointsEarned
+        self.pointsPossible = pointsPossible
     }
 
     var category: ExamCategory {
@@ -83,4 +93,10 @@ final class Exam {
 
     var isPast: Bool { daysUntil < 0 }
     var hasScore: Bool { actualScore != nil && !(actualScore ?? "").isEmpty }
+
+    /// This exam's own percentage, when logged with a points-based score.
+    var calculatedPercent: Double? {
+        guard let earned = pointsEarned, let possible = pointsPossible, possible > 0 else { return nil }
+        return (earned / possible) * 100
+    }
 }

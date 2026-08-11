@@ -230,6 +230,13 @@ struct ACTPrepView: View {
                     ForEach(Array(sessions.prefix(30).enumerated()), id: \.element.id) { index, session in
                         if index > 0 { Divider().overlay(Theme.cardBorder) }
                         HStack {
+                            if let screenshotData = session.screenshotData, let uiImage = PlatformImage(data: screenshotData) {
+                                Image(platformImage: uiImage)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 32, height: 32)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(session.subjectArea ?? "General")
                                     .font(.caption.weight(.semibold))

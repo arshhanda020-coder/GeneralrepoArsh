@@ -163,7 +163,7 @@ struct SettingsView: View {
             Lesson.self, LessonMaterial.self,
             Extracurricular.self, EmailDraft.self,
             ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
-            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, SavedGitHubLink.self, ResearchEntry.self, AgentDefinition.self, AgentRun.self,
+            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, APExamPrepPlan.self, SavedGitHubLink.self, ResearchEntry.self, AgentDefinition.self, AgentRun.self,
             ObsidianNote.self,
         ]
         for type in types {

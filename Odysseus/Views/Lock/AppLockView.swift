@@ -130,7 +130,7 @@ struct AppLockView: View {
             Lesson.self, LessonMaterial.self,
             Extracurricular.self, EmailDraft.self,
             ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
-            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self,
+            MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, APExamPrepPlan.self,
         ]
         for type in types {
             try? modelContext.delete(model: type)

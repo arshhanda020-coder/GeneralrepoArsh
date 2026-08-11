@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct LogStudySessionSheet: View {
     let exam: Exam
@@ -14,6 +15,8 @@ struct LogStudySessionSheet: View {
     @State private var note = ""
     @State private var subjectArea = "General"
     @State private var durationText = ""
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var screenshotData: Data?
 
     private let actSubjects = ["General", "English", "Math", "Reading", "Science"]
 
@@ -37,6 +40,24 @@ struct LogStudySessionSheet: View {
                     TextField("What did you study?", text: $note, axis: .vertical)
                         .lineLimit(2...5)
                 }
+                Section("Screenshot (optional)") {
+                    if let screenshotData, let uiImage = PlatformImage(data: screenshotData) {
+                        Image(platformImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxHeight: 160)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                        Label(screenshotData == nil ? "Attach a screenshot" : "Replace screenshot", systemImage: "photo")
+                    }
+                    if screenshotData != nil {
+                        Button("Remove screenshot", role: .destructive) {
+                            self.screenshotData = nil
+                            selectedPhoto = nil
+                        }
+                    }
+                }
             }
             .navigationTitle("Log study session")
             .inlineNavigationTitle()
@@ -49,8 +70,21 @@ struct LogStudySessionSheet: View {
                 }
             }
             .onSubmit { save() }
+            .task(id: selectedPhoto) {
+                await loadScreenshot()
+            }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
+    }
+
+    private func loadScreenshot() async {
+        guard let selectedPhoto else { return }
+        do {
+            guard let data = try await selectedPhoto.loadTransferable(type: Data.self) else { return }
+            screenshotData = PlatformImage(data: data)?.jpegData(compressionQuality: 0.6) ?? data
+        } catch {
+            // No usable image data — leave screenshotData untouched.
+        }
     }
 
     private func save() {
@@ -60,7 +94,8 @@ struct LogStudySessionSheet: View {
             note: trimmed.isEmpty ? nil : trimmed,
             subjectArea: exam.category == .act ? subjectArea : nil,
             durationMinutes: Int(durationText),
-            exam: exam
+            exam: exam,
+            screenshotData: screenshotData
         ))
         dismiss()
     }
