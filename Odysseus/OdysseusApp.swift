@@ -26,6 +26,7 @@ struct OdysseusApp: App {
         container = Self.makeContainer(schema: schema)
         Self.seedClassesIfNeeded(container: container)
         Self.migrateOrphanedChatMessagesIfNeeded(container: container)
+        Self.seedDefaultGitHubLinkIfNeeded(container: container)
     }
 
     /// ChatMessage gained a `session` relationship when multi-thread chat
@@ -72,6 +73,20 @@ struct OdysseusApp: App {
         for (index, entry) in classes.enumerated() {
             context.insert(SchoolClass(name: entry.name, isEnrolled: entry.isEnrolled, sortIndex: index))
         }
+        try? context.save()
+    }
+
+    /// The user's go-to repo for quick reference — used to live as a hardcoded
+    /// "Use saved repo" button inside Projects' repo field; moved here so it
+    /// just shows up in Saved GitHub Repos on first launch instead, and
+    /// Projects no longer has any GitHub-specific hardcoding of its own.
+    private static func seedDefaultGitHubLinkIfNeeded(container: ModelContainer) {
+        let key = "seeded_default_github_link_v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        let context = ModelContext(container)
+        context.insert(SavedGitHubLink(urlString: "https://github.com/ruvnet/ruflo", repoName: "ruvnet/ruflo"))
         try? context.save()
     }
 

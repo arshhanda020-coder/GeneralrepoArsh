@@ -22,6 +22,7 @@ struct ProjectDetailView: View {
     @State private var gitStatusError: String?
     @State private var isCheckingGitStatus = false
     @State private var showingRunSheet = false
+    @State private var showingAIHelper = false
 
     private var accentColor: Color { Color(hex: project.colorHex) }
 
@@ -97,6 +98,16 @@ struct ProjectDetailView: View {
             }
             .listRowBackground(Theme.card)
 
+            Section("AI HELPER") {
+                Button {
+                    showingAIHelper = true
+                } label: {
+                    Label("Consult AI Helper", systemImage: "sparkles")
+                }
+                .foregroundStyle(accentColor)
+            }
+            .listRowBackground(Theme.card)
+
             Section("NOTES") {
                 NotesSectionView(context: .project(project.id), accentColor: accentColor)
                     .listRowInsets(EdgeInsets())
@@ -145,6 +156,9 @@ struct ProjectDetailView: View {
         }
         .sheet(isPresented: $showingRunSheet) {
             ProjectAgentRunSheet(project: project)
+        }
+        .sheet(isPresented: $showingAIHelper) {
+            ProjectAIHelperSheet(project: project)
         }
         .onAppear {
             if project.repoPath != nil, gitStatus == nil { checkGitStatus() }
