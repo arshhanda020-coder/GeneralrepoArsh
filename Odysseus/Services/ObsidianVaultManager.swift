@@ -51,6 +51,7 @@ final class ObsidianVaultManager: ObservableObject {
             vaultName = url.lastPathComponent
             lastError = nil
             sync(modelContext: modelContext)
+            MemoryStore.rebuild(context: modelContext) // push existing memories into the freshly connected vault
         } catch {
             lastError = "Couldn't save vault access: \(error.localizedDescription)"
         }
@@ -68,17 +69,15 @@ final class ObsidianVaultManager: ObservableObject {
         }
     }
 
-    /// Re-scans every `.md` file in the vault and upserts it into SwiftData
-    /// by relative path, so re-syncing updates changed notes in place
-    /// instead of duplicating them.
-    func sync(modelContext: ModelContext) {
+    /// Resolves the stored bookmark to a URL and begins security-scoped
+    /// access. Callers MUST call `url.stopAccessingSecurityScopedResource()`
+    /// on the returned URL when done. Returns nil (and sets `lastError`) if
+    /// no vault is connected or it's no longer reachable.
+    func resolveVaultRoot() -> URL? {
         guard let bookmarkData = UserDefaults.standard.data(forKey: Self.bookmarkKey) else {
             lastError = "No vault connected."
-            return
+            return nil
         }
-
-        isSyncing = true
-        defer { isSyncing = false }
 
         var isStale = false
         guard let root = try? URL(
@@ -88,13 +87,24 @@ final class ObsidianVaultManager: ObservableObject {
             bookmarkDataIsStale: &isStale
         ) else {
             lastError = "Vault folder is no longer accessible. Reconnect it."
-            return
+            return nil
         }
 
         guard root.startAccessingSecurityScopedResource() else {
             lastError = "Couldn't access the vault folder."
-            return
+            return nil
         }
+        return root
+    }
+
+    /// Re-scans every `.md` file in the vault and upserts it into SwiftData
+    /// by relative path, so re-syncing updates changed notes in place
+    /// instead of duplicating them.
+    func sync(modelContext: ModelContext) {
+        isSyncing = true
+        defer { isSyncing = false }
+
+        guard let root = resolveVaultRoot() else { return }
         defer { root.stopAccessingSecurityScopedResource() }
 
         let existing = (try? modelContext.fetch(FetchDescriptor<ObsidianNote>())) ?? []
@@ -109,9 +119,11 @@ final class ObsidianVaultManager: ObservableObject {
 
         while let fileURL = enumerator?.nextObject() as? URL {
             guard fileURL.pathExtension.lowercased() == "md" else { continue }
-            guard let raw = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
 
             let relativePath = fileURL.path.replacingOccurrences(of: root.path, with: "")
+            guard !MemoryVaultSync.isMemoryFile(relativePath) else { continue } // owned by the Memory tab, not generic notes
+            guard let raw = try? String(contentsOf: fileURL, encoding: .utf8) else { continue }
+
             let modified = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .now
             let title = fileURL.deletingPathExtension().lastPathComponent
             let body = Self.stripFrontMatter(raw)

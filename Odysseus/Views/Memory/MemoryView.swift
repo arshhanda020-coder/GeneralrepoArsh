@@ -13,6 +13,7 @@ import SwiftData
 struct MemoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MemoryEntry.createdAt, order: .reverse) private var entries: [MemoryEntry]
+    @StateObject private var vault = ObsidianVaultManager.shared
 
     @State private var showingAdd = false
     @State private var editingEntry: MemoryEntry?
@@ -30,6 +31,8 @@ struct MemoryView: View {
                 Text("This fills in on its own as you talk to Odysseus/Copilot — everything worth remembering gets saved here automatically and feeds back into every future conversation as context. Nothing to set up.")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
+
+                vaultStatusRow
 
                 if entries.isEmpty {
                     EmptyStateView(
@@ -66,6 +69,19 @@ struct MemoryView: View {
         }
         .sheet(item: $editingEntry) { entry in
             AddEditMemoryView(entry: entry)
+        }
+    }
+
+    private var vaultStatusRow: some View {
+        HStack(spacing: 6) {
+            Image(systemName: vault.isConnected ? "checkmark.circle.fill" : "folder.badge.questionmark")
+                .font(.caption2)
+                .foregroundStyle(vault.isConnected ? Theme.terminalGreen : Theme.dimText)
+            Text(vault.isConnected
+                 ? "Also synced as real notes in your Obsidian vault (\(vault.vaultName ?? "")/Memory/)."
+                 : "Connect an Obsidian vault (Obsidian tab) to also keep these as real, editable notes.")
+                .font(.caption2)
+                .foregroundStyle(Theme.dimText)
         }
     }
 
