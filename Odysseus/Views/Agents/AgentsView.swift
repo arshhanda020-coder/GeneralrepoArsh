@@ -24,10 +24,14 @@ struct AgentsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 if agents.isEmpty {
-                    Text("No agentic workflows yet. Tap + to define one — a fixed set of instructions you can run on demand, e.g. \"Weekly Research Digest\" or \"Portfolio Check-in.\" Point one at Claude Code or Codex to have it actually work against a real repo.")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Theme.dimText)
-                        .padding(.top, 40)
+                    EmptyStateView(
+                        icon: MindMapSection.agents.symbolName,
+                        title: "No agentic workflows yet",
+                        message: "Tap + to define one — a fixed set of instructions you can run on demand, e.g. \"Weekly Research Digest\" or \"Portfolio Check-in.\" Point one at Claude Code or Codex to have it actually work against a real repo.",
+                        tint: MindMapSection.agents.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
+                    .padding(.top, 40)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(agents.enumerated()), id: \.element.id) { index, agent in

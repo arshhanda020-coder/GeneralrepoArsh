@@ -73,6 +73,8 @@ struct SchoolView: View {
 
     // MARK: - Classes
 
+    private let classGridColumns = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+
     private var classesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -92,50 +94,42 @@ struct SchoolView: View {
             }
 
             if allClasses.isEmpty {
-                Text("No classes yet. Tap Manage to add your schedule.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.dimText)
+                EmptyStateView(
+                    icon: MindMapSection.school.symbolName,
+                    title: "No classes yet",
+                    message: "Tap Manage to add your schedule.",
+                    tint: MindMapSection.school.accentColor
+                )
+                .glassPanel(cornerRadius: 14)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(enrolledClasses.enumerated()), id: \.element.id) { index, schoolClass in
-                        if index > 0 {
-                            Divider().overlay(Theme.cardBorder)
+                LazyVGrid(columns: classGridColumns, spacing: 12) {
+                    ForEach(enrolledClasses) { schoolClass in
+                        NavigationLink(destination: SchoolClassDetailView(schoolClass: schoolClass)) {
+                            ClassCardView(schoolClass: schoolClass)
                         }
-                        classRow(schoolClass)
+                        .buttonStyle(.plain)
                     }
                 }
-                .glassPanel(cornerRadius: 10)
 
                 if !droppedClasses.isEmpty {
-                    Text("Not enrolled: \(droppedClasses.map(\.name).joined(separator: ", "))")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.dimText)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("NOT ENROLLED")
+                            .font(.system(.caption2, design: .monospaced).weight(.bold))
+                            .tracking(0.5)
+                            .foregroundStyle(Theme.dimText)
+                        LazyVGrid(columns: classGridColumns, spacing: 12) {
+                            ForEach(droppedClasses) { schoolClass in
+                                NavigationLink(destination: SchoolClassDetailView(schoolClass: schoolClass)) {
+                                    ClassCardView(schoolClass: schoolClass, isDropped: true)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
                 }
             }
         }
-    }
-
-    private func classRow(_ schoolClass: SchoolClass) -> some View {
-        NavigationLink(destination: SchoolClassDetailView(schoolClass: schoolClass)) {
-            HStack(spacing: 10) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(schoolClass.name)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Theme.primaryText)
-                    let pendingCount = schoolClass.topics.flatMap(\.assignments).filter { !$0.isDone }.count
-                    Text(schoolClass.topics.isEmpty ? "No topics yet" : (pendingCount == 0 ? "All caught up" : "\(pendingCount) pending"))
-                        .font(.caption2)
-                        .foregroundStyle(Theme.dimText)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.dimText)
-            }
-            .padding(10)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Exams
