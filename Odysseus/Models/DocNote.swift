@@ -34,8 +34,8 @@ final class DocNote {
     /// name for `.notability` — used to upsert on re-import instead of
     /// duplicating.
     var sourceIdentifier: String = ""
-    var modifiedAt: Date = .now
-    var importedAt: Date = .now
+    var modifiedAt: Date = Date.now
+    var importedAt: Date = Date.now
     /// Like `Note`, an imported doc can be attached somewhere else in the
     /// app (a Project, a School topic, pinned to Today, …) instead of only
     /// living in the Notes hub.

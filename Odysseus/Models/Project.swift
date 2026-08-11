@@ -14,7 +14,7 @@ final class Project {
     var colorHex: String = ""
     var projectDescription: String = ""
     var statusRaw: String = ProjectStatus.building.rawValue
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     /// A longer-form plan (written by the user or AI-generated) that tasks
     /// with due dates get broken out from.
     var planText: String?

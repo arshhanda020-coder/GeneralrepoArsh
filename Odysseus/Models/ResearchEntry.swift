@@ -28,7 +28,7 @@ final class ResearchEntry {
     var topic: String = ""
     var categoryRaw: String = ResearchCategory.other.rawValue
     var content: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var project: Project?
     /// Set when this research auto-created a matching Extracurricular entry
     /// (school-category research), so the two stay linked.

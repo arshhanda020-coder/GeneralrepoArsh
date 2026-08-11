@@ -14,7 +14,7 @@ import SwiftData
 final class Topic {
     var id: String = UUID().uuidString
     var name: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var sortIndex: Int = 0
     var schoolClass: SchoolClass?
 

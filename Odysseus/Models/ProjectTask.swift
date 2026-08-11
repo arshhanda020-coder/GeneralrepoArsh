@@ -11,7 +11,7 @@ final class ProjectTask {
     var id: String = UUID().uuidString
     var title: String = ""
     var isDone: Bool = false
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var sortIndex: Int = 0
     var dueDate: Date?
     var remindersOn: Bool = false

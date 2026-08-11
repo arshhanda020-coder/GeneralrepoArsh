@@ -13,7 +13,7 @@ final class Skill {
     var emoji: String = ""
     var colorHex: String = ""
     var skillDescription: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var targetSessions: Int = 0
 
     @Relationship(deleteRule: .cascade, inverse: \SkillSession.skill)

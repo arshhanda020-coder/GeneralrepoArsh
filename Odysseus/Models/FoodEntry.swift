@@ -3,9 +3,10 @@
 //  Odysseus
 //
 //  A single logged meal/snack — flat entries, not tied to a template, so
-//  logging breakfast/lunch/dinner/snacks multiple times a day just works.
-//  mealType groups entries into a MyFitnessPal-style diary without forcing
-//  one entry per meal per day.
+//  logging any number of times a day just works. mealType is kept only for
+//  backward-compat with entries logged before the UI moved to one flat pool
+//  per day (no Breakfast/Lunch/Dinner/Snacks split) — new entries all default
+//  to .snack and it's not shown or picked anywhere in the UI.
 //
 
 import Foundation
@@ -14,7 +15,7 @@ import SwiftData
 @Model
 final class FoodEntry {
     var id: String = UUID().uuidString
-    var date: Date = .now
+    var date: Date = Date.now
     var note: String = ""
     var imageData: Data?
     var calories: Int?

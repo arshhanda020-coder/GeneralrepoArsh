@@ -65,6 +65,20 @@ struct SavedGitHubLinksView: View {
         .sheet(item: $safariURL) { wrapped in
             SafariView(url: wrapped.url)
         }
+        .task {
+            await generateMissingOverviews()
+        }
+    }
+
+    /// Any link inserted without an overview (e.g. the default repo seeded at
+    /// first launch) gets one generated the first time this view appears,
+    /// same as a freshly-pasted link would.
+    private func generateMissingOverviews() async {
+        for link in links where (link.overview ?? "").isEmpty {
+            guard let info = try? await GitHubService.shared.fetchPublicRepoInfo(forURL: link.urlString) else { continue }
+            if link.repoName == nil { link.repoName = info.fullName }
+            await generateOverview(for: link, info: info)
+        }
     }
 
     private func linkRow(_ link: SavedGitHubLink) -> some View {

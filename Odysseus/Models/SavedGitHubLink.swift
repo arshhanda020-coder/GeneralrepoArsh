@@ -16,7 +16,7 @@ final class SavedGitHubLink {
     var urlString: String = ""
     var repoName: String?
     var overview: String?
-    var addedAt: Date = .now
+    var addedAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,

@@ -15,9 +15,9 @@ final class NewsItem {
     var title: String = ""
     var link: String = ""
     var source: String = ""
-    var publishedAt: Date = .now
+    var publishedAt: Date = Date.now
     var snippet: String?
-    var fetchedAt: Date = .now
+    var fetchedAt: Date = Date.now
     var topicRaw: String = NewsTopic.ai.rawValue
     var isStarred: Bool = false
 

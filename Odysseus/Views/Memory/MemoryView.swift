@@ -32,9 +32,13 @@ struct MemoryView: View {
                     .foregroundStyle(Theme.dimText)
 
                 if entries.isEmpty {
-                    Text("Nothing yet — just talk to Odysseus or Copilot normally and it'll start filling in here on its own. (You can also add something yourself with +, if you'd rather.)")
-                        .font(.caption)
-                        .foregroundStyle(Theme.dimText)
+                    EmptyStateView(
+                        icon: MindMapSection.memory.symbolName,
+                        title: "Nothing yet",
+                        message: "Just talk to Odysseus or Copilot normally and it'll start filling in here on its own. You can also add something yourself with +.",
+                        tint: MindMapSection.memory.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
