@@ -2,8 +2,9 @@
 //  LogFoodSheet.swift
 //  Odysseus
 //
-//  Logs one meal/snack at a time — flat entries, so breakfast/lunch/dinner
-//  and snacks all just get logged as they happen, no predefined template.
+//  Logs one meal/snack at a time into a single flat pool for the day — no
+//  Breakfast/Lunch/Dinner/Snacks picker, everything just gets logged as it
+//  happens.
 //
 
 import SwiftUI
@@ -12,14 +13,10 @@ import PhotosUI
 
 struct LogFoodSheet: View {
     var entry: FoodEntry?
-    /// Which meal section this was opened from (or the time-of-day guess for
-    /// a generic add) — only used to seed a new entry, ignored when editing.
-    var defaultMealType: MealType = .forCurrentTime()
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var text: String = ""
-    @State private var mealType: MealType = .snack
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var imageData: Data?
 
@@ -50,13 +47,6 @@ struct LogFoodSheet: View {
                                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                             estimateWithAI()
                         }
-
-                    Picker("Meal", selection: $mealType) {
-                        ForEach(MealType.allCases) { meal in
-                            Label(meal.rawValue, systemImage: meal.symbolName).tag(meal)
-                        }
-                    }
-                    .pickerStyle(.segmented)
                 }
 
                 Section("Photo") {
@@ -161,7 +151,6 @@ struct LogFoodSheet: View {
             }
             .onAppear {
                 text = entry?.note ?? ""
-                mealType = entry?.mealType ?? defaultMealType
                 imageData = entry?.imageData
                 calories = entry?.calories.map(String.init) ?? ""
                 protein = entry?.proteinGrams.map { String(format: "%.0f", $0) } ?? ""
@@ -286,7 +275,6 @@ struct LogFoodSheet: View {
 
         if let entry {
             entry.note = text
-            entry.mealType = mealType
             entry.imageData = imageData
             entry.calories = caloriesValue
             entry.proteinGrams = proteinValue
@@ -299,8 +287,7 @@ struct LogFoodSheet: View {
                 calories: caloriesValue,
                 proteinGrams: proteinValue,
                 carbsGrams: carbsValue,
-                fatGrams: fatValue,
-                mealType: mealType
+                fatGrams: fatValue
             )
             modelContext.insert(newEntry)
             NotificationManager.shared.notifyFoodLogged(note: text)
