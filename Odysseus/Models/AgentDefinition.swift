@@ -94,11 +94,11 @@ final class AgentRun {
     /// DevAgentKind.agentKey), the prompt that was sent, and how it went.
     var bridgeAgentKind: String?
     var prompt: String?
-    var ok: Bool
+    var ok: Bool = true
     var errorMessage: String?
     var sessionId: String?
     var costUSD: Double?
-    var fullAuto: Bool
+    var fullAuto: Bool = false
     var project: Project?
 
     init(
