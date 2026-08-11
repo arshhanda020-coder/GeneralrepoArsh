@@ -148,6 +148,11 @@ struct LessonDetailView: View {
 
                 Spacer()
 
+                if let score = assignment.scoreLabel {
+                    Text(score)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(MindMapSection.school.accentColor)
+                }
                 if assignment.understood == true {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(Theme.terminalGreen)

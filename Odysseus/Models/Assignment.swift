@@ -23,6 +23,11 @@ final class Assignment {
     /// The AI's explanation from the last "Help me understand" tap.
     var helpExplanation: String?
     var remindersOn: Bool = false
+    /// Points-based score — e.g. 8/10. Both nil until graded. Feeds the
+    /// class's overall grade automatically (see `SchoolClass.calculatedGradeLabel`),
+    /// which in turn drives the GPA Calculator.
+    var pointsEarned: Double?
+    var pointsPossible: Double?
 
     init(
         id: String = UUID().uuidString,
@@ -35,7 +40,9 @@ final class Assignment {
         isQuiz: Bool = false,
         understood: Bool? = nil,
         helpExplanation: String? = nil,
-        remindersOn: Bool = false
+        remindersOn: Bool = false,
+        pointsEarned: Double? = nil,
+        pointsPossible: Double? = nil
     ) {
         self.id = id
         self.title = title
@@ -48,5 +55,22 @@ final class Assignment {
         self.understood = understood
         self.helpExplanation = helpExplanation
         self.remindersOn = remindersOn
+        self.pointsEarned = pointsEarned
+        self.pointsPossible = pointsPossible
+    }
+}
+
+extension Assignment {
+    var isGraded: Bool {
+        guard let possible = pointsPossible, possible > 0, pointsEarned != nil else { return false }
+        return true
+    }
+
+    var scoreLabel: String? {
+        guard let earned = pointsEarned, let possible = pointsPossible, possible > 0 else { return nil }
+        func format(_ value: Double) -> String {
+            value.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(value)) : String(value)
+        }
+        return "\(format(earned))/\(format(possible))"
     }
 }

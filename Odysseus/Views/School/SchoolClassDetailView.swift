@@ -117,6 +117,24 @@ struct SchoolClassDetailView: View {
                 .padding(16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
 
+            if let grade = schoolClass.effectiveGradeLabel {
+                VStack(spacing: 0) {
+                    Text(grade)
+                        .font(.title3.weight(.heavy))
+                        .foregroundStyle(.white)
+                    if let percent = schoolClass.calculatedPercent {
+                        Text("\(String(format: "%.1f", percent))%")
+                            .font(.caption2.weight(.medium).monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 10))
+                .padding(16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(schoolClass.name)
                     .font(.title2.weight(.bold))
@@ -219,6 +237,11 @@ struct SchoolClassDetailView: View {
                         .foregroundStyle(Theme.dimText)
                 }
                 Spacer()
+                if let score = assignment.scoreLabel {
+                    Text(score)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(schoolClass.bannerColor.base)
+                }
                 Image(systemName: "chevron.right")
                     .font(.caption2)
                     .foregroundStyle(Theme.dimText)
@@ -331,6 +354,11 @@ struct SchoolClassDetailView: View {
 
                 Spacer()
 
+                if let score = assignment.scoreLabel {
+                    Text(score)
+                        .font(.caption.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(schoolClass.bannerColor.base)
+                }
                 if assignment.understood == true {
                     Image(systemName: "checkmark.seal.fill")
                         .foregroundStyle(Theme.terminalGreen)

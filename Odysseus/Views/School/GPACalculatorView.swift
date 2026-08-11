@@ -17,11 +17,11 @@ struct GPACalculatorView: View {
     @Query(sort: \SchoolClass.sortIndex) private var allClasses: [SchoolClass]
 
     private var enrolledClasses: [SchoolClass] { allClasses.filter(\.isEnrolled) }
-    private var gradedClasses: [SchoolClass] { enrolledClasses.filter { $0.gradeLabel != nil } }
+    private var gradedClasses: [SchoolClass] { enrolledClasses.filter { $0.effectiveGradeLabel != nil } }
 
     private func gpa(weighted: Bool) -> Double? {
         let scored = gradedClasses.compactMap { schoolClass -> Double? in
-            guard let label = schoolClass.gradeLabel else { return nil }
+            guard let label = schoolClass.effectiveGradeLabel else { return nil }
             return RutgersPrepGPA.points(for: label, level: schoolClass.courseLevel, weighted: weighted)
         }
         guard !scored.isEmpty else { return nil }
@@ -130,32 +130,57 @@ struct GPACalculatorView: View {
         .buttonStyle(.plain)
     }
 
+    /// Once any assignment/test in the class is graded, the class's grade is
+    /// fully automatic — calculated from points earned/possible, no menu to
+    /// pick from. Only classes with nothing graded yet fall back to a manual
+    /// pick, so the GPA still fills in before you've logged any scores.
     private func gradeMenu(_ schoolClass: SchoolClass) -> some View {
-        Menu {
-            ForEach(RutgersPrepGPA.labels, id: \.self) { label in
-                Button {
-                    schoolClass.gradeLabel = label
-                } label: {
-                    Text(RutgersPrepGPA.percentRange(for: label).map { "\(label) (\($0)%)" } ?? label)
+        Group {
+            if schoolClass.hasCalculatedGrade {
+                VStack(alignment: .trailing, spacing: 1) {
+                    HStack(spacing: 3) {
+                        Text(schoolClass.calculatedGradeLabel ?? "")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.primaryText)
+                        Image(systemName: "sparkles").font(.system(size: 8)).foregroundStyle(Theme.dimText)
+                    }
+                    if let percent = schoolClass.calculatedPercent {
+                        Text("\(String(format: "%.1f", percent))%")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.dimText)
+                    }
                 }
-            }
-            if schoolClass.gradeLabel != nil {
-                Divider()
-                Button("Clear", role: .destructive) { schoolClass.gradeLabel = nil }
-            }
-        } label: {
-            Text(schoolClass.gradeLabel ?? "Set grade")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(schoolClass.gradeLabel == nil ? Theme.dimText : Theme.primaryText)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .glassPanel(cornerRadius: 8)
+            } else {
+                Menu {
+                    ForEach(RutgersPrepGPA.labels, id: \.self) { label in
+                        Button {
+                            schoolClass.gradeLabel = label
+                        } label: {
+                            Text(RutgersPrepGPA.percentRange(for: label).map { "\(label) (\($0)%)" } ?? label)
+                        }
+                    }
+                    if schoolClass.gradeLabel != nil {
+                        Divider()
+                        Button("Clear", role: .destructive) { schoolClass.gradeLabel = nil }
+                    }
+                } label: {
+                    Text(schoolClass.gradeLabel ?? "Set grade")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(schoolClass.gradeLabel == nil ? Theme.dimText : Theme.primaryText)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .glassPanel(cornerRadius: 8)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private var policyNote: some View {
-        Text("Grading follows Rutgers Prep's official table — Honors +0.333, AP/P-AP +0.667 GPA points per grade — applied automatically based on each class's title. Override a class's level above if it's ever detected wrong.")
+        Text("Grading follows Rutgers Prep's official table — Honors +0.333, AP/P-AP +0.667 GPA points per grade. A class's grade is calculated automatically from points earned on its graded assignments and tests/quizzes; until anything's graded, pick a placeholder grade above to fill in the GPA.")
             .font(.caption2)
             .foregroundStyle(Theme.dimText)
     }

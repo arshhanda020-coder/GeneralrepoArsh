@@ -22,6 +22,9 @@ nonisolated enum RutgersPrepGPA {
     private struct Row {
         let label: String
         let percentRange: String
+        /// Lower bound of the percentage range (e.g. 90 for "A-", 90–92) —
+        /// used to map a calculated class percentage back to a letter grade.
+        let minPercent: Double
         let regular: Double
         let honors: Double
         let ap: Double
@@ -29,25 +32,31 @@ nonisolated enum RutgersPrepGPA {
 
     /// Rutgers Prep's official grade table.
     private static let table: [Row] = [
-        Row(label: "A+", percentRange: "97–100", regular: 4.333, honors: 4.666, ap: 5.0),
-        Row(label: "A", percentRange: "93–96", regular: 4.0, honors: 4.333, ap: 4.667),
-        Row(label: "A-", percentRange: "90–92", regular: 3.667, honors: 4.0, ap: 4.334),
-        Row(label: "B+", percentRange: "87–89", regular: 3.333, honors: 3.666, ap: 4.0),
-        Row(label: "B", percentRange: "83–86", regular: 3.0, honors: 3.333, ap: 3.667),
-        Row(label: "B-", percentRange: "80–82", regular: 2.667, honors: 3.0, ap: 3.334),
-        Row(label: "C+", percentRange: "77–79", regular: 2.333, honors: 2.666, ap: 3.0),
-        Row(label: "C", percentRange: "73–76", regular: 2.0, honors: 2.333, ap: 2.667),
-        Row(label: "C-", percentRange: "70–72", regular: 1.667, honors: 2.0, ap: 2.334),
-        Row(label: "D+", percentRange: "67–69", regular: 1.333, honors: 1.666, ap: 2.0),
-        Row(label: "D", percentRange: "63–66", regular: 1.0, honors: 1.333, ap: 1.667),
-        Row(label: "D-", percentRange: "60–62", regular: 0.667, honors: 1.0, ap: 1.334),
-        Row(label: "F", percentRange: "0–59", regular: 0.0, honors: 0.0, ap: 0.0),
+        Row(label: "A+", percentRange: "97–100", minPercent: 97, regular: 4.333, honors: 4.666, ap: 5.0),
+        Row(label: "A", percentRange: "93–96", minPercent: 93, regular: 4.0, honors: 4.333, ap: 4.667),
+        Row(label: "A-", percentRange: "90–92", minPercent: 90, regular: 3.667, honors: 4.0, ap: 4.334),
+        Row(label: "B+", percentRange: "87–89", minPercent: 87, regular: 3.333, honors: 3.666, ap: 4.0),
+        Row(label: "B", percentRange: "83–86", minPercent: 83, regular: 3.0, honors: 3.333, ap: 3.667),
+        Row(label: "B-", percentRange: "80–82", minPercent: 80, regular: 2.667, honors: 3.0, ap: 3.334),
+        Row(label: "C+", percentRange: "77–79", minPercent: 77, regular: 2.333, honors: 2.666, ap: 3.0),
+        Row(label: "C", percentRange: "73–76", minPercent: 73, regular: 2.0, honors: 2.333, ap: 2.667),
+        Row(label: "C-", percentRange: "70–72", minPercent: 70, regular: 1.667, honors: 2.0, ap: 2.334),
+        Row(label: "D+", percentRange: "67–69", minPercent: 67, regular: 1.333, honors: 1.666, ap: 2.0),
+        Row(label: "D", percentRange: "63–66", minPercent: 63, regular: 1.0, honors: 1.333, ap: 1.667),
+        Row(label: "D-", percentRange: "60–62", minPercent: 60, regular: 0.667, honors: 1.0, ap: 1.334),
+        Row(label: "F", percentRange: "0–59", minPercent: 0, regular: 0.0, honors: 0.0, ap: 0.0),
     ]
 
     static var labels: [String] { table.map(\.label) }
 
     static func percentRange(for label: String) -> String? {
         table.first { $0.label == label }?.percentRange
+    }
+
+    /// Maps a calculated class percentage (points earned / points possible
+    /// across graded assignments and tests/quizzes) back to a letter grade.
+    static func label(forPercent percent: Double) -> String? {
+        table.first { percent >= $0.minPercent }?.label
     }
 
     static func points(for label: String, level: CourseLevel, weighted: Bool) -> Double? {

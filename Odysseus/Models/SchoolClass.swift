@@ -51,9 +51,9 @@ final class SchoolClass {
     /// without the user having to pick one.
     var colorIndex: Int = -1
 
-    /// The student's current letter grade in this class — the one thing the
-    /// app can't fill in on its own, since that lives in Rutgers Prep's own
-    /// gradebook and isn't something this app has access to.
+    /// Manually-set fallback letter grade — only used while a class has no
+    /// graded assignments/tests yet to calculate one from. Once points are
+    /// logged, `calculatedGradeLabel` takes over automatically (see below).
     var gradeLabel: String?
 
     /// Set only when the auto-detected level (from the class name) is wrong
@@ -100,4 +100,43 @@ extension SchoolClass {
         }
         return .auto(for: id)
     }
+
+    /// Every graded assignment/test-quiz across every lesson in every topic.
+    var gradedAssignments: [Assignment] {
+        topics.flatMap { $0.lessons.flatMap(\.assignments) }.filter(\.isGraded)
+    }
+
+    /// Sum of points earned/possible across every graded item — the raw
+    /// input to the class's calculated percentage.
+    var gradedPoints: (earned: Double, possible: Double)? {
+        let items = gradedAssignments
+        guard !items.isEmpty else { return nil }
+        let earned = items.reduce(0.0) { $0 + ($1.pointsEarned ?? 0) }
+        let possible = items.reduce(0.0) { $0 + ($1.pointsPossible ?? 0) }
+        guard possible > 0 else { return nil }
+        return (earned, possible)
+    }
+
+    /// The class's overall percentage, calculated automatically from every
+    /// graded assignment and test/quiz logged so far.
+    var calculatedPercent: Double? {
+        guard let points = gradedPoints else { return nil }
+        return (points.earned / points.possible) * 100
+    }
+
+    /// The letter grade Rutgers Prep's table maps `calculatedPercent` to.
+    var calculatedGradeLabel: String? {
+        calculatedPercent.flatMap(RutgersPrepGPA.label(forPercent:))
+    }
+
+    /// The grade actually used everywhere (class page, GPA Calculator) —
+    /// auto-calculated from logged points once any exist, falling back to
+    /// the manually-set `gradeLabel` only until then.
+    var effectiveGradeLabel: String? {
+        calculatedGradeLabel ?? gradeLabel
+    }
+
+    /// True once the effective grade comes from real logged points rather
+    /// than a manual fallback pick.
+    var hasCalculatedGrade: Bool { calculatedGradeLabel != nil }
 }

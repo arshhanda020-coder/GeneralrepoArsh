@@ -23,6 +23,8 @@ struct AddEditAssignmentView: View {
     @State private var remindersOn = false
     @State private var useSpecificTime = false
     @State private var reminderTime = Date()
+    @State private var pointsEarnedText = ""
+    @State private var pointsPossibleText = ""
 
     var body: some View {
         NavigationStack {
@@ -43,6 +45,21 @@ struct AddEditAssignmentView: View {
                                     .foregroundStyle(Theme.dimText)
                             }
                         }
+                    }
+                }
+                Section("Score") {
+                    HStack {
+                        TextField("Points earned", text: $pointsEarnedText)
+                            .platformKeyboardType(.decimalPad)
+                        Text("/")
+                            .foregroundStyle(Theme.dimText)
+                        TextField("Possible", text: $pointsPossibleText)
+                            .platformKeyboardType(.decimalPad)
+                    }
+                    if let earned = Double(pointsEarnedText), let possible = Double(pointsPossibleText), possible > 0 {
+                        Text("\(String(format: "%.1f", earned / possible * 100))% — counts toward the class's overall grade")
+                            .font(.caption)
+                            .foregroundStyle(Theme.dimText)
                     }
                 }
                 Section("Notes") {
@@ -85,6 +102,8 @@ struct AddEditAssignmentView: View {
         title = assignment.title
         notes = assignment.notes ?? ""
         remindersOn = assignment.remindersOn
+        pointsEarnedText = assignment.pointsEarned.map { String($0) } ?? ""
+        pointsPossibleText = assignment.pointsPossible.map { String($0) } ?? ""
         if let due = assignment.dueDate {
             hasDueDate = true
             dueDate = due
@@ -116,12 +135,16 @@ struct AddEditAssignmentView: View {
     private func save() {
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedDate = hasDueDate ? resolvedDueDate() : nil
+        let earned = Double(pointsEarnedText)
+        let possible = Double(pointsPossibleText)
         let targetAssignment: Assignment
         if let assignment {
             assignment.title = title
             assignment.dueDate = resolvedDate
             assignment.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
             assignment.remindersOn = hasDueDate && remindersOn
+            assignment.pointsEarned = earned
+            assignment.pointsPossible = possible
             targetAssignment = assignment
         } else {
             let newAssignment = Assignment(
@@ -130,7 +153,9 @@ struct AddEditAssignmentView: View {
                 notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
                 lesson: presetLesson,
                 isQuiz: presetIsQuiz,
-                remindersOn: hasDueDate && remindersOn
+                remindersOn: hasDueDate && remindersOn,
+                pointsEarned: earned,
+                pointsPossible: possible
             )
             modelContext.insert(newAssignment)
             targetAssignment = newAssignment
