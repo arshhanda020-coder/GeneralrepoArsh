@@ -14,7 +14,7 @@ final class WatchedSymbol {
     var symbol: String = ""
     var displayName: String?
     var sortIndex: Int = 0
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,

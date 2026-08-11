@@ -19,7 +19,7 @@ final class EmailDraft {
     var subject: String = ""
     var body: String = ""
     var isSent: Bool = false
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,

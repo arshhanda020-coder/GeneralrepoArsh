@@ -13,7 +13,7 @@ import SwiftData
 final class QuizSession {
     var id: String = UUID().uuidString
     var subject: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var isSubmitted: Bool = false
     var score: Int = 0
     var totalQuestions: Int = 0

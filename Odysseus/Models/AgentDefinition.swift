@@ -45,7 +45,7 @@ final class AgentDefinition {
     var id: String = UUID().uuidString
     var name: String = ""
     var instructions: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     /// Stored as the enum's rawValue for SwiftData compatibility; existing
     /// rows predate this field and lightweight-migrate to "chat".
@@ -87,7 +87,7 @@ final class AgentDefinition {
 final class AgentRun {
     var id: String = UUID().uuidString
     var output: String = ""
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var agent: AgentDefinition?
 
     /// Set only for bridge runs: which CLI ran ("claudeCode"/"codex", see

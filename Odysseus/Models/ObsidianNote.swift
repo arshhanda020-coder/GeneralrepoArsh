@@ -17,7 +17,7 @@ final class ObsidianNote {
     var excerpt: String = ""
     var content: String = ""
     var relativePath: String = ""
-    var modifiedAt: Date = .now
+    var modifiedAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,

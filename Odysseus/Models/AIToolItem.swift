@@ -26,9 +26,9 @@ final class AIToolItem {
     var title: String = ""
     var link: String = ""
     var source: String = ""
-    var publishedAt: Date = .now
+    var publishedAt: Date = Date.now
     var snippet: String?
-    var fetchedAt: Date = .now
+    var fetchedAt: Date = Date.now
     var categoryRaw: String = AIToolCategory.news.rawValue
     /// Only set for .savedRepo items — Claude Code skill-install directions.
     var installDirections: String?

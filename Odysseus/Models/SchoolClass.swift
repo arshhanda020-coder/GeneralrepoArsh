@@ -12,7 +12,7 @@ final class SchoolClass {
     var name: String = ""
     var isEnrolled: Bool = true
     var sortIndex: Int = 0
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     @Relationship(deleteRule: .cascade, inverse: \Topic.schoolClass)
     var topics: [Topic] = []

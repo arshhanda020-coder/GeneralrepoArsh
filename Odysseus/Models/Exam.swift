@@ -27,10 +27,10 @@ final class Exam {
     var id: String = UUID().uuidString
     /// Free-form so it covers anything — "SAT", "March SAT", "AP Calculus BC", "ACT June".
     var name: String = ""
-    var examDate: Date = .now
+    var examDate: Date = Date.now
     var targetScore: String?
     var notes: String?
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var schoolClass: SchoolClass?
     var categoryRaw: String = ExamCategory.marchExams.rawValue
     /// The real score once it's back — free-form since ACT (1-36), AP (1-5), and

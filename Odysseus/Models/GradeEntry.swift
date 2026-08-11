@@ -16,7 +16,7 @@ final class GradeEntry {
     /// Honors/AP — gets GPASettings.honorsBonus added on top when computing weighted GPA.
     var isWeighted: Bool = false
     var term: String?
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
 
     init(
         id: String = UUID().uuidString,
