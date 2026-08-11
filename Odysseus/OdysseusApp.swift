@@ -91,6 +91,20 @@ struct OdysseusApp: App {
         try? context.save()
     }
 
+    // CloudKit-backed sync (every model syncing to the user's private iCloud
+    // database) needs the com.apple.developer.icloud-* entitlements, which a
+    // Personal Team (free Apple ID) can never be provisioned with — see the
+    // comment in Odysseus.entitlements / Odysseus-macOS.entitlements. Those
+    // entitlement blocks are currently commented out for that reason, so
+    // this must stay `false` in lockstep with them: requesting
+    // cloudKitDatabase without the matching entitlement doesn't fail
+    // gracefully, it fails ModelContainer creation outright (even for a
+    // brand-new, empty store), which is what drove the "moving the old
+    // store aside" fallback below to fatalError. Flip this back to `true`
+    // at the same time the entitlement blocks are uncommented, once this
+    // project is signed with a paid Apple Developer Program team.
+    private static let cloudKitEnabled = false
+
     /// The on-disk store can fall out of sync with the model schema whenever a
     /// @Model type gains/loses a property between installs — SwiftData throws
     /// rather than migrating automatically, and that used to take the whole
@@ -99,18 +113,9 @@ struct OdysseusApp: App {
     /// the previous data sits in a timestamped backup file instead of being
     /// destroyed.
     private static func makeContainer(schema: Schema) -> ModelContainer {
-        // CloudKit-backed: every model syncs to the user's private iCloud
-        // database, so assignments/projects/notes/etc. survive a lost or
-        // replaced device and stay in sync between iPhone and Mac. This
-        // requires every non-optional stored property across the schema to
-        // carry an inline default (not just an initializer default) so
-        // CloudKit can synthesize partial records — every @Model file in
-        // this project now satisfies that. Requires the matching
-        // iCloud.com.traderforge.Odysseus container to be enabled in Signing
-        // & Capabilities (see Odysseus.entitlements / Odysseus-macOS.entitlements).
         let configuration = ModelConfiguration(
             schema: schema,
-            cloudKitDatabase: .private("iCloud.com.traderforge.Odysseus")
+            cloudKitDatabase: cloudKitEnabled ? .private("iCloud.com.traderforge.Odysseus") : .none
         )
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
