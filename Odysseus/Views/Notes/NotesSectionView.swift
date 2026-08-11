@@ -24,6 +24,7 @@ struct NotesSectionView: View {
 
     @State private var newNoteTitle = ""
     @State private var selectedNote: Note?
+    @State private var drawingNote: Note?
 
     init(context: NoteContext, accentColor: Color = MindMapSection.notes.accentColor) {
         self.context = context
@@ -57,6 +58,12 @@ struct NotesSectionView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(newNoteTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button(action: addDrawing) {
+                    Image(systemName: "pencil.tip.crop.circle.badge.plus")
+                        .font(.title2)
+                        .foregroundStyle(accentColor)
+                }
+                .buttonStyle(.plain)
             }
 
             if !notes.isEmpty {
@@ -71,6 +78,9 @@ struct NotesSectionView: View {
         }
         .sheet(item: $selectedNote) { note in
             NoteEditSheet(note: note, accentColor: accentColor)
+        }
+        .platformFullScreenCover(item: $drawingNote) { note in
+            NoteDrawingSheet(note: note, accentColor: accentColor)
         }
     }
 
@@ -100,6 +110,11 @@ struct NotesSectionView: View {
                 }
             }
             Spacer(minLength: 0)
+            if note.drawingData != nil {
+                Image(systemName: "pencil.and.scribble")
+                    .font(.caption)
+                    .foregroundStyle(accentColor)
+            }
         }
         .padding(10)
         .contentShape(Rectangle())
@@ -111,6 +126,14 @@ struct NotesSectionView: View {
         guard !trimmed.isEmpty else { return }
         modelContext.insert(Note(title: trimmed, context: context))
         newNoteTitle = ""
+    }
+
+    /// Creates a blank note and opens straight into the drawing canvas —
+    /// the "new page" quick action next to the plain text add button.
+    private func addDrawing() {
+        let note = Note(title: "Untitled Drawing", context: context)
+        modelContext.insert(note)
+        drawingNote = note
     }
 }
 
@@ -127,6 +150,7 @@ struct NoteEditSheet: View {
     @State private var contentDraft: String
     @State private var showingMove = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingDrawing = false
 
     init(note: Note, accentColor: Color = MindMapSection.notes.accentColor) {
         self.note = note
@@ -144,6 +168,22 @@ struct NoteEditSheet: View {
                 Section("NOTE") {
                     TextField("Write anything…", text: $contentDraft, axis: .vertical)
                         .lineLimit(6...20)
+                }
+                Section("DRAWING") {
+                    Button {
+                        showingDrawing = true
+                    } label: {
+                        HStack {
+                            Label(
+                                note.drawingData == nil ? "No drawing yet" : "Has a handwritten page",
+                                systemImage: "pencil.and.scribble"
+                            )
+                            Spacer()
+                            Text(note.drawingData == nil ? "Draw" : "Open")
+                                .foregroundStyle(accentColor)
+                        }
+                    }
+                    .foregroundStyle(Theme.primaryText)
                 }
                 Section {
                     Button {
@@ -189,6 +229,9 @@ struct NoteEditSheet: View {
                     note.context = newContext
                     note.updatedAt = .now
                 }
+            }
+            .platformFullScreenCover(isPresented: $showingDrawing) {
+                NoteDrawingSheet(note: note, accentColor: accentColor)
             }
         }
     }

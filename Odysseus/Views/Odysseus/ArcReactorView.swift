@@ -120,17 +120,18 @@ struct ArcReactorView: View {
                     .frame(width: size * 0.54, height: size * 0.54)
                     .rotationEffect(.degrees(t * (isSpeaking ? -40 : -16)))
 
-                // Glowing core.
+                // Glowing core — white-hot dead center fading into a blue
+                // halo, the way a real arc reactor reads (not flat white).
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [Color.white.opacity(0.95 * intensity), Theme.reactorCore.opacity(0.5 * intensity), .clear],
+                            colors: [Color.white.opacity(0.95 * intensity), Theme.reactorGlow.opacity(0.55 * intensity), Theme.nebulaWispB.opacity(0.35 * intensity), .clear],
                             center: .center, startRadius: 0, endRadius: size * 0.24
                         )
                     )
                     .frame(width: size * 0.4, height: size * 0.4)
                     .scaleEffect(coreScale)
-                    .shadow(color: Theme.reactorCore, radius: isSpeaking ? 16 : (isActive ? 9 : 5))
+                    .shadow(color: Theme.reactorGlow, radius: isSpeaking ? 16 : (isActive ? 9 : 5))
 
                 // Center equalizer — flat dots at rest, animated bars when
                 // Odysseus is actually speaking (the "listening" mic detail

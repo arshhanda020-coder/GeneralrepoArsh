@@ -36,15 +36,20 @@ struct SkillsView: View {
                 }
 
                 if skills.isEmpty {
-                    Text("No skills yet. Tap + to add one.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.dimText)
+                    EmptyStateView(
+                        icon: MindMapSection.skills.symbolName,
+                        title: "No skills yet",
+                        message: "Tap + to add one.",
+                        tint: MindMapSection.skills.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
                 }
             }
             .padding(12)
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Skills")
+        .sectionAssistantButton(.skills)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {

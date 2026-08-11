@@ -48,6 +48,7 @@ struct ObsidianView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Obsidian Vault")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.obsidian)
         .fileImporter(isPresented: $showingFolderPicker, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
                 vault.connect(url: url, modelContext: modelContext)

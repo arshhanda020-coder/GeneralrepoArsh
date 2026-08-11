@@ -2,8 +2,11 @@
 //  AppearanceSettingsView.swift
 //  Odysseus
 //
-//  Every color token and mind-map section is individually recolorable.
-//  Defaults are the muted, professional palette.
+//  Every color token is individually recolorable. Defaults are the calm,
+//  matte palette, and follow the system's light/dark setting; a color set
+//  here applies in both. Sections used to each get their own accent — now
+//  they all share the one "Signature Accent" token below, so there's no
+//  separate per-section list anymore.
 //
 
 import SwiftUI
@@ -16,12 +19,6 @@ struct AppearanceSettingsView: View {
             Section("Global") {
                 ForEach(ThemeToken.allCases) { token in
                     ColorPicker(token.displayName, selection: tokenBinding(token))
-                }
-            }
-
-            Section("Mind Map Sections") {
-                ForEach(MindMapSection.allCases) { section in
-                    ColorPicker(section.title, selection: sectionBinding(section))
                 }
             }
 
@@ -39,15 +36,8 @@ struct AppearanceSettingsView: View {
 
     private func tokenBinding(_ token: ThemeToken) -> Binding<Color> {
         Binding(
-            get: { Color(hex: ThemeColorSettings.hex(for: token)) },
+            get: { Color(token: token) },
             set: { ThemeColorSettings.setHex($0.hexString, for: token) }
-        )
-    }
-
-    private func sectionBinding(_ section: MindMapSection) -> Binding<Color> {
-        Binding(
-            get: { Color(hex: ThemeColorSettings.sectionHex(for: section)) },
-            set: { ThemeColorSettings.setSectionHex($0.hexString, for: section) }
         )
     }
 }

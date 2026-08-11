@@ -50,7 +50,7 @@ enum NoteContext: Equatable, Hashable {
         case .today: return "Today"
         case .project: return "Project"
         case .topic: return "School"
-        case .agentDefinition: return "Subagent"
+        case .agentDefinition: return "Workflow"
         }
     }
 

@@ -22,6 +22,7 @@ struct NotesView: View {
     @State private var showingFileImporter = false
     @State private var selectedNote: DocNote?
     @State private var editingFreeformNote: Note?
+    @State private var drawingNote: Note?
     @State private var newNoteTitle = ""
     @State private var googleDocs: [GoogleDocsService.DocSummary] = []
     @State private var isLoadingGoogleDocs = false
@@ -59,6 +60,7 @@ struct NotesView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Notes")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.notes)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingSettings = true } label: {
@@ -71,6 +73,9 @@ struct NotesView: View {
         }
         .sheet(item: $editingFreeformNote) { note in
             NoteEditSheet(note: note, accentColor: MindMapSection.notes.accentColor)
+        }
+        .platformFullScreenCover(item: $drawingNote) { note in
+            NoteDrawingSheet(note: note, accentColor: MindMapSection.notes.accentColor)
         }
         .fileImporter(
             isPresented: $showingFileImporter,
@@ -108,12 +113,22 @@ struct NotesView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(newNoteTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Button(action: addDrawing) {
+                    Image(systemName: "pencil.tip.crop.circle.badge.plus")
+                        .font(.title2)
+                        .foregroundStyle(MindMapSection.notes.accentColor)
+                }
+                .buttonStyle(.plain)
             }
 
             if allFreeformNotes.isEmpty {
-                Text("Notes you write live here by default, or attach to Today, a Project, a School topic, or a Subagent — move them anytime from the note itself.")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(Theme.dimText)
+                EmptyStateView(
+                    icon: MindMapSection.notes.symbolName,
+                    title: "No notes yet",
+                    message: "Notes you write live here by default, or attach to Today, a Project, a School topic, or an Agentic Workflow — move them anytime from the note itself.",
+                    tint: MindMapSection.notes.accentColor
+                )
+                .glassPanel(cornerRadius: 14)
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(allFreeformNotes.enumerated()), id: \.element.id) { index, note in
@@ -144,6 +159,11 @@ struct NotesView: View {
                 }
             }
             Spacer(minLength: 0)
+            if note.drawingData != nil {
+                Image(systemName: "pencil.and.scribble")
+                    .font(.caption2)
+                    .foregroundStyle(MindMapSection.notes.accentColor)
+            }
             if let context = note.context {
                 Label(context.resolvedName(in: modelContext) ?? context.label, systemImage: context.symbolName)
                     .font(.system(.caption2, design: .monospaced))
@@ -162,6 +182,14 @@ struct NotesView: View {
         guard !trimmed.isEmpty else { return }
         modelContext.insert(Note(title: trimmed))
         newNoteTitle = ""
+    }
+
+    /// Creates a blank note and opens straight into the drawing canvas —
+    /// the "new page" quick action next to the plain text add button.
+    private func addDrawing() {
+        let note = Note(title: "Untitled Drawing")
+        modelContext.insert(note)
+        drawingNote = note
     }
 
     private var googleDocsCard: some View {

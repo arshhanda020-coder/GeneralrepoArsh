@@ -2,9 +2,12 @@
 //  HealthView.swift
 //  Odysseus
 //
-//  Food + Workouts + Activity (calorie-burn timer) + Progress (physique/weight
+//  Food + Workouts (log + calorie-burn calc) + Progress (physique/weight
 //  journal), all under one Health tab, plus today's step count from Apple
-//  Health up top.
+//  Health up top. Activity used to be its own stopwatch-based tab with a
+//  separate model (ActivitySession) that never fed into the calorie math —
+//  merged into Workouts so every logged session (typed activity + intensity
+//  + duration, no stopwatch required) counts toward today's burn.
 //
 
 import SwiftUI
@@ -12,7 +15,7 @@ import SwiftData
 
 struct HealthView: View {
     enum Tab: String, CaseIterable, Identifiable {
-        case food, workouts, activity, progress
+        case food, workouts, progress
 
         var id: String { rawValue }
 
@@ -20,7 +23,6 @@ struct HealthView: View {
             switch self {
             case .food: return "Food"
             case .workouts: return "Workouts"
-            case .activity: return "Activity"
             case .progress: return "Progress"
             }
         }
@@ -47,7 +49,12 @@ struct HealthView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 stepsCard
-                overviewCard
+                // Food tab shows its own richer calorie/macro ring dashboard
+                // (NutritionRingsView) — this simpler balance card would just
+                // duplicate it, so it's reserved for the other three tabs.
+                if tab != .food {
+                    overviewCard
+                }
 
                 Picker("Section", selection: $tab) {
                     ForEach(Tab.allCases) { tab in
@@ -59,7 +66,6 @@ struct HealthView: View {
                 switch tab {
                 case .food: FoodContentView()
                 case .workouts: WorkoutContentView()
-                case .activity: ActivityView()
                 case .progress: BodyProgressView()
                 }
             }
@@ -68,6 +74,7 @@ struct HealthView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Health")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.health)
         .task {
             await healthKit.requestAuthorizationAndRefresh()
         }
@@ -145,7 +152,7 @@ struct HealthView: View {
         HealthView()
     }
     .modelContainer(
-        for: [FoodEntry.self, WorkoutEntry.self, ActivitySession.self, ProgressEntry.self, MonthlyReport.self],
+        for: [FoodEntry.self, WorkoutEntry.self, ProgressEntry.self, MonthlyReport.self],
         inMemory: true
     )
 }

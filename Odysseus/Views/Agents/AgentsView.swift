@@ -2,9 +2,12 @@
 //  AgentsView.swift
 //  Odysseus
 //
-//  Subagents — named, reusable sets of instructions you can run on demand,
-//  with a logged history of what each run produced. Styled in the same HUD
-//  console language as Odysseus: monospace labels, status dots, bracket chrome.
+//  Agentic Workflows — named, reusable sets of instructions you can run on
+//  demand, with a logged history of what each run produced. A workflow runs
+//  either as a plain chat completion, or against the real Claude Code / Codex
+//  CLI via the bridge (DevAgentBridgeClient) when it needs actual tool use
+//  against a working directory. Styled in the same HUD console language as
+//  Odysseus: monospace labels, status dots, bracket chrome.
 //
 
 import SwiftUI
@@ -21,10 +24,14 @@ struct AgentsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 if agents.isEmpty {
-                    Text("No subagents yet. Tap + to define one — a fixed set of instructions you can run on demand, e.g. \"Weekly Research Digest\" or \"Portfolio Check-in.\"")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Theme.dimText)
-                        .padding(.top, 40)
+                    EmptyStateView(
+                        icon: MindMapSection.agents.symbolName,
+                        title: "No agentic workflows yet",
+                        message: "Tap + to define one — a fixed set of instructions you can run on demand, e.g. \"Weekly Research Digest\" or \"Portfolio Check-in.\" Point one at Claude Code or Codex to have it actually work against a real repo.",
+                        tint: MindMapSection.agents.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
+                    .padding(.top, 40)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(agents.enumerated()), id: \.element.id) { index, agent in
@@ -40,8 +47,9 @@ struct AgentsView: View {
             .padding(12)
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationTitle("Subagents")
+        .navigationTitle("Agentic Workflows")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.agents)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -68,7 +76,7 @@ struct AgentsView: View {
                 Text(agent.name.uppercased())
                     .font(.system(.subheadline, design: .monospaced).weight(.semibold))
                     .foregroundStyle(Theme.primaryText)
-                Text("\(agent.runs.count) run\(agent.runs.count == 1 ? "" : "s") logged")
+                Text("\(agent.runs.count) run\(agent.runs.count == 1 ? "" : "s") logged · \(agent.runKind.displayName)")
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundStyle(Theme.dimText)
             }
@@ -89,6 +97,8 @@ private struct NewAgentSheet: View {
 
     @State private var name = ""
     @State private var instructions = ""
+    @State private var runKind: AgentRunKind = .chat
+    @State private var workingDirectory = ""
 
     var body: some View {
         NavigationStack {
@@ -102,8 +112,30 @@ private struct NewAgentSheet: View {
                         .lineLimit(4...10)
                         .font(.system(.body, design: .monospaced))
                 }
+                Section {
+                    Picker("Run via", selection: $runKind) {
+                        ForEach(AgentRunKind.allCases) { kind in
+                            Text(kind.displayName).tag(kind)
+                        }
+                    }
+                    if let bridgeKind = runKind.bridgeKind {
+                        TextField("/path/to/project", text: $workingDirectory)
+                            .font(.system(.body, design: .monospaced))
+                            .platformAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        Text("Runs through the real \(bridgeKind.displayName) CLI via the bridge — connect it first under \(bridgeKind.displayName) if you haven't.")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Theme.dimText)
+                    }
+                } header: {
+                    Text("RUN VIA")
+                } footer: {
+                    if runKind == .chat {
+                        Text("Chat gives a one-shot answer. Claude Code / Codex run against a real working directory with real tool use.")
+                    }
+                }
             }
-            .navigationTitle("New Subagent")
+            .navigationTitle("New Agentic Workflow")
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -112,7 +144,8 @@ private struct NewAgentSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { save() }
                         .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            || instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            || instructions.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || (runKind.bridgeKind != nil && workingDirectory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
                 }
             }
         }
@@ -121,8 +154,14 @@ private struct NewAgentSheet: View {
     private func save() {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedInstructions = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDirectory = workingDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty, !trimmedInstructions.isEmpty else { return }
-        modelContext.insert(AgentDefinition(name: trimmedName, instructions: trimmedInstructions))
+        modelContext.insert(AgentDefinition(
+            name: trimmedName,
+            instructions: trimmedInstructions,
+            runKind: runKind,
+            workingDirectory: trimmedDirectory.isEmpty ? nil : trimmedDirectory
+        ))
         dismiss()
     }
 }
@@ -151,6 +190,21 @@ private struct AgentDetailView: View {
                 }
                 .padding(12)
                 .glassPanel(cornerRadius: 8)
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill((agent.runKind.bridgeKind?.accentColor ?? Theme.dimText))
+                        .frame(width: 6, height: 6)
+                    Text("RUNS VIA \(agent.runKind.displayName.uppercased())")
+                        .font(.system(.caption2, design: .monospaced).weight(.bold))
+                        .tracking(1)
+                        .foregroundStyle(Theme.dimText)
+                    if let dir = agent.workingDirectory, agent.runKind.bridgeKind != nil {
+                        Text("· \(dir)")
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(Theme.dimText)
+                    }
+                }
 
                 Button {
                     run()
@@ -207,7 +261,7 @@ private struct AgentDetailView: View {
                 }
             }
         }
-        .confirmationDialog("Delete this subagent?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
+        .confirmationDialog("Delete this workflow?", isPresented: $showingDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 modelContext.delete(agent)
                 dismiss()
@@ -221,7 +275,7 @@ private struct AgentDetailView: View {
         runError = nil
         Task {
             do {
-                let output = try await AgentRunner.run(instructions: agent.instructions)
+                let output = try await AgentWorkflowRunner.run(agent)
                 modelContext.insert(AgentRun(output: output, agent: agent))
             } catch {
                 runError = error.localizedDescription

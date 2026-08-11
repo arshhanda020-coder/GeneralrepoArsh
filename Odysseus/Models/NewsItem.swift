@@ -9,7 +9,10 @@ import SwiftData
 @Model
 final class NewsItem {
     /// "<topic>::<normalized title>" — used as the dedupe key within a topic.
-    @Attribute(.unique) var id: String
+    /// Not `@Attribute(.unique)`: CloudKit sync doesn't support unique
+    /// constraints. Dedup is already handled in code (NewsView.merge looks
+    /// up by `id` before inserting), so this is safe.
+    var id: String
     var title: String
     var link: String
     var source: String

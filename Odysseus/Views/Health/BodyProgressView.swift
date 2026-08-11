@@ -281,6 +281,7 @@ struct BodyProgressView: View {
                     summaryText: summary
                 )
                 modelContext.insert(report)
+                NotificationManager.shared.notifyReportReady(periodLabel: "\(periodStart.formatted(.dateTime.month(.abbreviated).day())) – \(today.formatted(.dateTime.month(.abbreviated).day()))")
             } catch {
                 reportError = error.localizedDescription
             }

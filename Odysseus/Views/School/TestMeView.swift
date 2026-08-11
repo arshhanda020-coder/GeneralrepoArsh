@@ -181,6 +181,7 @@ struct TestMeView: View {
                         session: session
                     ))
                 }
+                NotificationManager.shared.notifyPracticeTestCreated(topic: topic, questionCount: drafts.count)
                 activeSession = session
             } catch {
                 errorMessage = error.localizedDescription

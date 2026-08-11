@@ -39,6 +39,9 @@ final class OdysseusController: NSObject, ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var silenceTimer: Timer?
     private static let activeSessionKey = "odysseus_active_session_id"
+    /// The in-flight send/regenerate Task, if any — kept so the Copilot UI's
+    /// stop button can cancel a reply mid-stream instead of just hiding it.
+    private var activeTask: Task<Void, Never>?
 
     private override init() {
         activeSessionID = UserDefaults.standard.string(forKey: Self.activeSessionKey)
@@ -126,7 +129,7 @@ final class OdysseusController: NSObject, ObservableObject {
             beginListening()
             return
         }
-        Task { await sendMessage(text) }
+        send(text)
     }
 
     // MARK: - Chat sessions
@@ -158,6 +161,21 @@ final class OdysseusController: NSObject, ObservableObject {
     }
 
     // MARK: - Sending
+
+    /// Entry point for UI/voice call sites — owns the Task so it can be
+    /// cancelled by `stopGenerating()` (e.g. the Copilot input bar's stop
+    /// button) instead of the caller firing an unstructured `Task { }` that
+    /// nothing can reach again.
+    func send(_ text: String, imageData: Data? = nil) {
+        activeTask?.cancel()
+        activeTask = Task { await sendMessage(text, imageData: imageData) }
+    }
+
+    /// Cancels whatever reply is currently streaming in, keeping any partial
+    /// text that already arrived rather than discarding it as an error.
+    func stopGenerating() {
+        activeTask?.cancel()
+    }
 
     func sendMessage(_ text: String, imageData: Data? = nil) async {
         guard let modelContext else { return }
@@ -219,6 +237,13 @@ final class OdysseusController: NSObject, ObservableObject {
             } else {
                 status = .idle
             }
+        } catch is CancellationError {
+            // User hit stop mid-stream — keep whatever text already arrived
+            // rather than discarding it like a real failure.
+            if assistantMessage.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                modelContext.delete(assistantMessage)
+            }
+            status = .idle
         } catch {
             modelContext.delete(assistantMessage)
             statusMessage = error.localizedDescription
@@ -236,6 +261,56 @@ final class OdysseusController: NSObject, ObservableObject {
         }
     }
 
+    /// Deletes the trailing assistant reply in `session` and re-asks the
+    /// model using the same history up to (and including) the last user
+    /// message — the retry action on a Copilot reply.
+    func regenerateLastResponse(session: ChatSession, context: ModelContext) {
+        activeTask?.cancel()
+        activeTask = Task {
+            guard AISettings.hasActiveKey else {
+                statusMessage = "Add your \(AISettings.provider.displayName) API key in Copilot settings."
+                return
+            }
+            let sessionID = session.id
+            var history = (try? context.fetch(
+                FetchDescriptor<ChatMessage>(
+                    predicate: #Predicate { $0.session?.id == sessionID },
+                    sortBy: [SortDescriptor(\.createdAt)]
+                )
+            )) ?? []
+            if let trailingAssistant = history.last, trailingAssistant.role == "assistant" {
+                context.delete(trailingAssistant)
+                history.removeLast()
+            }
+            guard history.last?.role == "user" else { return }
+
+            status = .thinking
+            let assistantMessage = ChatMessage(role: "assistant", content: "", session: session)
+            context.insert(assistantMessage)
+
+            do {
+                let reply = try await AISettings.currentService.send(
+                    history: history,
+                    onTextDelta: { delta in assistantMessage.content += delta }
+                ) { [weak self] name, input in
+                    guard let self else { return "Unknown tool." }
+                    return await self.executeTool(name: name, input: input)
+                }
+                assistantMessage.content = reply
+                status = .idle
+            } catch is CancellationError {
+                if assistantMessage.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    context.delete(assistantMessage)
+                }
+                status = .idle
+            } catch {
+                context.delete(assistantMessage)
+                statusMessage = error.localizedDescription
+                status = .idle
+            }
+        }
+    }
+
     // MARK: - Daily suggestion
 
     func refreshDailySuggestion() {
@@ -246,6 +321,15 @@ final class OdysseusController: NSObject, ObservableObject {
             self.latestSuggestion = suggestion
             NotificationManager.shared.scheduleSuggestion(text: suggestion)
         }
+    }
+
+    /// Re-evaluates every reminder/nudge against current data — due dates
+    /// that are now overdue, food/workouts that still haven't been logged,
+    /// exam scores still missing. Cheap, so it's safe to call every time the
+    /// app comes to the foreground (RootView does exactly that).
+    func runNotificationChecks() {
+        guard let modelContext else { return }
+        NotificationManager.shared.resyncAllReminders(modelContext: modelContext)
     }
 
     private func buildStatusContext(modelContext: ModelContext) -> String {
@@ -461,8 +545,53 @@ final class OdysseusController: NSObject, ObservableObject {
                 confirmed: input["confirmed"] as? Bool ?? false,
                 context: modelContext
             )
+        case "run_dev_agent":
+            return await runDevAgent(
+                agentRaw: input["agent"] as? String ?? "",
+                prompt: input["prompt"] as? String ?? "",
+                cwd: input["cwd"] as? String,
+                fullAuto: input["full_auto"] as? Bool ?? false
+            )
         default:
             return "Unknown tool."
+        }
+    }
+
+    /// Routes a coding task through the real Claude Code / Codex bridge (the
+    /// same one wired up in Agents → Claude Code/Codex Bridge) — lets Copilot
+    /// chat itself kick off a real CLI run in a project directory, instead of
+    /// that only being reachable from the manual bridge form.
+    private func runDevAgent(agentRaw: String, prompt: String, cwd: String?, fullAuto: Bool) async -> String {
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPrompt.isEmpty else { return "No prompt given for the dev agent to run." }
+        let kind: DevAgentKind = agentRaw.lowercased().contains("codex") ? .codex : .claudeCode
+
+        let bridgeURL = UserDefaults.standard.string(forKey: kind.bridgeURLKey) ?? ""
+        let token = KeychainService.shared.loadBridgeToken(kind: kind.agentKey) ?? ""
+        guard !bridgeURL.isEmpty, !token.isEmpty else {
+            return "The \(kind.displayName) bridge isn't set up on this device — open Agents → \(kind.displayName) Bridge, fill in the bridge URL and token printed by bridge/server.js, then try again."
+        }
+
+        let trimmedCwd = cwd?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let workingDirectory = trimmedCwd.isEmpty ? NSHomeDirectory() : trimmedCwd
+
+        do {
+            let result = try await DevAgentBridgeClient.run(
+                baseURL: bridgeURL,
+                token: token,
+                agent: kind.agentKey,
+                prompt: trimmedPrompt,
+                cwd: workingDirectory,
+                fullAuto: fullAuto
+            )
+            guard result.ok else { return "\(kind.displayName) run failed: \(result.error ?? "unknown error")." }
+            var summary = result.output
+            if let costUSD = result.costUSD {
+                summary += "\n\n(\(kind.displayName) run cost \(String(format: "$%.3f", costUSD)))"
+            }
+            return summary.isEmpty ? "\(kind.displayName) finished with no output." : summary
+        } catch {
+            return "Couldn't reach the \(kind.displayName) bridge: \(error.localizedDescription)"
         }
     }
 
@@ -890,7 +1019,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return "Found \"\(assignment.title)\" — confirm you want it deleted before I remove it."
         }
         let title = assignment.title
-        NotificationManager.shared.cancelOneOff(identifier: "assignment-\(assignment.id)")
+        NotificationManager.shared.cancelReminders(assignmentID: assignment.id)
         context.delete(assignment)
         return "Deleted \"\(title)\"."
     }
@@ -910,7 +1039,9 @@ final class OdysseusController: NSObject, ObservableObject {
         // Linking to a class is what makes this exam also show up on that
         // class's own page — not just Calendar/School exams.
         let matchedClass = className.flatMap { findSchoolClass(matching: $0, context: context) }
-        context.insert(Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory))
+        let exam = Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory)
+        context.insert(exam)
+        NotificationManager.shared.sync(exam: exam)
         let classNote = matchedClass.map { " under \($0.name)" } ?? ""
         return "Added exam \"\(trimmedName)\"\(classNote) on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
     }
@@ -931,6 +1062,7 @@ final class OdysseusController: NSObject, ObservableObject {
             let trimmed = newClassName.trimmingCharacters(in: .whitespacesAndNewlines)
             exam.schoolClass = trimmed.isEmpty ? nil : findSchoolClass(matching: trimmed, context: context)
         }
+        NotificationManager.shared.sync(exam: exam)
         return "Updated \"\(exam.name)\"."
     }
 
@@ -944,6 +1076,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return "Found \"\(exam.name)\" — confirm you want it deleted before I remove it."
         }
         let name = exam.name
+        NotificationManager.shared.cancelReminders(examID: exam.id)
         context.delete(exam)
         return "Deleted \"\(name)\"."
     }

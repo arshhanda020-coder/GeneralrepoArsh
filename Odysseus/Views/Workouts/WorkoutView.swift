@@ -103,13 +103,16 @@ struct WorkoutContentView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.primaryText)
                     .lineLimit(1)
-                if entry.durationMinutes != nil || entry.caloriesBurned != nil {
+                if entry.durationMinutes != nil || entry.caloriesBurned != nil || entry.intensity != nil {
                     HStack(spacing: 6) {
+                        if let intensity = entry.intensity {
+                            Text(intensity.label)
+                        }
                         if let minutes = entry.durationMinutes {
                             Text(formattedDuration(minutes))
                         }
                         if let calories = entry.caloriesBurned {
-                            Text("\(calories) cal")
+                            Text(entry.isEstimateFallback ? "~\(calories) cal" : "\(calories) cal")
                         }
                     }
                     .font(.caption2)

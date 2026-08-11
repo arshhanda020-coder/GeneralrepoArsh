@@ -24,10 +24,17 @@ private struct ChecklistItem: Identifiable {
     let isDone: Bool
     let kind: Kind
 
+    @MainActor
     func toggle() {
         switch kind {
-        case .assignment(let assignment): assignment.isDone.toggle()
-        case .projectTask(let task): task.isDone.toggle()
+        case .assignment(let assignment):
+            assignment.isDone.toggle()
+            NotificationManager.shared.sync(assignment: assignment)
+            if assignment.isDone { NotificationManager.shared.notifyTaskCompleted(title: assignment.title) }
+        case .projectTask(let task):
+            task.isDone.toggle()
+            NotificationManager.shared.sync(projectTask: task)
+            if task.isDone { NotificationManager.shared.notifyTaskCompleted(title: task.title) }
         }
     }
 }
@@ -107,6 +114,7 @@ struct TodayView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Today")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.today)
     }
 
     private func row(_ item: ChecklistItem) -> some View {

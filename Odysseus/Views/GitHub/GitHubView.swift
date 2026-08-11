@@ -54,11 +54,13 @@ struct GitHubView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 40)
                 } else if repos.isEmpty {
-                    Text("No repositories found.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.dimText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 40)
+                    EmptyStateView(
+                        icon: MindMapSection.github.symbolName,
+                        title: "No repositories found",
+                        tint: MindMapSection.github.accentColor
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 40)
                 } else {
                     reposList
                 }
@@ -67,6 +69,7 @@ struct GitHubView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("GitHub")
+        .sectionAssistantButton(.github)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
