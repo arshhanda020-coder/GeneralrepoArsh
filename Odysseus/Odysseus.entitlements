@@ -14,22 +14,11 @@
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)com.traderforge.Odysseus</string>
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>Production</string>
 	<!-- Lets due-date/study reminders use UNNotificationInterruptionLevel.timeSensitive
 	     so they break through Focus modes instead of being silently downgraded to .active. -->
 	<key>com.apple.developer.usernotifications.time-sensitive</key>
 	<true/>
-	<!-- Shared with the macOS target's entitlements: same container so
-	     SwiftData's CloudKit sync mirrors one dataset across every device
-	     signed into the same iCloud account. -->
-	<key>com.apple.developer.icloud-container-identifiers</key>
-	<array>
-		<string>iCloud.com.traderforge.Odysseus</string>
-	</array>
-	<key>com.apple.developer.icloud-services</key>
-	<array>
-		<string>CloudKit</string>
-	</array>
-	<key>com.apple.developer.icloud-container-environment</key>
-	<string>Production</string>
 </dict>
 </plist>

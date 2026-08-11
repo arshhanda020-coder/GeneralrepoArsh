@@ -39,7 +39,7 @@ final class Exam {
     var scoreLoggedAt: Date?
     /// Defaults on (unlike assignments/tasks) — a test date is high-stakes
     /// enough that most people want the reminder without having to opt in.
-    var remindersOn: Bool
+    var remindersOn: Bool = true
 
     @Relationship(deleteRule: .cascade, inverse: \StudySession.exam)
     var studySessions: [StudySession] = []
