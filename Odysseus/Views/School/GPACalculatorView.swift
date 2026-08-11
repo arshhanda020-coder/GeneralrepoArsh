@@ -133,7 +133,11 @@ struct GPACalculatorView: View {
     private func gradeMenu(_ schoolClass: SchoolClass) -> some View {
         Menu {
             ForEach(RutgersPrepGPA.labels, id: \.self) { label in
-                Button(label) { schoolClass.gradeLabel = label }
+                Button {
+                    schoolClass.gradeLabel = label
+                } label: {
+                    Text(RutgersPrepGPA.percentRange(for: label).map { "\(label) (\($0)%)" } ?? label)
+                }
             }
             if schoolClass.gradeLabel != nil {
                 Divider()
@@ -151,7 +155,7 @@ struct GPACalculatorView: View {
     }
 
     private var policyNote: some View {
-        Text("Weighting follows Rutgers Prep's official policy — Honors +0.333, AP +0.667 — applied automatically based on each class's title. Override a class's level above if it's ever detected wrong.")
+        Text("Grading follows Rutgers Prep's official table — Honors +0.333, AP/P-AP +0.667 GPA points per grade — applied automatically based on each class's title. Override a class's level above if it's ever detected wrong.")
             .font(.caption2)
             .foregroundStyle(Theme.dimText)
     }
