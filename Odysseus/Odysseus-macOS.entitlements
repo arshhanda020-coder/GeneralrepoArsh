@@ -12,6 +12,13 @@
 	<true/>
 	<key>com.apple.security.device.microphone</key>
 	<true/>
+	<!-- iCloud/CloudKit and Time-Sensitive Notifications entitlements are commented
+	     out below rather than deleted: a Personal Team (free Apple ID) cannot be
+	     provisioned with either capability, which blocks every local build. CloudKit
+	     sync (OdysseusApp.swift, cloudKitDatabase: .private(...)) and time-sensitive
+	     due-date notifications are real, working features on a paid Apple Developer
+	     Program team — uncomment this block and re-add the same block to
+	     Odysseus.entitlements once this project is signed with a paid team.
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
 		<string>iCloud.com.traderforge.Odysseus</string>
@@ -26,5 +33,6 @@
 	<string>Production</string>
 	<key>com.apple.developer.usernotifications.time-sensitive</key>
 	<true/>
+	-->
 </dict>
 </plist>
