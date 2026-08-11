@@ -6,6 +6,16 @@
 //  (Anthropic API key, Gmail OAuth tokens, GitHub PAT). Nothing here is ever
 //  written to UserDefaults, logs, or source.
 //
+//  Every item is saved with kSecAttrSynchronizable so iCloud Keychain mirrors
+//  it to the user's other devices signed into the same iCloud account (needs
+//  Keychain Access/iCloud Keychain enabled in iCloud Settings on each one) —
+//  same idea as CloudKit for the SwiftData store in OdysseusApp, just for
+//  secrets instead of app data. Synced and local-only items live in separate
+//  keychain spaces, so `load` falls back to a plain local lookup and
+//  transparently re-saves as synced — a one-time migration for keys that
+//  were stored before this was added, same pattern as the SwiftData
+//  migrations in OdysseusApp.swift.
+//
 
 import Foundation
 import Security
@@ -20,29 +30,55 @@ nonisolated final class KeychainService {
     // MARK: - Generic storage
 
     private func save(_ data: Data, account: String) {
-        let query: [String: Any] = [
+        // Clear out any copy under either sync state first so a re-save
+        // never leaves a stale duplicate behind.
+        let matchAny: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
         ]
-        SecItemDelete(query as CFDictionary)
+        SecItemDelete(matchAny as CFDictionary)
 
-        var attributes = query
-        attributes[kSecValueData as String] = data
+        let attributes: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: true,
+            kSecValueData as String: data,
+        ]
         SecItemAdd(attributes as CFDictionary, nil)
     }
 
     private func load(account: String) -> Data? {
-        let query: [String: Any] = [
+        let syncedQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: true,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne,
         ]
         var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let data = result as? Data else { return nil }
+        if SecItemCopyMatching(syncedQuery as CFDictionary, &result) == errSecSuccess, let data = result as? Data {
+            return data
+        }
+
+        // Not found as a synced item — check for a pre-sync local-only save
+        // and migrate it forward so it starts syncing from here on.
+        let legacyQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: false,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        result = nil
+        guard SecItemCopyMatching(legacyQuery as CFDictionary, &result) == errSecSuccess, let data = result as? Data else {
+            return nil
+        }
+        save(data, account: account)
         return data
     }
 
@@ -51,6 +87,7 @@ nonisolated final class KeychainService {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
+            kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
         ]
         SecItemDelete(query as CFDictionary)
     }
