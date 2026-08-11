@@ -284,11 +284,6 @@ enum SectionAssistantPrompt {
             lines.append("Workouts today: \(workouts.count), ~\(burned) cal burned.")
         }
 
-        let activities = ((try? modelContext.fetch(FetchDescriptor<ActivitySession>())) ?? []).filter { Calendar.current.isDate($0.startedAt, inSameDayAs: today) }
-        if !activities.isEmpty {
-            lines.append("Activities today: " + activities.map(\.activityName).joined(separator: ", "))
-        }
-
         if let age = HealthProfile.age {
             var profileLine = "Profile: age \(age)"
             if let sex = HealthProfile.sex, !sex.isEmpty { profileLine += ", \(sex)" }
