@@ -4,6 +4,16 @@
 <dict>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.traderforge.Odysseus</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
+	<string>$(TeamIdentifierPrefix)com.traderforge.Odysseus</string>
 	<!-- Lets due-date/study reminders use UNNotificationInterruptionLevel.timeSensitive
 	     so they break through Focus modes instead of being silently downgraded to .active. -->
 	<key>com.apple.developer.usernotifications.time-sensitive</key>

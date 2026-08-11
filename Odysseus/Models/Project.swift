@@ -8,13 +8,13 @@ import SwiftData
 
 @Model
 final class Project {
-    var id: String
-    var name: String
-    var emoji: String
-    var colorHex: String
-    var projectDescription: String
-    var statusRaw: String
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var name: String = ""
+    var emoji: String = ""
+    var colorHex: String = ""
+    var projectDescription: String = ""
+    var statusRaw: String = ProjectStatus.building.rawValue
+    var createdAt: Date = .now
     /// A longer-form plan (written by the user or AI-generated) that tasks
     /// with due dates get broken out from.
     var planText: String?

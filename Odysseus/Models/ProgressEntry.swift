@@ -10,12 +10,12 @@ import SwiftData
 
 @Model
 final class ProgressEntry {
-    var id: String
-    var date: Date
+    var id: String = UUID().uuidString
+    var date: Date = .now
     var weight: Double?
     var photoData: Data?
     var notes: String?
-    var createdAt: Date
+    var createdAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

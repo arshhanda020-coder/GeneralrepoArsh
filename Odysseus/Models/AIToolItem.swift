@@ -20,14 +20,16 @@ enum AIToolCategory: String, Codable {
 
 @Model
 final class AIToolItem {
-    @Attribute(.unique) var id: String
-    var title: String
-    var link: String
-    var source: String
-    var publishedAt: Date
+    // CloudKit doesn't support unique constraints; dedup is handled at the
+    // call site (AIIntegrationView.merge) by checking `id` before inserting.
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var link: String = ""
+    var source: String = ""
+    var publishedAt: Date = .now
     var snippet: String?
-    var fetchedAt: Date
-    var categoryRaw: String
+    var fetchedAt: Date = .now
+    var categoryRaw: String = AIToolCategory.news.rawValue
     /// Only set for .savedRepo items — Claude Code skill-install directions.
     var installDirections: String?
     var isStarred: Bool = false

@@ -12,10 +12,10 @@ import SwiftData
 
 @Model
 final class MemoryEntry {
-    var id: String
-    var content: String
-    var isAISaved: Bool
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var content: String = ""
+    var isAISaved: Bool = false
+    var createdAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

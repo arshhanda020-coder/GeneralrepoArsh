@@ -8,7 +8,7 @@ import SwiftData
 
 @Model
 final class SkillSession {
-    var date: Date
+    var date: Date = .now
     var note: String?
     var skill: Skill?
 

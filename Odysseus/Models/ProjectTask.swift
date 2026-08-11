@@ -8,13 +8,13 @@ import SwiftData
 
 @Model
 final class ProjectTask {
-    var id: String
-    var title: String
-    var isDone: Bool
-    var createdAt: Date
-    var sortIndex: Int
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var isDone: Bool = false
+    var createdAt: Date = .now
+    var sortIndex: Int = 0
     var dueDate: Date?
-    var remindersOn: Bool
+    var remindersOn: Bool = false
     var project: Project?
 
     init(

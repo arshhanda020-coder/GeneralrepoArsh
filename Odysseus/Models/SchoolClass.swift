@@ -8,11 +8,11 @@ import SwiftData
 
 @Model
 final class SchoolClass {
-    var id: String
-    var name: String
-    var isEnrolled: Bool
-    var sortIndex: Int
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var name: String = ""
+    var isEnrolled: Bool = true
+    var sortIndex: Int = 0
+    var createdAt: Date = .now
 
     @Relationship(deleteRule: .cascade, inverse: \Topic.schoolClass)
     var topics: [Topic] = []

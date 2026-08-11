@@ -12,14 +12,14 @@ import SwiftData
 
 @Model
 final class EmailDraft {
-    var id: String
+    var id: String = UUID().uuidString
     /// e.g. "Accountant #1" — a hint for who this copy is meant for, not an address.
-    var recipientLabel: String
-    var to: String
-    var subject: String
-    var body: String
-    var isSent: Bool
-    var createdAt: Date
+    var recipientLabel: String = ""
+    var to: String = ""
+    var subject: String = ""
+    var body: String = ""
+    var isSent: Bool = false
+    var createdAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

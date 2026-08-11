@@ -12,10 +12,10 @@ import SwiftData
 
 @Model
 final class ChatSession {
-    var id: String
-    var title: String
-    var createdAt: Date
-    var lastActivityAt: Date
+    var id: String = UUID().uuidString
+    var title: String = "New Chat"
+    var createdAt: Date = .now
+    var lastActivityAt: Date = .now
     /// Nil for a main Copilot thread. Set to a `MindMapSection`'s rawValue
     /// for a section assistant's thread, so each section's chat is its own
     /// history instead of all sharing (or colliding with) the Copilot log.

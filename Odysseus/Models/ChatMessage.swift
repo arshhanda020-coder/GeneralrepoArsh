@@ -8,11 +8,11 @@ import SwiftData
 
 @Model
 final class ChatMessage {
-    var id: String
+    var id: String = UUID().uuidString
     /// "user" or "assistant"
-    var role: String
-    var content: String
-    var createdAt: Date
+    var role: String = "user"
+    var content: String = ""
+    var createdAt: Date = .now
     /// Optional image attached by the user (JPEG), sent to Claude as vision input.
     var imageData: Data?
     var session: ChatSession?

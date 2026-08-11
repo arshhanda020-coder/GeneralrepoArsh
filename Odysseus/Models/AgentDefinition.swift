@@ -42,10 +42,10 @@ enum AgentRunKind: String, Codable, CaseIterable, Identifiable {
 
 @Model
 final class AgentDefinition {
-    var id: String
-    var name: String
-    var instructions: String
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var name: String = ""
+    var instructions: String = ""
+    var createdAt: Date = .now
 
     /// Stored as the enum's rawValue for SwiftData compatibility; existing
     /// rows predate this field and lightweight-migrate to "chat".
@@ -85,9 +85,9 @@ final class AgentDefinition {
 /// former.
 @Model
 final class AgentRun {
-    var id: String
-    var output: String
-    var createdAt: Date
+    var id: String = UUID().uuidString
+    var output: String = ""
+    var createdAt: Date = .now
     var agent: AgentDefinition?
 
     /// Set only for bridge runs: which CLI ran ("claudeCode"/"codex", see

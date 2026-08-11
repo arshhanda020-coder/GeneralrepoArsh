@@ -24,10 +24,10 @@ enum ACTTestType: String, Codable, CaseIterable, Identifiable {
 
 @Model
 final class ACTSectionScore {
-    var id: String
+    var id: String = UUID().uuidString
     var exam: Exam?
-    var testTypeRaw: String
-    var takenAt: Date
+    var testTypeRaw: String = ACTTestType.practice.rawValue
+    var takenAt: Date = .now
     var englishScore: Int?
     var mathScore: Int?
     var readingScore: Int?

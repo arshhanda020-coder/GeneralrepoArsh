@@ -13,9 +13,9 @@ import SwiftData
 
 @Model
 final class FoodEntry {
-    var id: String
-    var date: Date
-    var note: String
+    var id: String = UUID().uuidString
+    var date: Date = .now
+    var note: String = ""
     var imageData: Data?
     var calories: Int?
     var proteinGrams: Double?

@@ -8,11 +8,11 @@ import SwiftData
 
 @Model
 final class ACTPrepPlan {
-    var id: String
+    var id: String = UUID().uuidString
     var exam: Exam?
-    var planText: String
+    var planText: String = ""
     var strengthsWeaknessesText: String?
-    var generatedAt: Date
+    var generatedAt: Date = .now
 
     init(
         id: String = UUID().uuidString,

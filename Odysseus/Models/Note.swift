@@ -14,16 +14,16 @@ import SwiftData
 
 @Model
 final class Note {
-    var id: String
-    var title: String
-    var content: String
-    var createdAt: Date
-    var updatedAt: Date
+    var id: String = UUID().uuidString
+    var title: String = ""
+    var content: String = ""
+    var createdAt: Date = .now
+    var updatedAt: Date = .now
     var contextTypeRaw: String?
     var contextID: String?
     /// Only meaningful when pinned to Today: lets a quick reminder note be
     /// checked off (like a task) without deleting it.
-    var isDone: Bool
+    var isDone: Bool = false
     /// PencilKit drawing (`PKDrawing.dataRepresentation()`), for the
     /// Notability-style handwriting canvas — nil until the note has been
     /// drawn on at least once. Kept separate from `content` so a note can

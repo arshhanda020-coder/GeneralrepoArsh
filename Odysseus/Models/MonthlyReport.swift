@@ -8,13 +8,13 @@ import SwiftData
 
 @Model
 final class MonthlyReport {
-    var id: String
-    var generatedAt: Date
-    var periodStart: Date
-    var periodEnd: Date
+    var id: String = UUID().uuidString
+    var generatedAt: Date = .now
+    var periodStart: Date = .now
+    var periodEnd: Date = .now
     var startWeight: Double?
     var endWeight: Double?
-    var summaryText: String
+    var summaryText: String = ""
 
     init(
         id: String = UUID().uuidString,

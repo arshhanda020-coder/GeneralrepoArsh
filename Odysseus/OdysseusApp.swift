@@ -26,6 +26,7 @@ struct OdysseusApp: App {
         container = Self.makeContainer(schema: schema)
         Self.seedClassesIfNeeded(container: container)
         Self.migrateOrphanedChatMessagesIfNeeded(container: container)
+        KeychainService.shared.migrateFixedSecretsToSynchronizableIfNeeded()
     }
 
     /// ChatMessage gained a `session` relationship when multi-thread chat
@@ -78,21 +79,35 @@ struct OdysseusApp: App {
     /// The on-disk store can fall out of sync with the model schema whenever a
     /// @Model type gains/loses a property between installs — SwiftData throws
     /// rather than migrating automatically, and that used to take the whole
-    /// app down at launch. Recover by wiping just that store and starting
-    /// fresh instead of crashing every time the schema moves.
+    /// app down at launch. Recover by moving the old store aside (never
+    /// deleting it) and starting fresh, so a bad migration loses nothing —
+    /// the previous data sits in a timestamped backup file instead of being
+    /// destroyed.
     private static func makeContainer(schema: Schema) -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema)
+        // CloudKit-backed: every model syncs to the user's private iCloud
+        // database, so assignments/projects/notes/etc. survive a lost or
+        // replaced device and stay in sync between iPhone and Mac. Requires
+        // the matching iCloud.com.traderforge.Odysseus container to be
+        // enabled in Signing & Capabilities (see Odysseus*.entitlements).
+        let configuration = ModelConfiguration(
+            schema: schema,
+            cloudKitDatabase: .private("iCloud.com.traderforge.Odysseus")
+        )
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             let storeURL = configuration.url
+            let timestamp = Int(Date.now.timeIntervalSince1970)
             for suffix in ["", "-shm", "-wal"] {
-                try? FileManager.default.removeItem(at: URL(fileURLWithPath: storeURL.path + suffix))
+                let source = URL(fileURLWithPath: storeURL.path + suffix)
+                guard FileManager.default.fileExists(atPath: source.path) else { continue }
+                let backup = URL(fileURLWithPath: storeURL.path + suffix + ".backup-\(timestamp)")
+                try? FileManager.default.moveItem(at: source, to: backup)
             }
             do {
                 return try ModelContainer(for: schema, configurations: [configuration])
             } catch {
-                fatalError("Failed to create ModelContainer even after resetting the store: \(error)")
+                fatalError("Failed to create ModelContainer even after moving the old store aside: \(error)")
             }
         }
     }
