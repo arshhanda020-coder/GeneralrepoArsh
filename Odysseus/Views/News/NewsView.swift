@@ -59,11 +59,14 @@ struct NewsView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 60)
                         } else if filteredItems.isEmpty {
-                            Text("No headlines yet. Pull to refresh.")
-                                .font(.subheadline)
-                                .foregroundStyle(Theme.dimText)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 60)
+                            EmptyStateView(
+                                icon: MindMapSection.news.symbolName,
+                                title: "No headlines yet",
+                                message: "Pull to refresh.",
+                                tint: MindMapSection.news.accentColor
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 60)
                         } else {
                             groupedList
                         }
