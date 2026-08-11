@@ -42,11 +42,12 @@ struct LogFoodSheet: View {
                         .lineLimit(3...6)
                         .focused($isDescriptionFocused)
                         .onChange(of: isDescriptionFocused) { wasFocused, isFocused in
-                            // Auto-estimate from the description once they're done typing —
-                            // only when there's no photo (that has its own auto-trigger) and
-                            // nothing's been estimated/entered yet, so this doesn't fire on
-                            // every re-focus of an already-filled entry.
-                            guard wasFocused, !isFocused, imageData == nil, calories.isEmpty,
+                            // Auto-estimate from the description once they're done typing.
+                            // Fires whether or not a photo is already attached — if a photo
+                            // landed first, this lets a follow-up description refine that
+                            // estimate. Gated on calories.isEmpty so it doesn't fire on every
+                            // re-focus of an already-estimated/filled entry.
+                            guard wasFocused, !isFocused, calories.isEmpty,
                                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
                             estimateWithAI()
                         }
@@ -234,17 +235,28 @@ struct LogFoodSheet: View {
     }
 
     /// Runs automatically — off a freshly-added photo, or off the typed
-    /// description once they stop editing it if there's no photo. Works
-    /// either way since `askAboutImage`'s imageData is optional.
+    /// description once they stop editing it. When both a photo and a
+    /// description are present, both are handed to the AI together (the
+    /// description as context alongside the image) rather than picking one
+    /// and discarding the other — a caption like "no dressing" or "half
+    /// portion" can materially change the estimate a photo alone would give.
     private func estimateWithAI() {
         let hasPhoto = imageData != nil
-        guard hasPhoto || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let description = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard hasPhoto || !description.isEmpty else { return }
         isEstimating = true
         estimateError = nil
         let restaurantNote = "If this names or clearly implies a specific restaurant/chain (e.g. Chipotle, Starbucks, Subway, McDonald's, Panera) and its menu items/ingredients (e.g. \"double chicken\", \"brown rice\", \"black beans\", \"queso\"), use your knowledge of that chain's actual published nutrition info per item/portion and add them up precisely — don't fall back to a generic guess when you know the real numbers. Otherwise, estimate as accurately as you reasonably can."
-        let prompt = hasPhoto
-            ? "Look closely at this meal photo. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is — name the dish/ingredients you can identify, not generic filler>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\n\(restaurantNote)"
-            : "Estimate nutrition for this meal from its description. Respond in EXACTLY this format, nothing else:\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\nMeal: \(text)\n\n\(restaurantNote)"
+        let prompt: String
+        if hasPhoto, !description.isEmpty {
+            // Both signals available — the description often carries details
+            // (portion size, missing/added ingredients, brand) a photo can't show.
+            prompt = "Look closely at this meal photo, and combine what you see with the person's own description of it — treat their words as authoritative for anything the photo can't show (exact portion, ingredients left out or added, etc.), and use the photo to sharpen what's ambiguous in the description. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is, reconciling the photo and their words>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\nTheir description: \(description)\n\n\(restaurantNote)"
+        } else if hasPhoto {
+            prompt = "Look closely at this meal photo. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is — name the dish/ingredients you can identify, not generic filler>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\n\(restaurantNote)"
+        } else {
+            prompt = "Estimate nutrition for this meal from its description. Respond in EXACTLY this format, nothing else:\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\nMeal: \(description)\n\n\(restaurantNote)"
+        }
         Task {
             do {
                 let response = try await AISettings.currentService.askAboutImage(
