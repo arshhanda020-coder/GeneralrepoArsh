@@ -26,7 +26,7 @@ struct OdysseusApp: App {
         container = Self.makeContainer(schema: schema)
         Self.seedClassesIfNeeded(container: container)
         Self.migrateOrphanedChatMessagesIfNeeded(container: container)
-        KeychainService.shared.migrateFixedSecretsToSynchronizableIfNeeded()
+        Self.seedDefaultGitHubLinkIfNeeded(container: container)
     }
 
     /// ChatMessage gained a `session` relationship when multi-thread chat
@@ -76,38 +76,53 @@ struct OdysseusApp: App {
         try? context.save()
     }
 
+    /// The user's go-to repo for quick reference — used to live as a hardcoded
+    /// "Use saved repo" button inside Projects' repo field; moved here so it
+    /// just shows up in Saved GitHub Repos on first launch instead, and
+    /// Projects no longer has any GitHub-specific hardcoding of its own.
+    private static func seedDefaultGitHubLinkIfNeeded(container: ModelContainer) {
+        let key = "seeded_default_github_link_v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        let context = ModelContext(container)
+        context.insert(SavedGitHubLink(urlString: "https://github.com/ruvnet/ruflo", repoName: "ruvnet/ruflo"))
+        try? context.save()
+    }
+
     /// The on-disk store can fall out of sync with the model schema whenever a
     /// @Model type gains/loses a property between installs — SwiftData throws
     /// rather than migrating automatically, and that used to take the whole
-    /// app down at launch. Recover by moving the old store aside (never
-    /// deleting it) and starting fresh, so a bad migration loses nothing —
-    /// the previous data sits in a timestamped backup file instead of being
-    /// destroyed.
+    /// app down at launch. Recover by wiping just that store and starting
+    /// fresh instead of crashing every time the schema moves.
     private static func makeContainer(schema: Schema) -> ModelContainer {
-        // CloudKit-backed: every model syncs to the user's private iCloud
-        // database, so assignments/projects/notes/etc. survive a lost or
-        // replaced device and stay in sync between iPhone and Mac. Requires
-        // the matching iCloud.com.traderforge.Odysseus container to be
-        // enabled in Signing & Capabilities (see Odysseus*.entitlements).
-        let configuration = ModelConfiguration(
-            schema: schema,
-            cloudKitDatabase: .private("iCloud.com.traderforge.Odysseus")
-        )
+        // CloudKit mirroring (`.automatic`) requires every non-optional stored
+        // property across the *entire* schema to carry an inline default
+        // value (e.g. `var isDone: Bool = false`, not just an initializer
+        // default) and every relationship to be optional — CloudKit needs to
+        // synthesize partial records without calling a custom initializer.
+        // This codebase predates that constraint: almost every model relies
+        // on initializer defaults instead. Turning `.automatic` on made
+        // SwiftData validate the whole schema against CloudKit for the first
+        // time, and it fails validation everywhere at once — permanently,
+        // even after wiping the local store, since it's a schema problem,
+        // not a data problem (hence the fatalError below firing even after
+        // the reset attempt). Disabled until the models are made
+        // CloudKit-compliant (a deliberate follow-up, not a rushed one) —
+        // see Odysseus.entitlements / Odysseus-macOS.entitlements for the
+        // iCloud container this would mirror to once that's done.
+        let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
             let storeURL = configuration.url
-            let timestamp = Int(Date.now.timeIntervalSince1970)
             for suffix in ["", "-shm", "-wal"] {
-                let source = URL(fileURLWithPath: storeURL.path + suffix)
-                guard FileManager.default.fileExists(atPath: source.path) else { continue }
-                let backup = URL(fileURLWithPath: storeURL.path + suffix + ".backup-\(timestamp)")
-                try? FileManager.default.moveItem(at: source, to: backup)
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: storeURL.path + suffix))
             }
             do {
                 return try ModelContainer(for: schema, configurations: [configuration])
             } catch {
-                fatalError("Failed to create ModelContainer even after moving the old store aside: \(error)")
+                fatalError("Failed to create ModelContainer even after resetting the store: \(error)")
             }
         }
     }

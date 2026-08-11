@@ -4,8 +4,8 @@
 //
 //  Food sub-tab within Health — no own nav title/toolbar since it's embedded
 //  in HealthView's segmented picker. Cal AI/MyFitnessPal-style layout: a
-//  calorie + macro ring dashboard up top, then a diary grouped into
-//  Breakfast/Lunch/Dinner/Snacks sections, each loggable independently.
+//  calorie + macro ring dashboard up top, then a single flat diary pool for
+//  everything logged today (no Breakfast/Lunch/Dinner/Snacks split).
 //
 
 import SwiftUI
@@ -20,10 +20,15 @@ struct FoodContentView: View {
 
     @State private var showingLog = false
     @State private var showingGoals = false
-    @State private var logMealType: MealType = .snack
     @State private var editingEntry: FoodEntry?
     @State private var showingLogWorkout = false
     @State private var editingWorkout: WorkoutEntry?
+
+    /// AI's calorie-burn estimate for today's steps, once resolved — nil
+    /// (falls back to the local formula) until `refreshStepCalories()`
+    /// completes. Mirrors the workout flow's AI-first/formula-fallback shape.
+    @State private var aiStepCalories: Int?
+    @State private var isStepEstimateFallback = false
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
     private var todaysEntries: [FoodEntry] { allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: today) } }
@@ -44,7 +49,11 @@ struct FoodContentView: View {
 
     /// Today's steps converted to a calorie burn, MFP's "synced with Apple
     /// Health" behavior — counted alongside logged workouts, not instead of.
+    /// Prefers the AI estimate (`refreshStepCalories()`, using actual body
+    /// stats) once it resolves; shows the instant local-formula number
+    /// before then so the UI never sits blank.
     private var todaysStepCalories: Int {
+        if let aiStepCalories { return aiStepCalories }
         guard let steps = healthKit.todaysSteps else { return 0 }
         let weight = progressEntries.first(where: { $0.weight != nil })?.weight
         return StepCalorieEstimator.calories(steps: steps, weightLbs: weight)
@@ -126,9 +135,7 @@ struct FoodContentView: View {
                 fatEaten: todaysTotals.fat
             )
 
-            ForEach(MealType.allCases) { meal in
-                mealSection(meal)
-            }
+            todaySection
 
             exerciseSection
 
@@ -141,11 +148,14 @@ struct FoodContentView: View {
         .task {
             await healthKit.refreshWeeklySteps()
         }
+        .task(id: healthKit.todaysSteps) {
+            await refreshStepCalories()
+        }
         .sheet(isPresented: $showingLog) {
-            LogFoodSheet(entry: nil, defaultMealType: logMealType)
+            LogFoodSheet(entry: nil)
         }
         .sheet(item: $editingEntry) { entry in
-            LogFoodSheet(entry: entry, defaultMealType: entry.mealType)
+            LogFoodSheet(entry: entry)
         }
         .sheet(isPresented: $showingGoals) {
             NutritionGoalsSheet(maintenanceCalories: maintenanceCalories)
@@ -187,15 +197,16 @@ struct FoodContentView: View {
         }
     }
 
-    private func mealSection(_ meal: MealType) -> some View {
-        let entries = todaysEntries.filter { $0.mealType == meal }
-        let subtotal = entries.compactMap(\.calories).reduce(0, +)
+    /// Everything logged today, flat — no Breakfast/Lunch/Dinner/Snacks split,
+    /// just one pool you add to as you eat throughout the day.
+    private var todaySection: some View {
+        let subtotal = todaysEntries.compactMap(\.calories).reduce(0, +)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Image(systemName: meal.symbolName)
+                Image(systemName: "fork.knife")
                     .font(.caption)
                     .foregroundStyle(MindMapSection.health.accentColor)
-                Text(meal.rawValue.uppercased())
+                Text("TODAY")
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
                     .tracking(0.5)
                     .foregroundStyle(Theme.dimText)
@@ -206,7 +217,6 @@ struct FoodContentView: View {
                 }
                 Spacer()
                 Button {
-                    logMealType = meal
                     showingLog = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
@@ -215,13 +225,13 @@ struct FoodContentView: View {
                 .buttonStyle(.plain)
             }
             VStack(spacing: 0) {
-                if entries.isEmpty {
+                if todaysEntries.isEmpty {
                     Text("Nothing logged yet.")
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
                         .padding(10)
                 } else {
-                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    ForEach(Array(todaysEntries.enumerated()), id: \.element.id) { index, entry in
                         if index > 0 {
                             Divider().overlay(Theme.cardBorder)
                         }
@@ -302,9 +312,16 @@ struct FoodContentView: View {
                     .foregroundStyle(Theme.dimText)
             }
             Spacer()
-            Text("-\(todaysStepCalories) cal")
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(Theme.terminalAmber)
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("-\(todaysStepCalories) cal")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(Theme.terminalAmber)
+                if isStepEstimateFallback {
+                    Text("(rough estimate)")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.dimText)
+                }
+            }
         }
         .padding(10)
     }
@@ -336,7 +353,7 @@ struct FoodContentView: View {
                     .frame(width: 40, height: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                Image(systemName: entry.mealType.symbolName)
+                Image(systemName: "fork.knife")
                     .font(.caption)
                     .foregroundStyle(Theme.dimText)
                     .frame(width: 40, height: 40)
@@ -410,6 +427,27 @@ struct FoodContentView: View {
         .padding(10)
         .contentShape(Rectangle())
         .onTapGesture { editingWorkout = entry }
+    }
+
+    /// Re-runs whenever today's step count changes (new `.task(id:)` fires on
+    /// each HealthKit refresh) — AI-estimates today's step-burn from actual
+    /// body stats, falling back to the local formula silently on failure.
+    private func refreshStepCalories() async {
+        guard let steps = healthKit.todaysSteps, steps > 0 else {
+            aiStepCalories = nil
+            isStepEstimateFallback = false
+            return
+        }
+        let weight = progressEntries.first(where: { $0.weight != nil })?.weight
+        let result = await StepCalorieEstimator.estimateWithAI(
+            steps: steps,
+            weightLbs: weight,
+            heightInches: HealthProfile.heightInches,
+            age: HealthProfile.age,
+            sex: HealthProfile.sex
+        )
+        aiStepCalories = result.calories
+        isStepEstimateFallback = result.isEstimateFallback
     }
 
     private func macroLabel(_ entry: FoodEntry) -> String {

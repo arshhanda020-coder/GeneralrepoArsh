@@ -94,9 +94,13 @@ struct SchoolView: View {
             }
 
             if allClasses.isEmpty {
-                Text("No classes yet. Tap Manage to add your schedule.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.dimText)
+                EmptyStateView(
+                    icon: MindMapSection.school.symbolName,
+                    title: "No classes yet",
+                    message: "Tap Manage to add your schedule.",
+                    tint: MindMapSection.school.accentColor
+                )
+                .glassPanel(cornerRadius: 14)
             } else {
                 LazyVGrid(columns: classGridColumns, spacing: 12) {
                     ForEach(enrolledClasses) { schoolClass in

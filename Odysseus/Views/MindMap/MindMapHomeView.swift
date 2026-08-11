@@ -125,7 +125,8 @@ struct MindMapHomeView: View {
             Button {
                 odysseus.activate()
             } label: {
-                HStack(spacing: 7) {
+                HStack(spacing: 10) {
+                    ArcReactorView(size: 32, isActive: odysseus.isActive)
                     Text("Odysseus")
                         .font(.largeTitle.weight(.bold))
                         .foregroundStyle(Theme.primaryText)
@@ -210,7 +211,7 @@ struct MindMapHomeView: View {
             }
             .padding(14)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableRow)
         .glassPanel(cornerRadius: 14)
         .matchedTransitionSource(id: MindMapSection.today, in: sectionTransition)
     }
@@ -268,7 +269,7 @@ struct MindMapHomeView: View {
             .padding(.vertical, 11)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressableRow)
         .matchedTransitionSource(id: section, in: sectionTransition)
     }
 
