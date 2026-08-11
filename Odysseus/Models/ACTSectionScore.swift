@@ -27,7 +27,7 @@ final class ACTSectionScore {
     var id: String = UUID().uuidString
     var exam: Exam?
     var testTypeRaw: String = ACTTestType.practice.rawValue
-    var takenAt: Date = .now
+    var takenAt: Date = Date.now
     var englishScore: Int?
     var mathScore: Int?
     var readingScore: Int?

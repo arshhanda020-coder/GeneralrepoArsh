@@ -24,10 +24,14 @@ struct ResearchView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 if entries.isEmpty {
-                    Text("Nothing researched yet. Tap + to research a topic for school, a new project, or anything else.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.dimText)
-                        .padding(.top, 40)
+                    EmptyStateView(
+                        icon: MindMapSection.research.symbolName,
+                        title: "Nothing researched yet",
+                        message: "Tap + to research a topic for school, a new project, or anything else.",
+                        tint: MindMapSection.research.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
+                    .padding(.top, 40)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in

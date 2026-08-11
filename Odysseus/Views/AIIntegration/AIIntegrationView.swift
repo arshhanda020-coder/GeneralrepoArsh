@@ -75,11 +75,14 @@ struct AIIntegrationView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 60)
                 } else if visibleItems.isEmpty {
-                    Text("Nothing here yet. Pull to refresh.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.dimText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 60)
+                    EmptyStateView(
+                        icon: MindMapSection.aiIntegration.symbolName,
+                        title: "Nothing here yet",
+                        message: "Pull to refresh.",
+                        tint: MindMapSection.aiIntegration.accentColor
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
                 } else {
                     groupedList
                 }

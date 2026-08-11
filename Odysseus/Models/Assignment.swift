@@ -13,7 +13,7 @@ final class Assignment {
     var dueDate: Date?
     var isDone: Bool = false
     var notes: String?
-    var createdAt: Date = .now
+    var createdAt: Date = Date.now
     var topic: Topic?
     /// nil = not marked yet, true = "I understand", false = "Help me understand" was used.
     var understood: Bool?

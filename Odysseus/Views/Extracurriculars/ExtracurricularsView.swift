@@ -23,9 +23,13 @@ struct ExtracurricularsView: View {
                 goalsSection
 
                 if items.isEmpty {
-                    Text("Nothing here yet. Tap + to add an activity, or tell Odysseus/Copilot what you're working on and it can draft one for you.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.dimText)
+                    EmptyStateView(
+                        icon: MindMapSection.extracurriculars.symbolName,
+                        title: "Nothing here yet",
+                        message: "Tap + to add an activity, or tell Odysseus/Copilot what you're working on and it can draft one for you.",
+                        tint: MindMapSection.extracurriculars.accentColor
+                    )
+                    .glassPanel(cornerRadius: 14)
                 } else {
                     VStack(spacing: 0) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in

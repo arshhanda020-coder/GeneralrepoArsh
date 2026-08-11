@@ -12,6 +12,7 @@ struct ManageClassesView: View {
     @Query(sort: \SchoolClass.sortIndex) private var classes: [SchoolClass]
 
     @State private var newClassName = ""
+    @State private var pickingColorFor: SchoolClass?
 
     var body: some View {
         NavigationStack {
@@ -34,20 +35,14 @@ struct ManageClassesView: View {
                             .foregroundStyle(Theme.dimText)
                     } else {
                         ForEach(classes) { schoolClass in
-                            Toggle(isOn: Binding(
-                                get: { schoolClass.isEnrolled },
-                                set: { schoolClass.isEnrolled = $0 }
-                            )) {
-                                Text(schoolClass.name)
-                            }
-                            .tint(MindMapSection.school.accentColor)
+                            classRow(schoolClass)
                         }
                         .onDelete(perform: deleteClasses)
                     }
                 }
 
                 Section {
-                    Text("Drop a class by unchecking it — it stays around so past assignments and tests keep their history. Swipe to delete it entirely.")
+                    Text("Tap a class's color dot to give it a Classroom-style banner color. Drop a class by unchecking it — it stays around so past assignments and tests keep their history. Swipe to delete it entirely.")
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
                 }
@@ -59,6 +54,30 @@ struct ManageClassesView: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .sheet(item: $pickingColorFor) { schoolClass in
+                ClassColorPickerSheet(schoolClass: schoolClass)
+            }
+        }
+    }
+
+    private func classRow(_ schoolClass: SchoolClass) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                pickingColorFor = schoolClass
+            } label: {
+                Circle()
+                    .fill(schoolClass.bannerColor.gradient)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+
+            Toggle(isOn: Binding(
+                get: { schoolClass.isEnrolled },
+                set: { schoolClass.isEnrolled = $0 }
+            )) {
+                Text(schoolClass.name)
+            }
+            .tint(MindMapSection.school.accentColor)
         }
     }
 
