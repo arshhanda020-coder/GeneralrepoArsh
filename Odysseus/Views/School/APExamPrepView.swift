@@ -37,6 +37,7 @@ struct APExamPrepView: View {
             VStack(alignment: .leading, spacing: 18) {
                 scoreSection
                 planSection
+                StudyRoutineCard(exam: exam)
                 strengthsSection
                 sessionsSection
             }
@@ -226,10 +227,12 @@ struct APExamPrepView: View {
         Exam date: \(exam.examDate.formatted(.dateTime.month(.wide).day().year())) (\(daysUntil) days away)
         Target score: \(exam.targetScore ?? "not specified") (AP scores run 1-5)
         Current score, if taken before: \(exam.actualScore ?? "not specified")
+        Time available: \(exam.weeklyStudyMinutes.map { "\($0) minutes/week" } ?? "not specified")
+        Self-rated current knowledge: \(exam.selfRatedKnowledge.map { "\($0)/5" } ?? "not specified")
         Recent study sessions:
         \(sessionHistory.isEmpty ? "none logged yet" : sessionHistory)
 
-        Structure it as a realistic week-by-week plan given the time remaining. Be specific and actionable, not generic advice. Plain text, no markdown headers.
+        Structure it as a realistic week-by-week plan given the time remaining and time available per week. Be specific and actionable, not generic advice. Plain text, no markdown headers.
         """
 
         Task {

@@ -28,8 +28,12 @@ private enum MyTestsTab: String, CaseIterable, Identifiable {
 }
 
 struct MyTestsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \SchoolClass.sortIndex) private var allClasses: [SchoolClass]
     @Query(sort: \Exam.examDate) private var allExams: [Exam]
+    // Re-read every time the underlying data changes so the level bar stays live.
+    @Query private var allSessions: [StudySession]
+    @Query private var allAssignments: [Assignment]
 
     @State private var selectedTab: MyTestsTab = .marchExams
     @State private var addingExam: ExamCategory?
@@ -39,6 +43,8 @@ struct MyTestsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            levelHeader
+
             Picker("", selection: $selectedTab) {
                 ForEach(MyTestsTab.allCases) { tab in
                     Text(tab.rawValue).tag(tab)
@@ -67,6 +73,28 @@ struct MyTestsView: View {
         .sheet(item: $editingExam) { exam in
             AddEditExamView(exam: exam)
         }
+    }
+
+    // MARK: - Level
+
+    /// A light gamification read on School activity — level/XP derived live
+    /// from study sessions logged, topics reviewed, graded work, and exam
+    /// scores, so it's always in sync with the real data (see StudyProgress).
+    private var levelHeader: some View {
+        let stats = StudyProgress.stats(modelContext: modelContext)
+        return HStack(spacing: 10) {
+            Text("LEVEL \(stats.level)")
+                .font(.system(.caption, design: .monospaced).weight(.bold))
+                .tracking(0.5)
+                .foregroundStyle(MindMapSection.school.accentColor)
+            ProgressView(value: stats.progress)
+                .tint(MindMapSection.school.accentColor)
+            Text("\(stats.xpIntoLevel)/\(stats.xpPerLevel) XP")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(Theme.dimText)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
     }
 
     // MARK: - March Exams

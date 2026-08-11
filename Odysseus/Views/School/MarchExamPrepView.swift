@@ -28,6 +28,10 @@ struct MarchExamPrepView: View {
                 gradeSection
                 examSection
 
+                if let marchExam = schoolClass.marchExam {
+                    StudyRoutineCard(exam: marchExam, focusPoints: topics.map(\.name))
+                }
+
                 NavigationLink(destination: TestMeView(presetSubject: schoolClass.name)) {
                     HStack {
                         Image(systemName: "questionmark.circle.fill")

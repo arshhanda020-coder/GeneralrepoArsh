@@ -46,6 +46,17 @@ final class Exam {
     /// native scales (`actualScore` free text, or `ACTSectionScore`).
     var pointsEarned: Double?
     var pointsPossible: Double?
+    /// How much study time is realistically available — the input that lets
+    /// "Build Routine" turn a plan into actual scheduled reminders instead
+    /// of just AI text. Nil until the student sets one.
+    var weeklyStudyMinutes: Int?
+    /// Self-rated 1 (just starting) to 5 (feeling solid) — fed into the AI
+    /// plan/analysis prompts alongside the goal score.
+    var selfRatedKnowledge: Int?
+    /// True once a study routine's reminders have actually been scheduled
+    /// (see `NotificationManager.scheduleStudyRoutine`), so the UI can show
+    /// whether reminders are currently active for this exam.
+    var routineActive: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \StudySession.exam)
     var studySessions: [StudySession] = []
@@ -63,7 +74,10 @@ final class Exam {
         scoreLoggedAt: Date? = nil,
         remindersOn: Bool = true,
         pointsEarned: Double? = nil,
-        pointsPossible: Double? = nil
+        pointsPossible: Double? = nil,
+        weeklyStudyMinutes: Int? = nil,
+        selfRatedKnowledge: Int? = nil,
+        routineActive: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -78,6 +92,9 @@ final class Exam {
         self.remindersOn = remindersOn
         self.pointsEarned = pointsEarned
         self.pointsPossible = pointsPossible
+        self.weeklyStudyMinutes = weeklyStudyMinutes
+        self.selfRatedKnowledge = selfRatedKnowledge
+        self.routineActive = routineActive
     }
 
     var category: ExamCategory {

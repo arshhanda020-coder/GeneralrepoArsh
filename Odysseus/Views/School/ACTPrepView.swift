@@ -39,6 +39,7 @@ struct ACTPrepView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 planSection
+                StudyRoutineCard(exam: exam)
                 scoresSection
                 strengthsSection
                 sessionsSection
@@ -274,12 +275,14 @@ struct ACTPrepView: View {
         Write a personalized ACT study plan.
         Test date: \(exam.examDate.formatted(.dateTime.month(.wide).day().year())) (\(daysUntil) days away)
         Target score: \(exam.targetScore ?? "not specified")
+        Time available: \(exam.weeklyStudyMinutes.map { "\($0) minutes/week" } ?? "not specified")
+        Self-rated current knowledge: \(exam.selfRatedKnowledge.map { "\($0)/5" } ?? "not specified")
         Score history:
         \(scoreHistory.isEmpty ? "none logged yet" : scoreHistory)
         Recent study sessions:
         \(sessionHistory.isEmpty ? "none logged yet" : sessionHistory)
 
-        Structure it as a realistic week-by-week plan given the time remaining, weighted toward whichever sections look weakest from the score history (if any). Be specific and actionable, not generic advice. Plain text, no markdown headers.
+        Structure it as a realistic week-by-week plan given the time remaining and time available per week, weighted toward whichever sections look weakest from the score history (if any). Be specific and actionable, not generic advice. Plain text, no markdown headers.
         """
 
         Task {

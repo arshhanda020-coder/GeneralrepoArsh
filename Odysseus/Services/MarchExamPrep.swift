@@ -53,15 +53,24 @@ enum MarchExamPrep {
     }
 
     /// Asks the active AI provider to find weak spots and suggest what to
-    /// focus on, given everything logged for the class.
+    /// focus on, given everything logged for the class. Folds in the March
+    /// Exam's study-routine metrics (time available, self-rated knowledge)
+    /// when they've been set, so the plan matches what's actually realistic.
     static func analyzeWeaknesses(for schoolClass: SchoolClass, modelContext: ModelContext) async throws -> String {
         let context = buildContext(for: schoolClass, modelContext: modelContext)
+        var metricsLine = ""
+        if let exam = schoolClass.marchExam {
+            var parts: [String] = ["\(exam.daysUntil) days until the exam"]
+            if let minutes = exam.weeklyStudyMinutes { parts.append("\(minutes) minutes/week available to study") }
+            if let knowledge = exam.selfRatedKnowledge { parts.append("self-rated current knowledge \(knowledge)/5") }
+            metricsLine = "\n" + parts.joined(separator: ", ") + "."
+        }
         let prompt = """
         Here's everything logged for this class so far, ahead of the March Exam (final):
 
-        \(context)
+        \(context)\(metricsLine)
 
-        Based on this, identify the topics/lessons that look weakest (low or missing scores, thin material, no notes) and the ones that are in good shape. Give a short, specific study plan — what to focus review time on first, and roughly how the remaining time before the exam should be split across topics. Keep it concrete and actionable, not generic advice.
+        Based on this, identify the topics/lessons that look weakest (low or missing scores, thin material, no notes) and the ones that are in good shape. Give a short, specific study plan — what to focus review time on first, and roughly how the remaining time before the exam should be split across topics, realistic for the time available if given. Keep it concrete and actionable, not generic advice.
         """
         return try await AISettings.currentService.askAboutImage(
             prompt: prompt,

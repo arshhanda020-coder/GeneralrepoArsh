@@ -422,6 +422,52 @@ final class NotificationManager {
         fireImmediate(identifier: "material-added-\(UUID().uuidString)", title: "Added to \(className)", body: materialName)
     }
 
+    /// Turns "here's how much time I have" into actual scheduled reminders
+    /// between now and the exam — not just AI text the student has to
+    /// remember to reread. Cycles through `focusPoints` (e.g. weak topics
+    /// from the weakness analysis) so each reminder names something
+    /// concrete, capped at 12 notifications so this alone doesn't eat much
+    /// of iOS's ~64 pending-notification budget.
+    func scheduleStudyRoutine(exam: Exam, focusPoints: [String]) {
+        cancelStudyRoutine(exam: exam)
+        guard NotificationSettings.masterEnabled, NotificationSettings.dueDatesEnabled else { return }
+        guard let weeklyMinutes = exam.weeklyStudyMinutes, weeklyMinutes > 0, !exam.isPast else { return }
+
+        let sessionsPerWeek = max(1, min(4, weeklyMinutes / 45))
+        let intervalDays = max(1, 7 / sessionsPerWeek)
+        let calendar = Calendar.current
+
+        var fireDay = calendar.date(byAdding: .day, value: intervalDays, to: .now) ?? .now
+        var index = 0
+        while fireDay < exam.examDate, index < 12 {
+            defer {
+                index += 1
+                fireDay = calendar.date(byAdding: .day, value: intervalDays, to: fireDay) ?? fireDay
+            }
+            var comps = calendar.dateComponents([.year, .month, .day], from: fireDay)
+            comps.hour = 18
+            comps.minute = 0
+            guard let scheduledDate = calendar.date(from: comps), scheduledDate > .now else { continue }
+
+            let focus = focusPoints.isEmpty ? nil : focusPoints[index % focusPoints.count]
+            let content = UNMutableNotificationContent()
+            content.title = "Study reminder — \(exam.name)"
+            content.body = focus.map { "Time to review: \($0)" } ?? "Study session for \(exam.name)."
+            content.sound = .default
+            let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+            let request = UNNotificationRequest(identifier: "routine-\(exam.id)-\(index)", content: content, trigger: trigger)
+            Task {
+                await requestAuthorizationIfNeeded()
+                try? await center.add(request)
+            }
+        }
+    }
+
+    func cancelStudyRoutine(exam: Exam) {
+        let ids = (0..<12).map { "routine-\(exam.id)-\($0)" }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
     /// Fires immediately after a due date + reminder gets set on an
     /// assignment, task, or exam — confirms the reminder actually took.
     func notifyReminderSet(title: String, date: Date) {
@@ -431,7 +477,7 @@ final class NotificationManager {
 
     // MARK: - Settings sweep
 
-    private static let dueDatePrefixes = ["assignment-due-", "project-task-due-", "exam-due-", "reminder-set-"]
+    private static let dueDatePrefixes = ["assignment-due-", "project-task-due-", "exam-due-", "reminder-set-", "routine-"]
     private static let stayOnTrackPrefixes = ["assignment-overdue-", "project-task-overdue-", "exam-score-", "food-nudge", "workout-nudge"]
     private static let newsPrefixes = ["ai-tools-innovation-", "news-new-"]
     private static let updatesPrefixes = [
