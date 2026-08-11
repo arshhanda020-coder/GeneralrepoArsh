@@ -122,9 +122,13 @@ struct NotesView: View {
             }
 
             if allFreeformNotes.isEmpty {
-                Text("Notes you write live here by default, or attach to Today, a Project, a School topic, or an Agentic Workflow — move them anytime from the note itself.")
-                    .font(.system(.caption2, design: .monospaced))
-                    .foregroundStyle(Theme.dimText)
+                EmptyStateView(
+                    icon: MindMapSection.notes.symbolName,
+                    title: "No notes yet",
+                    message: "Notes you write live here by default, or attach to Today, a Project, a School topic, or an Agentic Workflow — move them anytime from the note itself.",
+                    tint: MindMapSection.notes.accentColor
+                )
+                .glassPanel(cornerRadius: 14)
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(allFreeformNotes.enumerated()), id: \.element.id) { index, note in

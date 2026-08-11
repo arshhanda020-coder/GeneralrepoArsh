@@ -24,6 +24,7 @@ private struct ChecklistItem: Identifiable {
     let isDone: Bool
     let kind: Kind
 
+    @MainActor
     func toggle() {
         switch kind {
         case .assignment(let assignment):
