@@ -96,14 +96,22 @@ struct OdysseusApp: App {
     /// app down at launch. Recover by wiping just that store and starting
     /// fresh instead of crashing every time the schema moves.
     private static func makeContainer(schema: Schema) -> ModelContainer {
-        // `.automatic` mirrors this store to the "iCloud.com.traderforge.Odysseus"
-        // CloudKit container (see Odysseus.entitlements /
-        // Odysseus-macOS.entitlements) so the same data shows up on every
-        // device signed into the same iCloud account — Mac, iPad, iPhone.
-        // Every write still lands on the local on-disk store first (so the
-        // app works fully offline); CloudKit sync happens opportunistically
-        // in the background whenever iCloud is reachable.
-        let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+        // CloudKit mirroring (`.automatic`) requires every non-optional stored
+        // property across the *entire* schema to carry an inline default
+        // value (e.g. `var isDone: Bool = false`, not just an initializer
+        // default) and every relationship to be optional — CloudKit needs to
+        // synthesize partial records without calling a custom initializer.
+        // This codebase predates that constraint: almost every model relies
+        // on initializer defaults instead. Turning `.automatic` on made
+        // SwiftData validate the whole schema against CloudKit for the first
+        // time, and it fails validation everywhere at once — permanently,
+        // even after wiping the local store, since it's a schema problem,
+        // not a data problem (hence the fatalError below firing even after
+        // the reset attempt). Disabled until the models are made
+        // CloudKit-compliant (a deliberate follow-up, not a rushed one) —
+        // see Odysseus.entitlements / Odysseus-macOS.entitlements for the
+        // iCloud container this would mirror to once that's done.
+        let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
