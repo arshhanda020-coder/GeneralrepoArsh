@@ -467,6 +467,12 @@ final class OdysseusController: NSObject, ObservableObject {
                 confirmed: input["confirmed"] as? Bool ?? false,
                 context: modelContext
             )
+        case "delete_school_class":
+            return deleteSchoolClass(
+                query: input["query"] as? String ?? "",
+                confirmed: input["confirmed"] as? Bool ?? false,
+                context: modelContext
+            )
         case "edit_workout_entry":
             return editWorkoutEntry(
                 query: input["query"] as? String ?? "",
@@ -1027,6 +1033,24 @@ final class OdysseusController: NSObject, ObservableObject {
     private func findSchoolClass(matching name: String, context: ModelContext) -> SchoolClass? {
         let classes = (try? context.fetch(FetchDescriptor<SchoolClass>())) ?? []
         return classes.first { $0.name.localizedCaseInsensitiveContains(name) }
+    }
+
+    /// Deletes a whole class — cascades to its topics, lessons, assignments/
+    /// tests, and materials (see the `.cascade` delete rules on those
+    /// relationships), so this is a bigger deletion than most and always
+    /// needs confirmation first.
+    private func deleteSchoolClass(query: String, confirmed: Bool, context: ModelContext) -> String {
+        guard !query.isEmpty else { return "No class specified to delete." }
+        guard let schoolClass = findSchoolClass(matching: query, context: context) else {
+            return "No class found matching \"\(query)\"."
+        }
+        guard confirmed else {
+            let topicCount = schoolClass.topics.count
+            return "Found \"\(schoolClass.name)\" (\(topicCount) topic\(topicCount == 1 ? "" : "s")) — this deletes everything under it too (lessons, assignments, tests, materials). Confirm you want it deleted before I remove it."
+        }
+        let name = schoolClass.name
+        context.delete(schoolClass)
+        return "Deleted \"\(name)\"."
     }
 
     private func addExam(name: String, examDateString: String?, category: String?, className: String?, context: ModelContext) -> String {

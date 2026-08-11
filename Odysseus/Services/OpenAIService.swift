@@ -97,7 +97,19 @@ actor OpenAIService: AIProviderService {
         }
 
         var messages: [[String: Any]] = [["role": "system", "content": systemPrompt]]
-        messages += history.map { ["role": $0.role, "content": $0.content] }
+        messages += history.map { message -> [String: Any] in
+            guard let imageData = message.imageData else {
+                return ["role": message.role, "content": message.content]
+            }
+            let base64 = imageData.base64EncodedString()
+            return [
+                "role": message.role,
+                "content": [
+                    ["type": "text", "text": message.content],
+                    ["type": "image_url", "image_url": ["url": "data:image/jpeg;base64,\(base64)"]],
+                ] as [[String: Any]],
+            ]
+        }
 
         let body: [String: Any] = ["model": model, "messages": messages]
 
@@ -718,6 +730,21 @@ actor OpenAIService: AIProviderService {
                     "type": "object",
                     "properties": [
                         "query": ["type": "string", "description": "A distinctive substring of the exam's name."] as [String: Any],
+                        "confirmed": ["type": "boolean", "description": "Only true after the user has explicitly confirmed."] as [String: Any],
+                    ] as [String: Any],
+                    "required": ["query"],
+                ] as [String: Any],
+            ] as [String: Any],
+        ],
+        [
+            "type": "function",
+            "function": [
+                "name": "delete_school_class",
+                "description": "Delete a whole class from School — cascades to everything under it (topics, lessons, assignments, tests/quizzes, materials). First call WITHOUT confirmed to ask the user to confirm; only call again with confirmed: true after they explicitly say yes.",
+                "parameters": [
+                    "type": "object",
+                    "properties": [
+                        "query": ["type": "string", "description": "A distinctive substring of the class's name."] as [String: Any],
                         "confirmed": ["type": "boolean", "description": "Only true after the user has explicitly confirmed."] as [String: Any],
                     ] as [String: Any],
                     "required": ["query"],

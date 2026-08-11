@@ -13,6 +13,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 /// Adds a toolbar button that opens `section`'s AI assistant as a sheet.
 /// Drop this onto any section's root view: `.sectionAssistantButton(.school)`.
@@ -136,6 +137,12 @@ private struct SectionChatThreadView: View {
     @State private var isSending = false
     @State private var errorMessage: String?
     @State private var showingAPIKeySheet = false
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var pendingImageData: Data?
+
+    private var isAwaitingFirstToken: Bool {
+        isSending && (messages.last?.role != "assistant" || messages.last?.content.isEmpty == true)
+    }
 
     init(section: MindMapSection, session: ChatSession) {
         self.section = section
@@ -159,12 +166,19 @@ private struct SectionChatThreadView: View {
                                 .padding(.top, 40)
                         }
 
-                        ForEach(messages) { message in
-                            SectionChatBubble(message: message)
-                                .id(message.id)
+                        ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
+                            let isLastAssistant = message.role == "assistant" && index == messages.count - 1
+                            ChatBubble(
+                                message: message,
+                                isStreaming: isLastAssistant && isSending,
+                                onCopy: { Pasteboard.copy(message.content) },
+                                onDelete: { modelContext.delete(message) },
+                                onRetry: nil
+                            )
+                            .id(message.id)
                         }
 
-                        if isSending {
+                        if isAwaitingFirstToken {
                             HStack(spacing: 6) {
                                 ProgressView().tint(Theme.dimText)
                                 Text("Thinking…").font(.caption).foregroundStyle(Theme.dimText)
@@ -194,7 +208,7 @@ private struct SectionChatThreadView: View {
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         withAnimation {
-            if isSending {
+            if isAwaitingFirstToken {
                 proxy.scrollTo("thinking", anchor: .bottom)
             } else if let last = messages.last {
                 proxy.scrollTo(last.id, anchor: .bottom)
@@ -203,53 +217,104 @@ private struct SectionChatThreadView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 8) {
-            TextField("Ask about \(section.title)", text: $draft, axis: .vertical)
-                .lineLimit(1...4)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .glassPanel(cornerRadius: 10, tint: Theme.background)
-                .onSubmit {
-                    guard canSend else { return }
-                    send()
+        VStack(spacing: 8) {
+            pendingImagePreview
+            HStack(spacing: 8) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images) {
+                    Image(systemName: "photo")
+                        .font(.title3)
+                        .foregroundStyle(Theme.dimText)
                 }
+                .buttonStyle(.plain)
+                .disabled(isSending)
 
-            Button(action: send) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(canSend ? section.accentColor : Theme.dimText)
+                TextField("Ask about \(section.title)", text: $draft, axis: .vertical)
+                    .lineLimit(1...4)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .glassPanel(cornerRadius: 10, tint: Theme.background)
+                    .onSubmit {
+                        guard canSend else { return }
+                        send()
+                    }
+
+                Button(action: send) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(canSend ? section.accentColor : Theme.dimText)
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSend)
             }
-            .buttonStyle(.plain)
-            .disabled(!canSend)
         }
         .padding(12)
         .background(Theme.card)
         .overlay(alignment: .top) {
             Rectangle().fill(Theme.cardBorder).frame(height: 1)
         }
+        .task(id: selectedPhoto) {
+            await loadPendingImage()
+        }
+    }
+
+    @ViewBuilder
+    private var pendingImagePreview: some View {
+        if let pendingImageData, let uiImage = PlatformImage(data: pendingImageData) {
+            HStack {
+                Image(platformImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.cardBorder, lineWidth: 1))
+                Spacer()
+                Button {
+                    self.pendingImageData = nil
+                    selectedPhoto = nil
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(Theme.dimText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func loadPendingImage() async {
+        guard let selectedPhoto else { return }
+        do {
+            guard let data = try await selectedPhoto.loadTransferable(type: Data.self) else { return }
+            pendingImageData = PlatformImage(data: data)?.jpegData(compressionQuality: 0.6) ?? data
+        } catch {
+            // No usable image data — leave pendingImageData untouched.
+        }
     }
 
     private var canSend: Bool {
-        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSending
+        (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || pendingImageData != nil) && !isSending
     }
 
     private func send() {
-        let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        var trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty || pendingImageData != nil else { return }
+        if trimmed.isEmpty { trimmed = "What's in this photo?" }
         guard AISettings.hasActiveKey else {
             showingAPIKeySheet = true
             return
         }
+        let imageData = pendingImageData
         draft = ""
-        Task { await sendMessage(trimmed) }
+        pendingImageData = nil
+        selectedPhoto = nil
+        Task { await sendMessage(trimmed, imageData: imageData) }
     }
 
-    private func sendMessage(_ text: String) async {
+    private func sendMessage(_ text: String, imageData: Data?) async {
         errorMessage = nil
         isSending = true
         defer { isSending = false }
 
-        let userMessage = ChatMessage(role: "user", content: text, session: session)
+        let userMessage = ChatMessage(role: "user", content: text, imageData: imageData, session: session)
         modelContext.insert(userMessage)
         session.lastActivityAt = .now
 
@@ -282,21 +347,3 @@ private struct SectionChatThreadView: View {
     }
 }
 
-private struct SectionChatBubble: View {
-    let message: ChatMessage
-    private var isUser: Bool { message.role == "user" }
-
-    var body: some View {
-        HStack {
-            if isUser { Spacer(minLength: 40) }
-            Text(message.content)
-                .font(.subheadline)
-                .foregroundStyle(Theme.primaryText)
-                .padding(10)
-                .background(isUser ? Theme.accent.opacity(0.25) : Theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.cardBorder, lineWidth: 1))
-            if !isUser { Spacer(minLength: 40) }
-        }
-    }
-}

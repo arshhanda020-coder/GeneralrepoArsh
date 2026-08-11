@@ -121,7 +121,19 @@ actor AnthropicService: AIProviderService {
         }
 
         let messages: [[String: Any]] = history.map { message in
-            ["role": message.role, "content": [["type": "text", "text": message.content]]]
+            var content: [[String: Any]] = []
+            if let imageData = message.imageData {
+                content.append([
+                    "type": "image",
+                    "source": [
+                        "type": "base64",
+                        "media_type": "image/jpeg",
+                        "data": imageData.base64EncodedString(),
+                    ] as [String: Any],
+                ])
+            }
+            content.append(["type": "text", "text": message.content])
+            return ["role": message.role, "content": content]
         }
 
         let body: [String: Any] = [
@@ -727,6 +739,18 @@ actor AnthropicService: AIProviderService {
                 "type": "object",
                 "properties": [
                     "query": ["type": "string", "description": "A distinctive substring of the exam's name."] as [String: Any],
+                    "confirmed": ["type": "boolean", "description": "Only true after the user has explicitly confirmed."] as [String: Any],
+                ] as [String: Any],
+                "required": ["query"],
+            ] as [String: Any],
+        ],
+        [
+            "name": "delete_school_class",
+            "description": "Delete a whole class from School — cascades to everything under it (topics, lessons, assignments, tests/quizzes, materials). First call WITHOUT confirmed to ask the user to confirm; only call again with confirmed: true after they explicitly say yes.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "query": ["type": "string", "description": "A distinctive substring of the class's name."] as [String: Any],
                     "confirmed": ["type": "boolean", "description": "Only true after the user has explicitly confirmed."] as [String: Any],
                 ] as [String: Any],
                 "required": ["query"],
