@@ -171,9 +171,9 @@ struct MindMapHomeView: View {
         }
     }
 
-    /// The centerpiece the plain content-first redesign dropped — a big
-    /// reactor front and center on the home screen instead of tucked into a
-    /// small header icon, same tap-to-activate as before.
+    /// A big centerpiece reactor on the home screen itself, not just the
+    /// small badge next to the "Odysseus" title in the header — same
+    /// tap-to-activate, richer status text (listening/thinking/speaking).
     private var reactorHero: some View {
         Button {
             odysseus.activate()
