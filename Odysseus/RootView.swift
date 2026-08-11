@@ -23,6 +23,7 @@ struct RootView: View {
                 .onAppear {
                     odysseus.configure(modelContext: modelContext)
                     odysseus.refreshDailySuggestion()
+                    odysseus.runNotificationChecks()
                 }
                 .platformFullScreenCover(isPresented: $showingWritingSample) {
                     WritingSampleView(isOnboarding: true)

@@ -56,7 +56,7 @@ struct AIIntegrationView: View {
                 .padding(.bottom, 8)
 
                 if selectedTab == .innovation {
-                    Text("Community finds from Reddit and Hacker News — new tools, prompting tricks, and agentic workflows people actually stumbled onto, not press releases.")
+                    Text("New AI models, agentic workflows, and GitHub repos with fresh Claude/agent tooling — pulled from Hacker News, Lobsters, and GitHub, not press releases. Every item gets a plain-English summary of what it actually is.")
                         .font(.caption2)
                         .foregroundStyle(Theme.dimText)
                         .padding(.bottom, 8)
@@ -89,6 +89,7 @@ struct AIIntegrationView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("AI Tools")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.aiIntegration)
         .refreshable { await refresh() }
         .task {
             if allItems.isEmpty { await refresh() }
@@ -187,9 +188,16 @@ struct AIIntegrationView: View {
             if let existing = allItems.first(where: { $0.id == dedupeID }) {
                 existing.link = entry.link
                 existing.publishedAt = entry.publishedAt
-                existing.snippet = entry.snippet
                 existing.source = entry.source
                 existing.fetchedAt = .now
+                // Never stomp a real (possibly AI-written) summary with a
+                // placeholder from a later refresh of the same source data.
+                if Self.isPlaceholderSnippet(existing.snippet) {
+                    existing.snippet = entry.snippet
+                    if category == .innovation, Self.isPlaceholderSnippet(existing.snippet) {
+                        generateSummary(for: existing)
+                    }
+                }
             } else {
                 let newItem = AIToolItem(
                     id: dedupeID,
@@ -202,6 +210,9 @@ struct AIIntegrationView: View {
                 )
                 modelContext.insert(newItem)
                 newTitles.append(entry.title)
+                if category == .innovation, Self.isPlaceholderSnippet(entry.snippet) {
+                    generateSummary(for: newItem)
+                }
             }
         }
         let stale = allItems
@@ -212,5 +223,34 @@ struct AIIntegrationView: View {
             modelContext.delete(item)
         }
         return newTitles
+    }
+
+    /// A snippet that's just leftover source metadata (a bare point count, or
+    /// nothing) rather than an actual description of what the item is.
+    private static func isPlaceholderSnippet(_ snippet: String?) -> Bool {
+        guard let snippet, !snippet.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return true }
+        return snippet.range(of: #"^\d+ points$"#, options: .regularExpression) != nil
+    }
+
+    /// Innovation should always read as "here's what this is," not "here's a
+    /// link with a point count" — HN doesn't hand us description text, and
+    /// GitHub repos occasionally have no description, so AI fills the gap
+    /// once per item and the result is cached on the model going forward.
+    /// Fire-and-forget: on failure the placeholder just stays until the next
+    /// refresh retries it, rather than blocking the feed on an AI call.
+    private func generateSummary(for item: AIToolItem) {
+        Task {
+            let prompt = """
+            In one concise sentence (no preamble, no markdown), explain what this is and why it'd matter to someone tracking new AI models, agentic workflows, or Claude tooling.
+            Title: \(item.title)
+            Source: \(item.source)
+            URL: \(item.link)
+            """
+            guard let summary = try? await AISettings.currentService.draft(prompt: prompt) else { return }
+            let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty {
+                item.snippet = String(trimmed.prefix(240))
+            }
+        }
     }
 }

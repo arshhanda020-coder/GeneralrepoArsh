@@ -19,7 +19,7 @@ struct OdysseusApp: App {
             AIToolItem.self, Exam.self, StudySession.self,
             Assignment.self, QuizSession.self, QuizQuestion.self, SchoolClass.self, Topic.self,
             Extracurricular.self, EmailDraft.self, GradeScaleEntry.self, GradeEntry.self,
-            ActivitySession.self, ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
+            ProgressEntry.self, MonthlyReport.self, WatchedSymbol.self,
             MemoryEntry.self, ACTSectionScore.self, ACTPrepPlan.self, SavedGitHubLink.self, ResearchEntry.self, AgentDefinition.self, AgentRun.self,
             ObsidianNote.self, DocNote.self, Note.self,
         ])
@@ -117,8 +117,10 @@ struct OdysseusApp: App {
         // File > New Window (⌘N) opens another independent RootView backed
         // by the same shared SwiftData container, exactly like Mail/Notes.
         WindowGroup {
+            // Follows the system's light/dark setting instead of forcing
+            // dark everywhere — every Theme color has both a light and a
+            // dark default (see ThemeColorSettings) so this adapts cleanly.
             RootView()
-                .preferredColorScheme(.dark)
         }
         .modelContainer(container)
 

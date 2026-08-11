@@ -14,5 +14,9 @@
 	</array>
 	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
 	<string>$(TeamIdentifierPrefix)com.traderforge.Odysseus</string>
+	<!-- Lets due-date/study reminders use UNNotificationInterruptionLevel.timeSensitive
+	     so they break through Focus modes instead of being silently downgraded to .active. -->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
 </dict>
 </plist>

@@ -59,6 +59,84 @@ function loadOrCreateToken() {
 const TOKEN = loadOrCreateToken();
 
 // ---------------------------------------------------------------------------
+// Task store — turns /run from "one blocking call, one answer" into a real
+// task list: POST /tasks kicks a run off in the background and returns
+// immediately with { id, status: 'working' }; the app polls GET /tasks (or
+// GET /tasks/:id) to watch it flip to 'completed'/'error'. Mirrors what the
+// `claude` CLI's own background-task dashboard shows in a terminal.
+//
+// Persisted to disk so a server restart doesn't wipe the run history the app
+// is displaying — same 0600-in-a-dotfolder pattern as the token.
+// ---------------------------------------------------------------------------
+
+const TASKS_PATH = path.join(CONFIG_DIR, 'tasks.json');
+const MAX_STORED_TASKS = 200;
+
+/** @type {Map<string, object>} insertion order = oldest first */
+const tasks = new Map();
+
+function loadTasks() {
+    try {
+        const raw = JSON.parse(fs.readFileSync(TASKS_PATH, 'utf8'));
+        for (const task of raw) tasks.set(task.id, task);
+    } catch {
+        // No file yet, or it's corrupt — start with an empty task list rather
+        // than crashing the server over history that isn't essential.
+    }
+}
+
+function persistTasks() {
+    const all = [...tasks.values()];
+    // Trim from the front (oldest) once we're over the cap, so the file
+    // doesn't grow forever across months of daily use.
+    while (all.length > MAX_STORED_TASKS) {
+        const oldest = all.shift();
+        tasks.delete(oldest.id);
+    }
+    fs.writeFileSync(TASKS_PATH, JSON.stringify(all), { mode: 0o600 });
+}
+
+loadTasks();
+
+function createTask({ agent, prompt, cwd, fullAuto }) {
+    const task = {
+        id: crypto.randomUUID(),
+        agent,
+        prompt,
+        cwd,
+        fullAuto: !!fullAuto,
+        status: 'working',
+        output: '',
+        sessionId: undefined,
+        costUSD: undefined,
+        error: undefined,
+        startedAt: new Date().toISOString(),
+        finishedAt: null,
+    };
+    tasks.set(task.id, task);
+    persistTasks();
+
+    const runner = RUNNERS[agent];
+    runner({ prompt, cwd, fullAuto })
+        .then((result) => {
+            Object.assign(task, {
+                status: result.ok ? 'completed' : 'error',
+                output: result.output ?? '',
+                sessionId: result.sessionId,
+                costUSD: result.costUSD,
+                error: result.error,
+                finishedAt: new Date().toISOString(),
+            });
+        })
+        .catch((err) => {
+            Object.assign(task, { status: 'error', error: err.message, finishedAt: new Date().toISOString() });
+        })
+        .finally(persistTasks);
+
+    return task;
+}
+
+// ---------------------------------------------------------------------------
 // CLI availability — checked fresh on every /health call (cheap) so
 // installing `codex` after the server is already running just works without
 // a restart.
@@ -124,6 +202,32 @@ function runCodex({ prompt, cwd, fullAuto }) {
             return { ok: false, error: stderr.trim() || `codex exited with code ${code}` };
         }
         return { ok: code === 0, output: stdout.trim(), error: code === 0 ? undefined : stderr.trim() };
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Git status for a project's repoPath — lets the app show branch/dirty/
+// ahead-behind without shelling out to a full agent run just to check state.
+// ---------------------------------------------------------------------------
+
+function gitStatus(cwd) {
+    return runProcess('git', ['-C', cwd, 'status', '--porcelain=v2', '--branch'], cwd).then(({ stdout, code }) => {
+        if (code !== 0) return { isRepo: false };
+        let branch = null;
+        let ahead = 0;
+        let behind = 0;
+        let dirty = 0;
+        for (const line of stdout.split('\n')) {
+            if (line.startsWith('# branch.head ')) {
+                branch = line.slice('# branch.head '.length).trim();
+            } else if (line.startsWith('# branch.ab ')) {
+                const match = line.match(/\+(\d+) -(\d+)/);
+                if (match) { ahead = Number(match[1]); behind = Number(match[2]); }
+            } else if (line && !line.startsWith('#')) {
+                dirty += 1;
+            }
+        }
+        return { isRepo: true, branch, ahead, behind, dirty };
     });
 }
 
@@ -204,6 +308,51 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (req.method === 'POST' && req.url === '/tasks') {
+        if (!isAuthed(req)) { send(res, 401, { ok: false, error: 'Bad or missing token.' }); return; }
+        let body;
+        try {
+            body = JSON.parse(await readBody(req));
+        } catch (err) {
+            send(res, err.statusCode === 413 ? 413 : 400, { ok: false, error: err.statusCode === 413 ? 'Prompt too large.' : 'Malformed JSON body.' });
+            return;
+        }
+
+        const { agent, prompt, cwd, fullAuto } = body;
+        if (!RUNNERS[agent]) { send(res, 400, { ok: false, error: `agent must be one of: ${Object.keys(RUNNERS).join(', ')}` }); return; }
+        if (typeof prompt !== 'string' || !prompt.trim()) { send(res, 400, { ok: false, error: 'prompt is required.' }); return; }
+
+        const resolvedCwd = typeof cwd === 'string' && cwd.trim() ? cwd.trim() : os.homedir();
+        if (!fs.existsSync(resolvedCwd) || !fs.statSync(resolvedCwd).isDirectory()) {
+            send(res, 400, { ok: false, error: `cwd "${resolvedCwd}" doesn't exist on this Mac.` });
+            return;
+        }
+
+        const task = createTask({ agent, prompt: prompt.trim(), cwd: resolvedCwd, fullAuto: !!fullAuto });
+        send(res, 202, task);
+        return;
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/tasks')) {
+        if (!isAuthed(req)) { send(res, 401, { ok: false, error: 'Bad or missing token.' }); return; }
+        const url = new URL(req.url, 'http://localhost');
+        const segments = url.pathname.split('/').filter(Boolean); // ['tasks'] or ['tasks', id]
+
+        if (segments.length === 2) {
+            const task = tasks.get(segments[1]);
+            if (!task) { send(res, 404, { ok: false, error: 'No task with that id.' }); return; }
+            send(res, 200, task);
+            return;
+        }
+
+        const agentFilter = url.searchParams.get('agent');
+        let list = [...tasks.values()];
+        if (agentFilter) list = list.filter((t) => t.agent === agentFilter);
+        list.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt));
+        send(res, 200, { tasks: list });
+        return;
+    }
+
     if (req.method === 'POST' && req.url === '/run') {
         if (!isAuthed(req)) { send(res, 401, { ok: false, error: 'Bad or missing token.' }); return; }
         let body;
@@ -228,6 +377,24 @@ const server = http.createServer(async (req, res) => {
         try {
             const result = await runner({ prompt: prompt.trim(), cwd: resolvedCwd, fullAuto: !!fullAuto });
             send(res, 200, result);
+        } catch (err) {
+            send(res, 500, { ok: false, error: err.message });
+        }
+        return;
+    }
+
+    if (req.method === 'GET' && req.url.startsWith('/git-status')) {
+        if (!isAuthed(req)) { send(res, 401, { ok: false, error: 'Bad or missing token.' }); return; }
+        const { searchParams } = new URL(req.url, `http://${req.headers.host}`);
+        const cwd = (searchParams.get('cwd') || '').trim();
+        if (!cwd) { send(res, 400, { ok: false, error: 'cwd query param is required.' }); return; }
+        if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) {
+            send(res, 400, { ok: false, error: `cwd "${cwd}" doesn't exist on this Mac.` });
+            return;
+        }
+        try {
+            const status = await gitStatus(cwd);
+            send(res, 200, { ok: true, ...status });
         } catch (err) {
             send(res, 500, { ok: false, error: err.message });
         }

@@ -12,7 +12,7 @@ import SwiftUI
 import SwiftData
 
 private struct AgendaItem: Identifiable {
-    enum Kind { case exam, assignment, projectTask }
+    enum Kind { case exam, assignment, projectTask, projectDue }
 
     let id: String
     let title: String
@@ -25,7 +25,7 @@ private struct AgendaItem: Identifiable {
         switch kind {
         case .exam: return MindMapSection.school.accentColor
         case .assignment: return Theme.terminalAmber
-        case .projectTask: return MindMapSection.projects.accentColor
+        case .projectTask, .projectDue: return MindMapSection.projects.accentColor
         }
     }
 
@@ -34,6 +34,7 @@ private struct AgendaItem: Identifiable {
         case .exam: return "graduationcap.fill"
         case .assignment: return "checklist"
         case .projectTask: return "hammer.fill"
+        case .projectDue: return "flag.checkered"
         }
     }
 }
@@ -42,6 +43,7 @@ struct CalendarView: View {
     @Query private var exams: [Exam]
     @Query private var assignments: [Assignment]
     @Query private var projectTasks: [ProjectTask]
+    @Query private var projects: [Project]
 
     @State private var weekStart: Date = CalendarView.startOfWeek(containing: .now)
     @State private var selectedDate: Date = Calendar.current.startOfDay(for: .now)
@@ -60,7 +62,11 @@ struct CalendarView: View {
             guard let due = task.dueDate else { return nil }
             return AgendaItem(id: "task-\(task.id)", title: task.title, subtitle: task.project?.name ?? "Project", date: due, kind: .projectTask, isDone: task.isDone)
         }
-        return examItems + assignmentItems + taskItems
+        let projectDueItems = projects.compactMap { project -> AgendaItem? in
+            guard let target = project.targetDate else { return nil }
+            return AgendaItem(id: "project-\(project.id)", title: project.name, subtitle: "Project due", date: target, kind: .projectDue, isDone: project.status == .shipped)
+        }
+        return examItems + assignmentItems + taskItems + projectDueItems
     }
 
     private var weekDates: [Date] {
@@ -108,6 +114,7 @@ struct CalendarView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("Calendar")
         .inlineNavigationTitle()
+        .sectionAssistantButton(.calendar)
     }
 
     private var weekHeader: some View {
@@ -255,5 +262,5 @@ struct CalendarView: View {
     NavigationStack {
         CalendarView()
     }
-    .modelContainer(for: [Exam.self, Assignment.self, ProjectTask.self], inMemory: true)
+    .modelContainer(for: [Exam.self, Assignment.self, ProjectTask.self, Project.self], inMemory: true)
 }

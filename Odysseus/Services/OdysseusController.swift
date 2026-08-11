@@ -39,6 +39,9 @@ final class OdysseusController: NSObject, ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var silenceTimer: Timer?
     private static let activeSessionKey = "odysseus_active_session_id"
+    /// The in-flight send/regenerate Task, if any — kept so the Copilot UI's
+    /// stop button can cancel a reply mid-stream instead of just hiding it.
+    private var activeTask: Task<Void, Never>?
 
     private override init() {
         activeSessionID = UserDefaults.standard.string(forKey: Self.activeSessionKey)
@@ -126,7 +129,7 @@ final class OdysseusController: NSObject, ObservableObject {
             beginListening()
             return
         }
-        Task { await sendMessage(text) }
+        send(text)
     }
 
     // MARK: - Chat sessions
@@ -158,6 +161,21 @@ final class OdysseusController: NSObject, ObservableObject {
     }
 
     // MARK: - Sending
+
+    /// Entry point for UI/voice call sites — owns the Task so it can be
+    /// cancelled by `stopGenerating()` (e.g. the Copilot input bar's stop
+    /// button) instead of the caller firing an unstructured `Task { }` that
+    /// nothing can reach again.
+    func send(_ text: String, imageData: Data? = nil) {
+        activeTask?.cancel()
+        activeTask = Task { await sendMessage(text, imageData: imageData) }
+    }
+
+    /// Cancels whatever reply is currently streaming in, keeping any partial
+    /// text that already arrived rather than discarding it as an error.
+    func stopGenerating() {
+        activeTask?.cancel()
+    }
 
     func sendMessage(_ text: String, imageData: Data? = nil) async {
         guard let modelContext else { return }
@@ -219,6 +237,13 @@ final class OdysseusController: NSObject, ObservableObject {
             } else {
                 status = .idle
             }
+        } catch is CancellationError {
+            // User hit stop mid-stream — keep whatever text already arrived
+            // rather than discarding it like a real failure.
+            if assistantMessage.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                modelContext.delete(assistantMessage)
+            }
+            status = .idle
         } catch {
             modelContext.delete(assistantMessage)
             statusMessage = error.localizedDescription
@@ -236,6 +261,56 @@ final class OdysseusController: NSObject, ObservableObject {
         }
     }
 
+    /// Deletes the trailing assistant reply in `session` and re-asks the
+    /// model using the same history up to (and including) the last user
+    /// message — the retry action on a Copilot reply.
+    func regenerateLastResponse(session: ChatSession, context: ModelContext) {
+        activeTask?.cancel()
+        activeTask = Task {
+            guard AISettings.hasActiveKey else {
+                statusMessage = "Add your \(AISettings.provider.displayName) API key in Copilot settings."
+                return
+            }
+            let sessionID = session.id
+            var history = (try? context.fetch(
+                FetchDescriptor<ChatMessage>(
+                    predicate: #Predicate { $0.session?.id == sessionID },
+                    sortBy: [SortDescriptor(\.createdAt)]
+                )
+            )) ?? []
+            if let trailingAssistant = history.last, trailingAssistant.role == "assistant" {
+                context.delete(trailingAssistant)
+                history.removeLast()
+            }
+            guard history.last?.role == "user" else { return }
+
+            status = .thinking
+            let assistantMessage = ChatMessage(role: "assistant", content: "", session: session)
+            context.insert(assistantMessage)
+
+            do {
+                let reply = try await AISettings.currentService.send(
+                    history: history,
+                    onTextDelta: { delta in assistantMessage.content += delta }
+                ) { [weak self] name, input in
+                    guard let self else { return "Unknown tool." }
+                    return await self.executeTool(name: name, input: input)
+                }
+                assistantMessage.content = reply
+                status = .idle
+            } catch is CancellationError {
+                if assistantMessage.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    context.delete(assistantMessage)
+                }
+                status = .idle
+            } catch {
+                context.delete(assistantMessage)
+                statusMessage = error.localizedDescription
+                status = .idle
+            }
+        }
+    }
+
     // MARK: - Daily suggestion
 
     func refreshDailySuggestion() {
@@ -246,6 +321,15 @@ final class OdysseusController: NSObject, ObservableObject {
             self.latestSuggestion = suggestion
             NotificationManager.shared.scheduleSuggestion(text: suggestion)
         }
+    }
+
+    /// Re-evaluates every reminder/nudge against current data — due dates
+    /// that are now overdue, food/workouts that still haven't been logged,
+    /// exam scores still missing. Cheap, so it's safe to call every time the
+    /// app comes to the foreground (RootView does exactly that).
+    func runNotificationChecks() {
+        guard let modelContext else { return }
+        NotificationManager.shared.resyncAllReminders(modelContext: modelContext)
     }
 
     private func buildStatusContext(modelContext: ModelContext) -> String {
@@ -330,6 +414,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return addAssignment(
                 title: input["title"] as? String ?? "",
                 dueDateString: input["due_date"] as? String,
+                dueTimeString: input["due_time"] as? String,
                 notes: input["notes"] as? String,
                 context: modelContext
             )
@@ -338,7 +423,14 @@ final class OdysseusController: NSObject, ObservableObject {
                 query: input["query"] as? String ?? "",
                 newTitle: input["new_title"] as? String,
                 newDueDateString: input["new_due_date"] as? String,
+                newDueTimeString: input["new_due_time"] as? String,
                 markDone: input["mark_done"] as? Bool,
+                context: modelContext
+            )
+        case "get_school_material":
+            return getSchoolMaterial(
+                subject: input["subject"] as? String ?? "",
+                query: input["query"] as? String,
                 context: modelContext
             )
         case "delete_assignment":
@@ -352,6 +444,7 @@ final class OdysseusController: NSObject, ObservableObject {
                 name: input["name"] as? String ?? "",
                 examDateString: input["exam_date"] as? String,
                 category: input["category"] as? String,
+                className: input["class"] as? String,
                 context: modelContext
             )
         case "edit_exam":
@@ -359,6 +452,13 @@ final class OdysseusController: NSObject, ObservableObject {
                 query: input["query"] as? String ?? "",
                 newName: input["new_name"] as? String,
                 newExamDateString: input["new_exam_date"] as? String,
+                newClassName: input["new_class"] as? String,
+                context: modelContext
+            )
+        case "set_project_target_date":
+            return setProjectTargetDate(
+                project: input["project"] as? String ?? "",
+                targetDateString: input["target_date"] as? String,
                 context: modelContext
             )
         case "delete_exam":
@@ -445,8 +545,53 @@ final class OdysseusController: NSObject, ObservableObject {
                 confirmed: input["confirmed"] as? Bool ?? false,
                 context: modelContext
             )
+        case "run_dev_agent":
+            return await runDevAgent(
+                agentRaw: input["agent"] as? String ?? "",
+                prompt: input["prompt"] as? String ?? "",
+                cwd: input["cwd"] as? String,
+                fullAuto: input["full_auto"] as? Bool ?? false
+            )
         default:
             return "Unknown tool."
+        }
+    }
+
+    /// Routes a coding task through the real Claude Code / Codex bridge (the
+    /// same one wired up in Agents → Claude Code/Codex Bridge) — lets Copilot
+    /// chat itself kick off a real CLI run in a project directory, instead of
+    /// that only being reachable from the manual bridge form.
+    private func runDevAgent(agentRaw: String, prompt: String, cwd: String?, fullAuto: Bool) async -> String {
+        let trimmedPrompt = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPrompt.isEmpty else { return "No prompt given for the dev agent to run." }
+        let kind: DevAgentKind = agentRaw.lowercased().contains("codex") ? .codex : .claudeCode
+
+        let bridgeURL = UserDefaults.standard.string(forKey: kind.bridgeURLKey) ?? ""
+        let token = KeychainService.shared.loadBridgeToken(kind: kind.agentKey) ?? ""
+        guard !bridgeURL.isEmpty, !token.isEmpty else {
+            return "The \(kind.displayName) bridge isn't set up on this device — open Agents → \(kind.displayName) Bridge, fill in the bridge URL and token printed by bridge/server.js, then try again."
+        }
+
+        let trimmedCwd = cwd?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let workingDirectory = trimmedCwd.isEmpty ? NSHomeDirectory() : trimmedCwd
+
+        do {
+            let result = try await DevAgentBridgeClient.run(
+                baseURL: bridgeURL,
+                token: token,
+                agent: kind.agentKey,
+                prompt: trimmedPrompt,
+                cwd: workingDirectory,
+                fullAuto: fullAuto
+            )
+            guard result.ok else { return "\(kind.displayName) run failed: \(result.error ?? "unknown error")." }
+            var summary = result.output
+            if let costUSD = result.costUSD {
+                summary += "\n\n(\(kind.displayName) run cost \(String(format: "$%.3f", costUSD)))"
+            }
+            return summary.isEmpty ? "\(kind.displayName) finished with no output." : summary
+        } catch {
+            return "Couldn't reach the \(kind.displayName) bridge: \(error.localizedDescription)"
         }
     }
 
@@ -665,6 +810,27 @@ final class OdysseusController: NSObject, ObservableObject {
         return "Deleted \"\(name)\"."
     }
 
+    /// Sets (or clears, with an empty date) the whole project's target
+    /// completion date — separate from any individual task's due date. This
+    /// is what makes a passion/research project itself show up on Calendar,
+    /// the same way an assignment or exam does.
+    private func setProjectTargetDate(project: String, targetDateString: String?, context: ModelContext) -> String {
+        guard !project.isEmpty else { return "No project name given." }
+        let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
+        guard let proj = projects.first(where: { $0.name.localizedCaseInsensitiveContains(project) }) else {
+            return "No project found matching \"\(project)\"."
+        }
+        guard let targetDateString, !targetDateString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            proj.targetDate = nil
+            return "Cleared the target date for \"\(proj.name)\"."
+        }
+        guard let date = Self.isoDateFormatter.date(from: targetDateString) else {
+            return "Need a valid date (yyyy-MM-dd)."
+        }
+        proj.targetDate = date
+        return "\"\(proj.name)\" is now on the Calendar, due \(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+    }
+
     private func addProjectTask(project: String, title: String, context: ModelContext) -> String {
         guard !project.isEmpty else { return "No project name given." }
         let projects = (try? context.fetch(FetchDescriptor<Project>())) ?? []
@@ -719,20 +885,107 @@ final class OdysseusController: NSObject, ObservableObject {
         return formatter
     }()
 
-    private func addAssignment(title: String, dueDateString: String?, notes: String?, context: ModelContext) -> String {
+    private static let isoTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    /// Combines a yyyy-MM-dd date with an optional HH:mm time of day into one
+    /// Date — this is what lets Copilot put something on the calendar "at
+    /// 3pm" instead of only ever landing at midnight. A date with no time
+    /// given stays at midnight, same as picking a day in the date-only UI.
+    private func combinedDate(dateString: String?, timeString: String?) -> Date? {
+        guard let dateString, let day = Self.isoDateFormatter.date(from: dateString) else { return nil }
+        guard let timeString, let time = Self.isoTimeFormatter.date(from: timeString) else { return day }
+        var comps = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        let timeComps = Calendar.current.dateComponents([.hour, .minute], from: time)
+        comps.hour = timeComps.hour
+        comps.minute = timeComps.minute
+        return Calendar.current.date(from: comps) ?? day
+    }
+
+    /// Pulls up whatever's been saved under a School subject/topic: freeform
+    /// Notes and imported DocNotes (Google Docs/Notability) attached via
+    /// `NoteContext.topic`, plus that topic's assignments. `subject` matches
+    /// either a SchoolClass name (e.g. "AP Chemistry", pulling every topic
+    /// under it) or a specific Topic name (e.g. "Recursion") directly.
+    private func getSchoolMaterial(subject: String, query: String?, context: ModelContext) -> String {
+        let trimmedSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSubject.isEmpty else { return "No subject or topic given." }
+
+        let classes = (try? context.fetch(FetchDescriptor<SchoolClass>())) ?? []
+        let allTopics = (try? context.fetch(FetchDescriptor<Topic>())) ?? []
+
+        let matchedTopics: [Topic]
+        if let matchedClass = classes.first(where: { $0.name.localizedCaseInsensitiveContains(trimmedSubject) }) {
+            matchedTopics = matchedClass.topics
+        } else {
+            matchedTopics = allTopics.filter { $0.name.localizedCaseInsensitiveContains(trimmedSubject) }
+        }
+        guard !matchedTopics.isEmpty else {
+            return "No class or topic found matching \"\(trimmedSubject)\"."
+        }
+        let topicNames = Dictionary(uniqueKeysWithValues: matchedTopics.map { ($0.id, $0.name) })
+        let topicIDs = Set(topicNames.keys)
+
+        var notes = ((try? context.fetch(FetchDescriptor<Note>())) ?? []).filter { note in
+            note.contextTypeRaw == "topic" && topicIDs.contains(note.contextID ?? "")
+        }
+        var docNotes = ((try? context.fetch(FetchDescriptor<DocNote>())) ?? []).filter { doc in
+            doc.contextTypeRaw == "topic" && topicIDs.contains(doc.contextID ?? "")
+        }
+
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            notes = notes.filter { $0.title.localizedCaseInsensitiveContains(query) || $0.content.localizedCaseInsensitiveContains(query) }
+            docNotes = docNotes.filter { $0.title.localizedCaseInsensitiveContains(query) || $0.content.localizedCaseInsensitiveContains(query) }
+        }
+
+        guard !notes.isEmpty || !docNotes.isEmpty else {
+            let scopeNote = query.map { " matching \"\($0)\"" } ?? ""
+            return "No material found for \"\(trimmedSubject)\"\(scopeNote) — add notes or import docs under that topic in School."
+        }
+
+        func excerpt(_ text: String) -> String {
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.count > 200 else { return trimmed }
+            return String(trimmed.prefix(200)) + "…"
+        }
+
+        var lines: [String] = []
+        for note in notes.sorted(by: { $0.updatedAt > $1.updatedAt }) {
+            let topicName = topicNames[note.contextID ?? ""] ?? "Untitled topic"
+            let body = excerpt(note.content)
+            lines.append("• [\(topicName)] \(note.title)" + (body.isEmpty ? "" : " — \(body)"))
+        }
+        for doc in docNotes.sorted(by: { $0.modifiedAt > $1.modifiedAt }) {
+            let topicName = topicNames[doc.contextID ?? ""] ?? "Untitled topic"
+            lines.append("• [\(topicName)] \(doc.title) (\(doc.source.label)) — \(excerpt(doc.excerpt.isEmpty ? doc.content : doc.excerpt))")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func addAssignment(title: String, dueDateString: String?, dueTimeString: String?, notes: String?, context: ModelContext) -> String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return "No assignment title given." }
-        let dueDate = dueDateString.flatMap { Self.isoDateFormatter.date(from: $0) }
+        let dueDate = combinedDate(dateString: dueDateString, timeString: dueTimeString)
         let assignment = Assignment(title: trimmedTitle, dueDate: dueDate, notes: notes, remindersOn: dueDate != nil)
         context.insert(assignment)
         if dueDate != nil {
             NotificationManager.shared.sync(assignment: assignment)
         }
-        let dateNote = dueDate.map { " due \($0.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))" } ?? ""
+        let dateNote = dueDate.map { date -> String in
+            let hasTime = dueTimeString != nil && !(dueTimeString?.isEmpty ?? true)
+            let style: Date.FormatStyle = hasTime
+                ? .dateTime.weekday(.wide).month(.abbreviated).day().hour().minute()
+                : .dateTime.weekday(.wide).month(.abbreviated).day()
+            return " due \(date.formatted(style))"
+        } ?? ""
         return "Added assignment \"\(trimmedTitle)\"\(dateNote)."
     }
 
-    private func editAssignment(query: String, newTitle: String?, newDueDateString: String?, markDone: Bool?, context: ModelContext) -> String {
+    private func editAssignment(query: String, newTitle: String?, newDueDateString: String?, newDueTimeString: String?, markDone: Bool?, context: ModelContext) -> String {
         guard !query.isEmpty else { return "No assignment specified to edit." }
         let assignments = (try? context.fetch(FetchDescriptor<Assignment>())) ?? []
         guard let assignment = assignments.first(where: { $0.title.localizedCaseInsensitiveContains(query) }) else {
@@ -741,8 +994,13 @@ final class OdysseusController: NSObject, ObservableObject {
         if let newTitle, !newTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             assignment.title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if let newDueDateString, let newDate = Self.isoDateFormatter.date(from: newDueDateString) {
-            assignment.dueDate = newDate
+        if newDueDateString != nil || newDueTimeString != nil {
+            // Re-anchor on the existing due date's day when only a new time is
+            // given, so "move that to 5pm" doesn't require repeating the date.
+            let fallbackDateString = assignment.dueDate.map { Self.isoDateFormatter.string(from: $0) }
+            if let newDate = combinedDate(dateString: newDueDateString ?? fallbackDateString, timeString: newDueTimeString) {
+                assignment.dueDate = newDate
+            }
         }
         if let markDone {
             assignment.isDone = markDone
@@ -761,23 +1019,34 @@ final class OdysseusController: NSObject, ObservableObject {
             return "Found \"\(assignment.title)\" — confirm you want it deleted before I remove it."
         }
         let title = assignment.title
-        NotificationManager.shared.cancelOneOff(identifier: "assignment-\(assignment.id)")
+        NotificationManager.shared.cancelReminders(assignmentID: assignment.id)
         context.delete(assignment)
         return "Deleted \"\(title)\"."
     }
 
-    private func addExam(name: String, examDateString: String?, category: String?, context: ModelContext) -> String {
+    private func findSchoolClass(matching name: String, context: ModelContext) -> SchoolClass? {
+        let classes = (try? context.fetch(FetchDescriptor<SchoolClass>())) ?? []
+        return classes.first { $0.name.localizedCaseInsensitiveContains(name) }
+    }
+
+    private func addExam(name: String, examDateString: String?, category: String?, className: String?, context: ModelContext) -> String {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return "No exam name given." }
         guard let dateString = examDateString, let examDate = Self.isoDateFormatter.date(from: dateString) else {
             return "Need a valid exam date (yyyy-MM-dd)."
         }
         let resolvedCategory = category.flatMap { ExamCategory(rawValue: $0) } ?? .marchExams
-        context.insert(Exam(name: trimmedName, examDate: examDate, category: resolvedCategory))
-        return "Added exam \"\(trimmedName)\" on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
+        // Linking to a class is what makes this exam also show up on that
+        // class's own page — not just Calendar/School exams.
+        let matchedClass = className.flatMap { findSchoolClass(matching: $0, context: context) }
+        let exam = Exam(name: trimmedName, examDate: examDate, schoolClass: matchedClass, category: resolvedCategory)
+        context.insert(exam)
+        NotificationManager.shared.sync(exam: exam)
+        let classNote = matchedClass.map { " under \($0.name)" } ?? ""
+        return "Added exam \"\(trimmedName)\"\(classNote) on \(examDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()))."
     }
 
-    private func editExam(query: String, newName: String?, newExamDateString: String?, context: ModelContext) -> String {
+    private func editExam(query: String, newName: String?, newExamDateString: String?, newClassName: String?, context: ModelContext) -> String {
         guard !query.isEmpty else { return "No exam specified to edit." }
         let exams = (try? context.fetch(FetchDescriptor<Exam>())) ?? []
         guard let exam = exams.first(where: { $0.name.localizedCaseInsensitiveContains(query) }) else {
@@ -789,6 +1058,11 @@ final class OdysseusController: NSObject, ObservableObject {
         if let newExamDateString, let newDate = Self.isoDateFormatter.date(from: newExamDateString) {
             exam.examDate = newDate
         }
+        if let newClassName {
+            let trimmed = newClassName.trimmingCharacters(in: .whitespacesAndNewlines)
+            exam.schoolClass = trimmed.isEmpty ? nil : findSchoolClass(matching: trimmed, context: context)
+        }
+        NotificationManager.shared.sync(exam: exam)
         return "Updated \"\(exam.name)\"."
     }
 
@@ -802,6 +1076,7 @@ final class OdysseusController: NSObject, ObservableObject {
             return "Found \"\(exam.name)\" — confirm you want it deleted before I remove it."
         }
         let name = exam.name
+        NotificationManager.shared.cancelReminders(examID: exam.id)
         context.delete(exam)
         return "Deleted \"\(name)\"."
     }

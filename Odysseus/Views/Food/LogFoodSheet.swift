@@ -12,10 +12,14 @@ import PhotosUI
 
 struct LogFoodSheet: View {
     var entry: FoodEntry?
+    /// Which meal section this was opened from (or the time-of-day guess for
+    /// a generic add) — only used to seed a new entry, ignored when editing.
+    var defaultMealType: MealType = .forCurrentTime()
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var text: String = ""
+    @State private var mealType: MealType = .snack
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var imageData: Data?
 
@@ -28,6 +32,7 @@ struct LogFoodSheet: View {
     @State private var showingScanner = false
     @State private var isLookingUpBarcode = false
     @State private var scanError: String?
+    @FocusState private var isDescriptionFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -35,6 +40,23 @@ struct LogFoodSheet: View {
                 Section("What did you have?") {
                     TextField("e.g. Oatmeal and eggs", text: $text, axis: .vertical)
                         .lineLimit(3...6)
+                        .focused($isDescriptionFocused)
+                        .onChange(of: isDescriptionFocused) { wasFocused, isFocused in
+                            // Auto-estimate from the description once they're done typing —
+                            // only when there's no photo (that has its own auto-trigger) and
+                            // nothing's been estimated/entered yet, so this doesn't fire on
+                            // every re-focus of an already-filled entry.
+                            guard wasFocused, !isFocused, imageData == nil, calories.isEmpty,
+                                  !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+                            estimateWithAI()
+                        }
+
+                    Picker("Meal", selection: $mealType) {
+                        ForEach(MealType.allCases) { meal in
+                            Label(meal.rawValue, systemImage: meal.symbolName).tag(meal)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("Photo") {
@@ -90,13 +112,14 @@ struct LogFoodSheet: View {
                             .frame(width: 80)
                     }
 
-                    Button {
-                        estimateWithAI()
-                    } label: {
-                        Label(isEstimating ? "Estimating…" : "Estimate with AI", systemImage: "sparkles")
+                    if isEstimating {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.small)
+                            Text(imageData != nil ? "Analyzing photo…" : "Estimating from description…")
+                                .font(.caption)
+                                .foregroundStyle(Theme.dimText)
+                        }
                     }
-                    .disabled(isEstimating || imageData == nil)
-
                     if let estimateError {
                         Text(estimateError).font(.caption).foregroundStyle(Theme.negative)
                     }
@@ -138,6 +161,7 @@ struct LogFoodSheet: View {
             }
             .onAppear {
                 text = entry?.note ?? ""
+                mealType = entry?.mealType ?? defaultMealType
                 imageData = entry?.imageData
                 calories = entry?.calories.map(String.init) ?? ""
                 protein = entry?.proteinGrams.map { String(format: "%.0f", $0) } ?? ""
@@ -148,6 +172,9 @@ struct LogFoodSheet: View {
                 Task {
                     if let data = try? await newItem?.loadTransferable(type: Data.self) {
                         imageData = PlatformImage(data: data)?.jpegData(compressionQuality: 0.6) ?? data
+                        // A photo is the strongest signal we have — estimate the moment it lands,
+                        // no button press needed.
+                        estimateWithAI()
                     }
                 }
             }
@@ -206,16 +233,24 @@ struct LogFoodSheet: View {
         }
     }
 
+    /// Runs automatically — off a freshly-added photo, or off the typed
+    /// description once they stop editing it if there's no photo. Works
+    /// either way since `askAboutImage`'s imageData is optional.
     private func estimateWithAI() {
-        guard let imageData else { return }
+        let hasPhoto = imageData != nil
+        guard hasPhoto || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         isEstimating = true
         estimateError = nil
+        let restaurantNote = "If this names or clearly implies a specific restaurant/chain (e.g. Chipotle, Starbucks, Subway, McDonald's, Panera) and its menu items/ingredients (e.g. \"double chicken\", \"brown rice\", \"black beans\", \"queso\"), use your knowledge of that chain's actual published nutrition info per item/portion and add them up precisely — don't fall back to a generic guess when you know the real numbers. Otherwise, estimate as accurately as you reasonably can."
+        let prompt = hasPhoto
+            ? "Look closely at this meal photo. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is — name the dish/ingredients you can identify, not generic filler>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\n\(restaurantNote)"
+            : "Estimate nutrition for this meal from its description. Respond in EXACTLY this format, nothing else:\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>\n\nMeal: \(text)\n\n\(restaurantNote)"
         Task {
             do {
                 let response = try await AISettings.currentService.askAboutImage(
-                    prompt: "Look closely at this meal photo. Respond in EXACTLY this format, nothing else:\nDESCRIPTION: <a real, specific description of what the food actually is — name the dish/ingredients you can identify, not generic filler>\nCALORIES: <number>\nPROTEIN: <grams, number only>\nCARBS: <grams, number only>\nFAT: <grams, number only>",
+                    prompt: prompt,
                     imageData: imageData,
-                    systemPrompt: "You are a nutrition estimator with sharp food-recognition skills. Actually identify what's in the photo — specific dishes/ingredients, not vague guesses — then give your best reasonable nutrition estimate. Approximate numbers are fine, but always provide them."
+                    systemPrompt: "You are a nutrition estimator with sharp food-recognition skills and deep knowledge of chain-restaurant published nutrition data. Actually identify what's in the photo or description — specific dishes/ingredients, not vague guesses — then give your best, most accurate nutrition estimate. Approximate numbers are fine when you truly don't know, but always provide them."
                 )
                 applyEstimate(response)
             } catch {
@@ -251,6 +286,7 @@ struct LogFoodSheet: View {
 
         if let entry {
             entry.note = text
+            entry.mealType = mealType
             entry.imageData = imageData
             entry.calories = caloriesValue
             entry.proteinGrams = proteinValue
@@ -263,9 +299,14 @@ struct LogFoodSheet: View {
                 calories: caloriesValue,
                 proteinGrams: proteinValue,
                 carbsGrams: carbsValue,
-                fatGrams: fatValue
+                fatGrams: fatValue,
+                mealType: mealType
             )
             modelContext.insert(newEntry)
+            NotificationManager.shared.notifyFoodLogged(note: text)
         }
+        // A same-day entry just landed, so the "you forgot to log food"
+        // nudge (if one was pending) is no longer accurate.
+        NotificationManager.shared.cancelOneOff(identifier: "food-nudge")
     }
 }

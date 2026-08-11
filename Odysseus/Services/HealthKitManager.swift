@@ -2,8 +2,9 @@
 //  HealthKitManager.swift
 //  Odysseus
 //
-//  Read-only: steps today. Requires the HealthKit capability to be enabled
-//  in Xcode's Signing & Capabilities (Xcode has to regenerate the
+//  Read-only: steps today, plus a rolling 7-day daily step history for the
+//  Food tab's weekly summary. Requires the HealthKit capability to be
+//  enabled in Xcode's Signing & Capabilities (Xcode has to regenerate the
 //  provisioning profile for the entitlement to take effect) — the
 //  entitlements file and Info.plist usage strings are already wired up.
 //
@@ -23,6 +24,8 @@ final class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
 
     @Published var todaysSteps: Int?
+    /// Day (start-of-day) -> step count, for the last 7 days including today.
+    @Published var weeklySteps: [Date: Int] = [:]
     @Published var isAuthorized = false
     @Published var statusMessage: String?
 
@@ -42,6 +45,7 @@ final class HealthKitManager: ObservableObject {
             isAuthorized = true
             statusMessage = nil
             await refreshSteps()
+            await refreshWeeklySteps()
         } catch {
             isAuthorized = false
             statusMessage = "Couldn't get Health authorization: \(error.localizedDescription)"
@@ -62,6 +66,39 @@ final class HealthKitManager: ObservableObject {
         }
         todaysSteps = steps
     }
+
+    /// One HKStatisticsCollectionQuery bucketed by day, covering the last 7
+    /// days (including today) — used by the Food tab's weekly summary so
+    /// past days' burn includes steps, not just logged workouts.
+    func refreshWeeklySteps() async {
+        guard let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return }
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: .now)
+        guard let periodStart = calendar.date(byAdding: .day, value: -6, to: todayStart) else { return }
+        let predicate = HKQuery.predicateForSamples(withStart: periodStart, end: .now, options: .strictStartDate)
+        var intervalComponents = DateComponents()
+        intervalComponents.day = 1
+
+        let byDay: [Date: Int] = await withCheckedContinuation { continuation in
+            let query = HKStatisticsCollectionQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum,
+                anchorDate: periodStart,
+                intervalComponents: intervalComponents
+            )
+            query.initialResultsHandler = { _, results, _ in
+                var result: [Date: Int] = [:]
+                results?.enumerateStatistics(from: periodStart, to: .now) { stats, _ in
+                    let sum = stats.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    result[calendar.startOfDay(for: stats.startDate)] = Int(sum)
+                }
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
+        weeklySteps = byDay
+    }
 }
 #else
 @MainActor
@@ -69,6 +106,7 @@ final class HealthKitManager: ObservableObject {
     static let shared = HealthKitManager()
 
     @Published var todaysSteps: Int?
+    @Published var weeklySteps: [Date: Int] = [:]
     @Published var isAuthorized = false
     @Published var statusMessage: String? = "Health data isn't available on Mac."
 
@@ -76,5 +114,6 @@ final class HealthKitManager: ObservableObject {
 
     func requestAuthorizationAndRefresh() async {}
     func refreshSteps() async {}
+    func refreshWeeklySteps() async {}
 }
 #endif

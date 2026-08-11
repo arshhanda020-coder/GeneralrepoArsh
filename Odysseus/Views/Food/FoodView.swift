@@ -3,7 +3,9 @@
 //  Odysseus
 //
 //  Food sub-tab within Health — no own nav title/toolbar since it's embedded
-//  in HealthView's segmented picker. Flat log of meals, not habit templates.
+//  in HealthView's segmented picker. Cal AI/MyFitnessPal-style layout: a
+//  calorie + macro ring dashboard up top, then a diary grouped into
+//  Breakfast/Lunch/Dinner/Snacks sections, each loggable independently.
 //
 
 import SwiftUI
@@ -12,13 +14,21 @@ import SwiftData
 struct FoodContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \FoodEntry.date, order: .reverse) private var allEntries: [FoodEntry]
+    @Query(sort: \ProgressEntry.date, order: .reverse) private var progressEntries: [ProgressEntry]
+    @Query(sort: \WorkoutEntry.date, order: .reverse) private var workoutEntries: [WorkoutEntry]
+    @ObservedObject private var healthKit = HealthKitManager.shared
 
     @State private var showingLog = false
+    @State private var showingGoals = false
+    @State private var logMealType: MealType = .snack
     @State private var editingEntry: FoodEntry?
+    @State private var showingLogWorkout = false
+    @State private var editingWorkout: WorkoutEntry?
 
     private var today: Date { Calendar.current.startOfDay(for: Date()) }
     private var todaysEntries: [FoodEntry] { allEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: today) } }
     private var historyEntries: [FoodEntry] { allEntries.filter { !Calendar.current.isDate($0.date, inSameDayAs: today) } }
+    private var todaysWorkoutEntries: [WorkoutEntry] { workoutEntries.filter { Calendar.current.isDate($0.date, inSameDayAs: today) } }
 
     private var todaysTotals: (calories: Int, protein: Double, carbs: Double, fat: Double) {
         let cals = todaysEntries.compactMap { $0.calories }.reduce(0, +)
@@ -28,35 +38,175 @@ struct FoodContentView: View {
         return (cals, protein, carbs, fat)
     }
 
+    private var todaysWorkoutCalories: Int {
+        todaysWorkoutEntries.compactMap(\.caloriesBurned).reduce(0, +)
+    }
+
+    /// Today's steps converted to a calorie burn, MFP's "synced with Apple
+    /// Health" behavior — counted alongside logged workouts, not instead of.
+    private var todaysStepCalories: Int {
+        guard let steps = healthKit.todaysSteps else { return 0 }
+        let weight = progressEntries.first(where: { $0.weight != nil })?.weight
+        return StepCalorieEstimator.calories(steps: steps, weightLbs: weight)
+    }
+
+    private var todaysExerciseCalories: Int { todaysWorkoutCalories + todaysStepCalories }
+
+    /// Trailing 7 days (oldest to newest, including today) of consumed vs.
+    /// burned — burned includes that day's logged workouts plus its Apple
+    /// Health step count (from HealthKitManager's weekly bucket query, not
+    /// just today's).
+    private var weeklyBreakdown: [DayCalorieSummary] {
+        let weight = progressEntries.first(where: { $0.weight != nil })?.weight
+        return (0..<7).compactMap { offset -> DayCalorieSummary? in
+            guard let day = Calendar.current.date(byAdding: .day, value: -6 + offset, to: today) else { return nil }
+            let consumed = allEntries
+                .filter { Calendar.current.isDate($0.date, inSameDayAs: day) }
+                .compactMap(\.calories)
+                .reduce(0, +)
+            let workoutBurn = workoutEntries
+                .filter { Calendar.current.isDate($0.date, inSameDayAs: day) }
+                .compactMap(\.caloriesBurned)
+                .reduce(0, +)
+            let stepBurn = StepCalorieEstimator.calories(steps: healthKit.weeklySteps[day] ?? 0, weightLbs: weight)
+            return DayCalorieSummary(date: day, consumed: consumed, burned: workoutBurn + stepBurn)
+        }
+    }
+
+    /// Most recent weigh-in minus the most recent weigh-in at or before 7
+    /// days ago — nil (not zero) when there isn't enough data either side,
+    /// so the UI can say "no data" instead of implying no change.
+    private var weeklyWeightChange: Double? {
+        guard let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: today) else { return nil }
+        let sorted = progressEntries.filter { $0.weight != nil }.sorted { $0.date < $1.date }
+        guard sorted.count >= 2, let latest = sorted.last?.weight else { return nil }
+        let baseline = sorted.last(where: { $0.date <= weekStart })?.weight ?? sorted.first?.weight
+        guard let baseline else { return nil }
+        return latest - baseline
+    }
+
+    private var maintenanceCalories: Int? {
+        let weight = progressEntries.first(where: { $0.weight != nil })?.weight
+        return CalorieMath.todaysOverview(weight: weight, foodCalories: 0, exerciseCalories: 0)?.maintenanceCalories
+    }
+
+    private var calorieGoal: Int { NutritionGoals.calorieGoal(maintenanceCalories: maintenanceCalories) }
+    private var macroGoals: (protein: Double, carbs: Double, fat: Double) { NutritionGoals.macroGoals(calorieGoal: calorieGoal) }
+
+    /// Consecutive days (ending today or yesterday) with at least one entry logged.
+    private var streak: Int {
+        let loggedDays = Set(allEntries.map { Calendar.current.startOfDay(for: $0.date) })
+        guard !loggedDays.isEmpty else { return 0 }
+        var count = 0
+        var cursor = today
+        if !loggedDays.contains(cursor) {
+            cursor = Calendar.current.date(byAdding: .day, value: -1, to: cursor) ?? cursor
+            guard loggedDays.contains(cursor) else { return 0 }
+        }
+        while loggedDays.contains(cursor) {
+            count += 1
+            cursor = Calendar.current.date(byAdding: .day, value: -1, to: cursor) ?? cursor
+        }
+        return count
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            todaySection
+            header
 
-            if todaysTotals.calories > 0 || todaysTotals.protein > 0 || todaysTotals.carbs > 0 || todaysTotals.fat > 0 {
-                macroSummary
+            NutritionRingsView(
+                calorieGoal: calorieGoal,
+                caloriesEaten: todaysTotals.calories,
+                exerciseCalories: todaysExerciseCalories,
+                proteinGoal: macroGoals.protein,
+                proteinEaten: todaysTotals.protein,
+                carbsGoal: macroGoals.carbs,
+                carbsEaten: todaysTotals.carbs,
+                fatGoal: macroGoals.fat,
+                fatEaten: todaysTotals.fat
+            )
+
+            ForEach(MealType.allCases) { meal in
+                mealSection(meal)
             }
+
+            exerciseSection
+
+            WeeklySummaryView(days: weeklyBreakdown, weightChangeLbs: weeklyWeightChange)
 
             if !historyEntries.isEmpty {
                 historySection
             }
         }
+        .task {
+            await healthKit.refreshWeeklySteps()
+        }
         .sheet(isPresented: $showingLog) {
-            LogFoodSheet(entry: nil)
+            LogFoodSheet(entry: nil, defaultMealType: logMealType)
         }
         .sheet(item: $editingEntry) { entry in
-            LogFoodSheet(entry: entry)
+            LogFoodSheet(entry: entry, defaultMealType: entry.mealType)
+        }
+        .sheet(isPresented: $showingGoals) {
+            NutritionGoalsSheet(maintenanceCalories: maintenanceCalories)
+        }
+        .sheet(isPresented: $showingLogWorkout) {
+            LogWorkoutSheet(entry: nil)
+        }
+        .sheet(item: $editingWorkout) { entry in
+            LogWorkoutSheet(entry: entry)
+        }
+        .onAppear {
+            NutritionGoals.seedCutDefaultsIfNeeded()
         }
     }
 
-    private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("TODAY")
+    private var header: some View {
+        HStack {
+            Text("NUTRITION")
+                .font(.system(.caption2, design: .monospaced).weight(.bold))
+                .tracking(0.5)
+                .foregroundStyle(Theme.dimText)
+            if streak > 0 {
+                HStack(spacing: 3) {
+                    Image(systemName: "flame.fill")
+                        .font(.caption2)
+                    Text("\(streak)")
+                        .font(.caption2.weight(.bold).monospacedDigit())
+                }
+                .foregroundStyle(Theme.terminalAmber)
+            }
+            Spacer()
+            Button {
+                showingGoals = true
+            } label: {
+                Image(systemName: "gearshape")
+                    .foregroundStyle(Theme.dimText)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func mealSection(_ meal: MealType) -> some View {
+        let entries = todaysEntries.filter { $0.mealType == meal }
+        let subtotal = entries.compactMap(\.calories).reduce(0, +)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: meal.symbolName)
+                    .font(.caption)
+                    .foregroundStyle(MindMapSection.health.accentColor)
+                Text(meal.rawValue.uppercased())
                     .font(.system(.caption2, design: .monospaced).weight(.bold))
                     .tracking(0.5)
                     .foregroundStyle(Theme.dimText)
+                if subtotal > 0 {
+                    Text("· \(subtotal) cal")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.dimText)
+                }
                 Spacer()
                 Button {
+                    logMealType = meal
                     showingLog = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
@@ -65,13 +215,13 @@ struct FoodContentView: View {
                 .buttonStyle(.plain)
             }
             VStack(spacing: 0) {
-                if todaysEntries.isEmpty {
-                    Text("Nothing logged yet today. Tap + to log a meal or snack.")
+                if entries.isEmpty {
+                    Text("Nothing logged yet.")
                         .font(.caption)
                         .foregroundStyle(Theme.dimText)
                         .padding(10)
                 } else {
-                    ForEach(Array(todaysEntries.enumerated()), id: \.element.id) { index, entry in
+                    ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
                         if index > 0 {
                             Divider().overlay(Theme.cardBorder)
                         }
@@ -83,32 +233,85 @@ struct FoodContentView: View {
         }
     }
 
-    private var macroSummary: some View {
-        HStack {
-            macroStat("CAL", "\(todaysTotals.calories)")
-            macroStat("PRO", String(format: "%.0fg", todaysTotals.protein))
-            macroStat("CARB", String(format: "%.0fg", todaysTotals.carbs))
-            macroStat("FAT", String(format: "%.0fg", todaysTotals.fat))
+    private var exerciseSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "flame.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.terminalAmber)
+                Text("EXERCISE")
+                    .font(.system(.caption2, design: .monospaced).weight(.bold))
+                    .tracking(0.5)
+                    .foregroundStyle(Theme.dimText)
+                if todaysExerciseCalories > 0 {
+                    Text("· \(todaysExerciseCalories) cal burned")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(Theme.dimText)
+                }
+                Spacer()
+                Button {
+                    showingLogWorkout = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(Theme.terminalAmber)
+                }
+                .buttonStyle(.plain)
+            }
+            VStack(spacing: 0) {
+                if todaysStepCalories == 0 && todaysWorkoutEntries.isEmpty {
+                    Text("No exercise logged yet.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.dimText)
+                        .padding(10)
+                } else {
+                    if todaysStepCalories > 0 {
+                        stepsRow
+                        if !todaysWorkoutEntries.isEmpty {
+                            Divider().overlay(Theme.cardBorder)
+                        }
+                    }
+                    ForEach(Array(todaysWorkoutEntries.enumerated()), id: \.element.id) { index, entry in
+                        if index > 0 {
+                            Divider().overlay(Theme.cardBorder)
+                        }
+                        workoutRow(entry)
+                    }
+                }
+            }
+            .glassPanel(cornerRadius: 10)
         }
-        .padding(10)
-        .glassPanel(cornerRadius: 10)
     }
 
-    private func macroStat(_ label: String, _ value: String) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.subheadline.weight(.bold).monospacedDigit())
-                .foregroundStyle(Theme.primaryText)
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(Theme.dimText)
+    /// A synthetic, non-tappable row for step-based burn — not a WorkoutEntry,
+    /// just Apple Health's step count converted to calories, MFP's "synced
+    /// with Apple Health" line.
+    private var stepsRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "figure.walk")
+                .font(.caption)
+                .foregroundStyle(MindMapSection.health.accentColor)
+                .frame(width: 40, height: 40)
+                .background(Theme.card.opacity(0.4))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Steps")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primaryText)
+                Text("\(healthKit.todaysSteps ?? 0) steps")
+                    .font(.caption2)
+                    .foregroundStyle(Theme.dimText)
+            }
+            Spacer()
+            Text("-\(todaysStepCalories) cal")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(Theme.terminalAmber)
         }
-        .frame(maxWidth: .infinity)
+        .padding(10)
     }
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("LOG")
+            Text("HISTORY")
                 .font(.system(.caption2, design: .monospaced).weight(.bold))
                 .tracking(0.5)
                 .foregroundStyle(Theme.dimText)
@@ -132,16 +335,30 @@ struct FoodContentView: View {
                     .scaledToFill()
                     .frame(width: 40, height: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Image(systemName: entry.mealType.symbolName)
+                    .font(.caption)
+                    .foregroundStyle(Theme.dimText)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.card.opacity(0.4))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.note)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Theme.primaryText)
                     .lineLimit(1)
-                if let cal = entry.calories {
-                    Text("\(cal) cal")
-                        .font(.caption2)
-                        .foregroundStyle(Theme.dimText)
+                HStack(spacing: 6) {
+                    if let cal = entry.calories {
+                        Text("\(cal) cal")
+                            .font(.caption2)
+                            .foregroundStyle(Theme.dimText)
+                    }
+                    if entry.proteinGrams != nil || entry.carbsGrams != nil || entry.fatGrams != nil {
+                        Text(macroLabel(entry))
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.dimText)
+                    }
                 }
             }
             Spacer()
@@ -153,11 +370,59 @@ struct FoodContentView: View {
         .contentShape(Rectangle())
         .onTapGesture { editingEntry = entry }
     }
+
+    private func workoutRow(_ entry: WorkoutEntry) -> some View {
+        HStack(spacing: 10) {
+            if let imageData = entry.imageData, let uiImage = PlatformImage(data: imageData) {
+                Image(platformImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                Image(systemName: "flame.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.terminalAmber)
+                    .frame(width: 40, height: 40)
+                    .background(Theme.card.opacity(0.4))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.note)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Theme.primaryText)
+                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    if let cal = entry.caloriesBurned {
+                        Text("-\(cal) cal")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.terminalAmber)
+                    }
+                    if let mins = entry.durationMinutes {
+                        Text("\(mins) min")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(Theme.dimText)
+                    }
+                }
+            }
+            Spacer()
+        }
+        .padding(10)
+        .contentShape(Rectangle())
+        .onTapGesture { editingWorkout = entry }
+    }
+
+    private func macroLabel(_ entry: FoodEntry) -> String {
+        let p = entry.proteinGrams.map { String(format: "%.0fP", $0) }
+        let c = entry.carbsGrams.map { String(format: "%.0fC", $0) }
+        let f = entry.fatGrams.map { String(format: "%.0fF", $0) }
+        return [p, c, f].compactMap { $0 }.joined(separator: " · ")
+    }
 }
 
 #Preview {
     NavigationStack {
         FoodContentView()
     }
-    .modelContainer(for: [FoodEntry.self], inMemory: true)
+    .modelContainer(for: [FoodEntry.self, WorkoutEntry.self, ProgressEntry.self], inMemory: true)
 }

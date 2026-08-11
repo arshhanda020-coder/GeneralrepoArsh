@@ -37,6 +37,9 @@ final class Exam {
     /// class tests (percentage/points) all mean different things.
     var actualScore: String?
     var scoreLoggedAt: Date?
+    /// Defaults on (unlike assignments/tasks) — a test date is high-stakes
+    /// enough that most people want the reminder without having to opt in.
+    var remindersOn: Bool
 
     @Relationship(deleteRule: .cascade, inverse: \StudySession.exam)
     var studySessions: [StudySession] = []
@@ -51,7 +54,8 @@ final class Exam {
         schoolClass: SchoolClass? = nil,
         category: ExamCategory = .marchExams,
         actualScore: String? = nil,
-        scoreLoggedAt: Date? = nil
+        scoreLoggedAt: Date? = nil,
+        remindersOn: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -63,6 +67,7 @@ final class Exam {
         self.categoryRaw = category.rawValue
         self.actualScore = actualScore
         self.scoreLoggedAt = scoreLoggedAt
+        self.remindersOn = remindersOn
     }
 
     var category: ExamCategory {

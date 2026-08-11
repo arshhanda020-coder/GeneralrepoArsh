@@ -12,7 +12,7 @@
 
 import SwiftUI
 
-enum DevAgentKind {
+enum DevAgentKind: Hashable, CaseIterable {
     case claudeCode
     case codex
 
@@ -45,6 +45,13 @@ enum DevAgentKind {
         case .codex: return "codex"
         }
     }
+
+    var mindMapSection: MindMapSection {
+        switch self {
+        case .claudeCode: return .claudeCode
+        case .codex: return .codex
+        }
+    }
 }
 
 private struct OptionalKeyboardType: ViewModifier {
@@ -71,11 +78,6 @@ struct DevAgentBridgeView: View {
     @State private var fullAuto = false
     @State private var connection: ConnectionState = .unknown
 
-    @State private var prompt = ""
-    @State private var isRunning = false
-    @State private var lastResult: BridgeRunResult?
-    @State private var runError: String?
-
     init(kind: DevAgentKind) {
         self.kind = kind
         _bridgeURL = AppStorage(wrappedValue: "", kind.bridgeURLKey)
@@ -87,7 +89,13 @@ struct DevAgentBridgeView: View {
                 statusCard
                 setupCard
                 if case .connected = connection {
-                    runCard
+                    AgentTasksPanel(
+                        kind: kind,
+                        bridgeURL: bridgeURL,
+                        token: token,
+                        workingDirectory: workingDirectory,
+                        fullAuto: $fullAuto
+                    )
                 }
             }
             .padding(12)
@@ -95,6 +103,7 @@ struct DevAgentBridgeView: View {
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle(kind.displayName)
         .inlineNavigationTitle()
+        .sectionAssistantButton(kind.mindMapSection)
         .onAppear {
             bridgeURL = UserDefaults.standard.string(forKey: kind.bridgeURLKey) ?? bridgeURL
             token = KeychainService.shared.loadBridgeToken(kind: kind.agentKey) ?? ""
@@ -233,90 +242,6 @@ struct DevAgentBridgeView: View {
             } catch {
                 connection = .unreachable
             }
-        }
-    }
-
-    // MARK: - Run
-
-    private var runCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("PROMPT")
-                .font(.system(.caption2, design: .monospaced).weight(.bold))
-                .tracking(1)
-                .foregroundStyle(Theme.dimText)
-            TextField("What should \(kind.displayName) do in \(workingDirectory)?", text: $prompt, axis: .vertical)
-                .lineLimit(3...8)
-                .font(.system(.body, design: .monospaced))
-                .padding(10)
-                .glassPanel(cornerRadius: 8)
-
-            Button {
-                run()
-            } label: {
-                Label(isRunning ? "RUNNING…" : "RUN", systemImage: "play.fill")
-                    .font(.system(.subheadline, design: .monospaced).weight(.semibold))
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(kind.accentColor)
-            .disabled(isRunning || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-            if let runError {
-                Text(runError).font(.system(.caption, design: .monospaced)).foregroundStyle(Theme.negative)
-            }
-
-            if let lastResult {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text(lastResult.ok ? "RESULT" : "ERROR")
-                            .font(.system(.caption2, design: .monospaced).weight(.bold))
-                            .tracking(1)
-                            .foregroundStyle(lastResult.ok ? Theme.dimText : Theme.negative)
-                        Spacer()
-                        if let sessionId = lastResult.sessionId {
-                            Text(String(sessionId.prefix(8)))
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(Theme.dimText)
-                        }
-                        if let costUSD = lastResult.costUSD {
-                            Text(String(format: "$%.3f", costUSD))
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundStyle(Theme.dimText)
-                        }
-                    }
-                    Text(lastResult.ok ? lastResult.output : (lastResult.error ?? "Unknown error."))
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(Theme.primaryText)
-                        .textSelection(.enabled)
-                }
-                .padding(10)
-                .glassPanel(cornerRadius: 8)
-            }
-        }
-        .padding(12)
-        .glassPanel(cornerRadius: 8)
-    }
-
-    private func run() {
-        isRunning = true
-        runError = nil
-        let submittedPrompt = prompt
-        Task {
-            do {
-                let result = try await DevAgentBridgeClient.run(
-                    baseURL: bridgeURL,
-                    token: token,
-                    agent: kind.agentKey,
-                    prompt: submittedPrompt,
-                    cwd: workingDirectory,
-                    fullAuto: fullAuto
-                )
-                lastResult = result
-                if result.ok { prompt = "" }
-            } catch {
-                runError = error.localizedDescription
-            }
-            isRunning = false
         }
     }
 }

@@ -107,6 +107,38 @@ actor AnthropicService: AIProviderService {
         throw ServiceError.requestFailed("Copilot took too many steps — try again.")
     }
 
+    /// Multi-turn, tool-free chat for a section assistant — same streaming
+    /// request shape as `send` but with a caller-supplied system prompt and
+    /// no `tools` array, so a single request always suffices (no tool_use
+    /// loop to run).
+    func sendSectionChat(
+        history: [ChatMessage],
+        systemPrompt: String,
+        onTextDelta: ((String) -> Void)? = nil
+    ) async throws -> String {
+        guard let apiKey = KeychainService.shared.loadAPIKey(), !apiKey.isEmpty else {
+            throw ServiceError.missingAPIKey
+        }
+
+        let messages: [[String: Any]] = history.map { message in
+            ["role": message.role, "content": [["type": "text", "text": message.content]]]
+        }
+
+        let body: [String: Any] = [
+            "model": model,
+            "max_tokens": 2048,
+            "thinking": ["type": "adaptive"],
+            "system": systemPrompt,
+            "messages": messages,
+        ]
+
+        let (contentBlocks, _) = try await performRequestStreaming(body: body, apiKey: apiKey, onTextDelta: onTextDelta)
+        let text = contentBlocks
+            .compactMap { $0["type"] as? String == "text" ? $0["text"] as? String : nil }
+            .joined(separator: "\n")
+        return text.isEmpty ? "(no response)" : text
+    }
+
     /// One-shot vision-capable call — used for homework help (School) and food
     /// macro estimation (Food). No tools, no history; image is optional.
     func askAboutImage(prompt: String, imageData: Data?, systemPrompt: String) async throws -> String {
@@ -451,7 +483,7 @@ actor AnthropicService: AIProviderService {
     nonisolated private static var dateContext: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, MMMM d, yyyy"
-        return "\n\nToday's date is \(formatter.string(from: .now)). Use this to resolve relative dates the user says (\"Friday\", \"next week\", \"in 3 days\") into exact yyyy-MM-dd dates for any due_date/exam_date field — never leave a date tool call without resolving it to a real date."
+        return "\n\nToday's date is \(formatter.string(from: .now)). Use this to resolve relative dates the user says (\"Friday\", \"next week\", \"in 3 days\") into exact yyyy-MM-dd dates for any due_date/exam_date field — never leave a date tool call without resolving it to a real date. If they also give a time (\"at 5pm\", \"by noon\"), resolve it into 24-hour HH:mm for due_time/new_due_time — don't drop it."
     }
 
     nonisolated private static var systemPrompt: String {
@@ -459,8 +491,9 @@ actor AnthropicService: AIProviderService {
     You are Odysseus, the in-app copilot for Odysseus — a personal app for today's checklist, skills, projects, news, and \
     coding projects. You can both answer questions and take actions using your tools: check today's status, \
     log skill practice sessions, add/edit/delete tasks on projects, add/edit/delete extracurricular activities, \
-    add/edit/delete skills, add/edit/delete assignments and exams (Calendar/School), edit/delete logged food and \
-    workout entries (Health), fetch cached news headlines \
+    add/edit/delete skills, add/edit/delete assignments and exams (Calendar/School) — including at a specific \
+    time of day, not just a date, when the user gives one — pull up notes and imported docs saved under a \
+    School subject or topic, edit/delete logged food and workout entries (Health), fetch cached news headlines \
     by topic (finance, accounting, economics, ai, or all), recall the user's GitHub repositories, draft outreach \
     emails that get saved for the user to review and send \
     themselves (you never send email directly), and search the web for real, current information — including \
@@ -472,12 +505,21 @@ actor AnthropicService: AIProviderService {
     something ("mark X done", "log a session for Y", "add a task to Z", "edit this", "what repos do I have"), \
     call the matching tool rather than just describing what you'd do. If the user wants to change or update \
     something that already exists, use the edit tool for it — never create a new duplicate entry instead of \
-    editing the existing one. CRITICAL: every delete tool takes a `confirmed` flag. The first time you'd call a \
+    editing the existing one. Cross-link things that belong together instead of leaving them siloed: logging a \
+    test for a class means calling add_exam with `class` set, so it shows up on that class's page in School as \
+    well as Calendar — don't leave `class` off just because the user only mentioned the date. Likewise, if the \
+    user wants a whole project (a passion project, a research project, anything without individual dated tasks) \
+    done by some date, call set_project_target_date so it lands on the Calendar too, not just a task buried \
+    inside the project. Whenever an action you're taking has an obvious place it should also surface, make it \
+    show up there rather than making the user do it manually. CRITICAL: every delete tool takes a `confirmed` flag. The first time you'd call a \
     delete tool for a given item, call it WITHOUT confirmed (or confirmed: false) — it will find the item and \
     ask the user to confirm, and you should relay that confirmation question to them in your reply rather than \
     deleting anything yet. Only call the delete tool again with confirmed: true after the user has explicitly \
     said yes/confirmed in their own words in a following message. Never delete anything without that explicit \
-    confirmation. You also have a persistent memory: use remember_fact whenever the user shares something worth \
+    confirmation. If the user asks you to actually write, fix, or run code in a project on their Mac, use \
+    run_dev_agent to hand the task to the real Claude Code or Codex CLI running there — if it reports the bridge \
+    isn't connected, relay its setup instructions rather than pretending the work happened. You also have a \
+    persistent memory: use remember_fact whenever the user shares something worth \
     recalling later (a preference, an ongoing situation, something important to them) — don't ask permission \
     first, just save it naturally. Use forget_fact (same confirm-before-delete rule) if they ask you to forget \
     something or correct something you remembered wrong. Your tone: composed, dry-witted, understated confidence — \
@@ -593,6 +635,7 @@ actor AnthropicService: AIProviderService {
                 "properties": [
                     "title": ["type": "string", "description": "The assignment's title."] as [String: Any],
                     "due_date": ["type": "string", "description": "Exact due date in yyyy-MM-dd format."] as [String: Any],
+                    "due_time": ["type": "string", "description": "Optional exact time of day in 24-hour HH:mm format (e.g. \"14:30\" for 2:30pm), if the user gave a specific time. Omit for an all-day due date — the reminder then defaults to 9am."] as [String: Any],
                     "notes": ["type": "string", "description": "Optional extra notes."] as [String: Any],
                 ] as [String: Any],
                 "required": ["title"],
@@ -600,16 +643,29 @@ actor AnthropicService: AIProviderService {
         ],
         [
             "name": "edit_assignment",
-            "description": "Edit an existing assignment's title, due date, or done state.",
+            "description": "Edit an existing assignment's title, due date/time, or done state.",
             "input_schema": [
                 "type": "object",
                 "properties": [
                     "query": ["type": "string", "description": "A distinctive substring of the existing assignment's title."] as [String: Any],
                     "new_title": ["type": "string", "description": "New title, if renaming."] as [String: Any],
                     "new_due_date": ["type": "string", "description": "New due date, exact yyyy-MM-dd format."] as [String: Any],
+                    "new_due_time": ["type": "string", "description": "New exact time of day in 24-hour HH:mm format. Can be set alone (e.g. \"move it to 5pm\") without repeating new_due_date — it re-anchors on the existing due day."] as [String: Any],
                     "mark_done": ["type": "boolean", "description": "Set true/false to mark done or not done."] as [String: Any],
                 ] as [String: Any],
                 "required": ["query"],
+            ] as [String: Any],
+        ],
+        [
+            "name": "get_school_material",
+            "description": "Pull up whatever's been saved under a School subject — freeform notes, imported Google Docs/Notability material, and assignments attached to a class or a specific topic within it. Use this whenever the user asks to see, pull up, or recall material for a subject/topic.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "subject": ["type": "string", "description": "A class name (e.g. \"AP Chemistry\") or a specific topic name within a class (e.g. \"Recursion\"), or a distinctive substring of either."] as [String: Any],
+                    "query": ["type": "string", "description": "Optional extra filter — only return material whose title or content contains this."] as [String: Any],
+                ] as [String: Any],
+                "required": ["subject"],
             ] as [String: Any],
         ],
         [
@@ -626,28 +682,42 @@ actor AnthropicService: AIProviderService {
         ],
         [
             "name": "add_exam",
-            "description": "Add an exam/test with a date — shows up on Calendar and Stats. Resolve any relative date into an exact date first.",
+            "description": "Add an exam/test with a date — shows up on Calendar and Stats. Resolve any relative date into an exact date first. If it's for a specific class, always pass `class` too — that's what makes it also show up on that class's page in School, not just Calendar.",
             "input_schema": [
                 "type": "object",
                 "properties": [
                     "name": ["type": "string", "description": "Exam name, e.g. \"AP Chemistry\" or \"March SAT\"."] as [String: Any],
                     "exam_date": ["type": "string", "description": "Exact date in yyyy-MM-dd format."] as [String: Any],
                     "category": ["type": "string", "enum": ["act", "marchExams", "apExams"], "description": "Which category this falls under."] as [String: Any],
+                    "class": ["type": "string", "description": "The school class this test is for, e.g. \"AP Chemistry\" — a distinctive substring of its name. Links the exam so it shows up on that class's page too."] as [String: Any],
                 ] as [String: Any],
                 "required": ["name", "exam_date"],
             ] as [String: Any],
         ],
         [
             "name": "edit_exam",
-            "description": "Edit an existing exam's name or date.",
+            "description": "Edit an existing exam's name, date, or which class it's linked to.",
             "input_schema": [
                 "type": "object",
                 "properties": [
                     "query": ["type": "string", "description": "A distinctive substring of the existing exam's name."] as [String: Any],
                     "new_name": ["type": "string", "description": "New name, if renaming."] as [String: Any],
                     "new_exam_date": ["type": "string", "description": "New date, exact yyyy-MM-dd format."] as [String: Any],
+                    "new_class": ["type": "string", "description": "The class to link this exam to, or an empty string to unlink it."] as [String: Any],
                 ] as [String: Any],
                 "required": ["query"],
+            ] as [String: Any],
+        ],
+        [
+            "name": "set_project_target_date",
+            "description": "Set (or clear) the date a whole project is meant to be done by — separate from any individual task's due date. This is what makes a project itself (e.g. a passion project or research project) show up on the Calendar. Resolve any relative date into an exact date first.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "project": ["type": "string", "description": "Project name, or a distinctive substring of it."] as [String: Any],
+                    "target_date": ["type": "string", "description": "Exact target completion date in yyyy-MM-dd format. Omit or pass an empty string to clear an existing target date."] as [String: Any],
+                ] as [String: Any],
+                "required": ["project"],
             ] as [String: Any],
         ],
         [
@@ -802,6 +872,20 @@ actor AnthropicService: AIProviderService {
                     "confirmed": ["type": "boolean", "description": "Only true after the user has explicitly confirmed."] as [String: Any],
                 ] as [String: Any],
                 "required": ["query"],
+            ] as [String: Any],
+        ],
+        [
+            "name": "run_dev_agent",
+            "description": "Run a real coding task through the Claude Code or Codex CLI, via the bridge the user runs on their Mac (Agents tab). Use this when the user asks you to actually write, fix, or run code in one of their project directories — not for questions you can just answer. If the bridge isn't connected yet, this tool returns instructions for setting it up in the Agents tab; relay those to the user rather than pretending the run happened.",
+            "input_schema": [
+                "type": "object",
+                "properties": [
+                    "agent": ["type": "string", "enum": ["claudeCode", "codex"], "description": "Which CLI to run — Claude Code or Codex."] as [String: Any],
+                    "prompt": ["type": "string", "description": "The task to hand to the coding agent."] as [String: Any],
+                    "cwd": ["type": "string", "description": "Absolute path to the project directory to run in. Omit to use the user's home directory."] as [String: Any],
+                    "full_auto": ["type": "boolean", "description": "True to let the agent edit files and run commands without per-step confirmation. Default false (read-only planning)."] as [String: Any],
+                ] as [String: Any],
+                "required": ["agent", "prompt"],
             ] as [String: Any],
         ],
     ]
