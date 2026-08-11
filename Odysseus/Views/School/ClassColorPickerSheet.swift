@@ -8,6 +8,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ClassColorPickerSheet: View {
     @Bindable var schoolClass: SchoolClass
