@@ -81,7 +81,14 @@ struct OdysseusApp: App {
     /// app down at launch. Recover by wiping just that store and starting
     /// fresh instead of crashing every time the schema moves.
     private static func makeContainer(schema: Schema) -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema)
+        // `.automatic` mirrors this store to the "iCloud.com.traderforge.Odysseus"
+        // CloudKit container (see Odysseus.entitlements /
+        // Odysseus-macOS.entitlements) so the same data shows up on every
+        // device signed into the same iCloud account — Mac, iPad, iPhone.
+        // Every write still lands on the local on-disk store first (so the
+        // app works fully offline); CloudKit sync happens opportunistically
+        // in the background whenever iCloud is reachable.
+        let configuration = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
